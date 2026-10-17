@@ -137,7 +137,7 @@ function cartaoItem(i, tenho, p, tipo) {
     ${visual}
     <strong>${esc(i.name)}</strong>
     <span class="raridade r-${i.rarity}">${RARIDADE[i.rarity] || ''}</span>
-    <span class="muted" style="font-size:.82rem">${meu ? (meu.expires_at ? `Válido até ${new Date(meu.expires_at).toLocaleDateString('pt-BR')}` : '✓ Desbloqueado') : '🔒 ' + esc(i.description)}</span>
+    <span class="muted" style="font-size:.82rem">${meu ? `✓ ${meu.expires_at ? `Válido até ${new Date(meu.expires_at).toLocaleDateString('pt-BR')}` : `Desbloqueado em ${new Date(meu.unlocked_at).toLocaleDateString('pt-BR')}`}<br><span class="como-ganhou">🎯 ${esc(i.description)}</span>` : '🔒 ' + esc(i.description)}</span>
     ${!meu && progresso.has(i.id) ? (() => { const g = progresso.get(i.id), pc = Math.min(100, Math.round(g.v / g.alvo * 100));
       return `<div class="barra-xp" style="width:100%;margin-top:4px" title="${pc}%"><div style="width:${pc}%"></div></div>
         <span class="muted" style="font-size:.75rem">${Math.floor(g.v).toLocaleString('pt-BR')}${g.pct ? '%' : ''} de ${g.alvo.toLocaleString('pt-BR')}${g.pct ? '%' : ''}</span>`; })() : ''}

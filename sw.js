@@ -1,7 +1,7 @@
 // Service worker do Control Critic: deixa o app instalável e abre mais rápido.
 // Arquivos do site: busca na rede e guarda cópia (funciona offline com a última versão).
 // Dados (Supabase, IGDB, funções) nunca são guardados em cache.
-const VERSAO = 'cc-v67';
+const VERSAO = 'cc-v68';
 const ESSENCIAIS = ['/', '/index.html', '/css/style.css', '/js/app.js', '/js/config.js', '/img/ControlHeader.png', '/img/Adelino.png', '/img/Control.png', '/img/perfilpadrao.png'];
 
 self.addEventListener('install', (e) => {

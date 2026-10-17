@@ -3313,6 +3313,39 @@ end $$;
 alter table public.cosmetics add column if not exists serie text;
 alter table public.cosmetics add column if not exists tier smallint;
 
+-- Mais metas (viram séries de 4 níveis abaixo)
+insert into public.cosmetics (id, kind, name, description, rarity, icon, sort, custom, style, regra) values
+  ('s_horas',      'badge', 'Viciado em Jogos',     'Tenha 1.000 horas jogadas', 'rara', '⏱️', 1600, false, null, '{"tipo":"horas_total","min":1000}'),
+  ('s_colecao',    'badge', 'Colecionador',         'Tenha 100 jogos na biblioteca', 'rara', '🗃️', 1601, false, null, '{"tipo":"jogos_total","min":100}'),
+  ('s_zerador',    'badge', 'Zerador',              'Zere 10 jogos de ação', 'rara', '🏁', 1602, false, null, '{"tipo":"zerados_categoria","categoria":"acao","min":10}'),
+  ('s_aventura',   'badge', 'Explorador',           'Jogue 200 horas de jogos de aventura', 'rara', '🧭', 1603, false, null, '{"tipo":"horas_categoria","categoria":"aventura","min":200}'),
+  ('s_estrategia', 'badge', 'Estrategista',         'Jogue 200 horas de jogos de estratégia', 'rara', '♟️', 1604, false, null, '{"tipo":"horas_categoria","categoria":"estrategia","min":200}'),
+  ('s_indie',      'badge', 'Alma Indie',           'Tenha 20 jogos indie na biblioteca', 'rara', '🎨', 1605, false, null, '{"tipo":"jogos_categoria","categoria":"indies","min":20}'),
+  ('s_simulacao',  'badge', 'Simulador',            'Jogue 150 horas de jogos de simulação', 'rara', '🚜', 1606, false, null, '{"tipo":"horas_categoria","categoria":"simulacao","min":150}'),
+  ('s_esportes',   'badge', 'Craque',               'Jogue 150 horas de jogos de esportes', 'rara', '🏆', 1607, false, null, '{"tipo":"horas_categoria","categoria":"esportes","min":150}'),
+  ('s_rpg_horas',  'badge', 'Mestre de RPG',        'Jogue 300 horas de RPG', 'rara', '🧙', 1608, false, null, '{"tipo":"horas_categoria","categoria":"rpg","min":300}'),
+  ('s_terror_z',   'badge', 'Não Tenho Medo',       'Zere 5 jogos de terror', 'rara', '🕯️', 1609, false, null, '{"tipo":"zerados_categoria","categoria":"terror","min":5}'),
+  ('s_re_pl',      'badge', 'Mestre do Inventário', 'Tenha 50% das conquistas de algum Resident Evil na Steam', 'rara', '🌿', 1611, false, null, '{"tipo":"conquistas_serie","padrao":"resident evil","pct":50}'),
+  ('s_halo',       'badge', 'Spartan',              'Jogue 100 horas de Halo (somando a série)', 'rara', '🪖', 1612, false, null, '{"tipo":"horas_serie","padrao":"halo","min":100}'),
+  ('s_ac',         'badge', 'Nada é Verdade',       'Jogue 100 horas de Assassin''s Creed (somando a série)', 'rara', '🦅', 1613, false, null, '{"tipo":"horas_serie","padrao":"assassin","min":100}'),
+  ('s_fifa',       'badge', 'Camisa 10',            'Jogue 200 horas de EA Sports FC', 'rara', '⚽', 1614, false, null, '{"tipo":"horas_serie","padrao":"ea sports fc","min":200}'),
+  ('s_lol',        'badge', 'Invocador',            'Jogue 300 horas de League of Legends', 'rara', '🧿', 1615, false, null, '{"tipo":"horas_serie","padrao":"league of legends","min":300}'),
+  ('s_valorant',   'badge', 'Agente',               'Jogue 200 horas de Valorant', 'rara', '🎯', 1616, false, null, '{"tipo":"horas_serie","padrao":"valorant","min":200}'),
+  ('s_fortnite',   'badge', 'Vitória Royale',       'Jogue 200 horas de Fortnite', 'rara', '🪂', 1617, false, null, '{"tipo":"horas_serie","padrao":"fortnite","min":200}'),
+  ('s_pubg',       'badge', 'Galinha Assada',       'Jogue 200 horas de PUBG', 'rara', '🍗', 1618, false, null, '{"tipo":"horas_serie","padrao":"pubg","min":200}'),
+  ('s_r6',         'badge', 'Operador',             'Jogue 200 horas de Rainbow Six', 'rara', '🛡️', 1619, false, null, '{"tipo":"horas_serie","padrao":"rainbow six","min":200}'),
+  ('s_ets',        'badge', 'Caminhoneiro',         'Jogue 100 horas de Euro/American Truck Simulator', 'rara', '🚚', 1620, false, null, '{"tipo":"horas_serie","padrao":"truck simulator","min":100}'),
+  ('s_forza',      'badge', 'Piloto',               'Jogue 100 horas de Forza (somando a série)', 'rara', '🏎️', 1621, false, null, '{"tipo":"horas_serie","padrao":"forza","min":100}'),
+  ('s_warframe',   'badge', 'Tenno',                'Jogue 300 horas de Warframe', 'rara', '🥷', 1622, false, null, '{"tipo":"horas_serie","padrao":"warframe","min":300}'),
+  ('s_sims',       'badge', 'Sul Sul',              'Jogue 200 horas de The Sims', 'rara', '💎', 1623, false, null, '{"tipo":"horas_serie","padrao":"sims","min":200}'),
+  ('s_metal_gear', 'badge', 'Kept You Waiting',     'Jogue 60 horas de Metal Gear (somando a série)', 'rara', '📦', 1624, false, null, '{"tipo":"horas_serie","padrao":"metal gear","min":60}'),
+  ('s_borderlands','badge', 'Caçador da Arca',      'Jogue 100 horas de Borderlands', 'rara', '🔫', 1625, false, null, '{"tipo":"horas_serie","padrao":"borderlands","min":100}'),
+  ('s_nms',        'badge', 'Viajante',             'Jogue 100 horas de No Man''s Sky', 'rara', '🪐', 1626, false, null, '{"tipo":"horas_serie","padrao":"no man","min":100}'),
+  ('s_ark',        'badge', 'Domador de Dinos',     'Jogue 200 horas de ARK', 'rara', '🦖', 1627, false, null, '{"tipo":"horas_serie","padrao":"ark:","min":200}'),
+  ('s_l4d',        'badge', 'Sobrevivente Zumbi',   'Jogue 100 horas de Left 4 Dead', 'rara', '🧟', 1628, false, null, '{"tipo":"horas_serie","padrao":"left 4 dead","min":100}'),
+  ('s_tf2',        'badge', 'Mercenário',           'Jogue 200 horas de Team Fortress 2', 'rara', '🎩', 1629, false, null, '{"tipo":"horas_serie","padrao":"team fortress","min":200}')
+on conflict (id) do nothing;
+
 do $$
 declare c record; t int; mult numeric[] := array[0.25, 1, 2.5, 5]; pcts int[] := array[25, 50, 75, 100];
   rar text[] := array['comum','rara','epica','lendaria']; rom text[] := array['I','II','III','IV'];

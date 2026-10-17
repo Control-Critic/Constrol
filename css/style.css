@@ -571,3 +571,4 @@ iframe.spotify { width: 100%; border: 0; border-radius: 12px; }
 .niveis-selo .nv.ok{opacity:1;text-shadow:0 0 6px currentColor}
 .vitrine .selo-r{border:1px solid currentColor}
 .vitrine .selo-r.r-lendaria{box-shadow:0 0 10px #ffb30066}
+.como-ganhou{display:inline-block;margin-top:3px;font-size:.78rem;color:var(--texto);opacity:.85}
