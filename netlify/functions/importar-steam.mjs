@@ -85,10 +85,11 @@ export default async (req) => {
     await api(`profiles?id=eq.${uid}`, { method: 'PATCH', body: { steam_id: sid } }).catch(() => {});
     await api(`profiles?id=eq.${uid}&steam_profile=is.null`, { method: 'PATCH', body: { steam_profile: `https://steamcommunity.com/profiles/${sid}` } }).catch(() => {});
 
-    const conquistas = await importarConquistas(sid, jogos, porAppid, uid, api).catch((e) => { console.error('conquistas:', e); return null; });
+    const conquistas = await importarConquistas(sid, jogos, porAppid, uid, api, { limite: 4 }).catch((e) => { console.error('conquistas:', e); return { erros: [String(e.message).slice(0, 160)] }; });
 
     return json(200, { importados: linhas.length, novos_no_catalogo: novos, ignorados: jogos.length - linhas.length, conquistas: conquistas?.total ?? null,
-      conquistas_proximo: conquistas?.proximo ?? null, conquistas_jogos: conquistas?.jogos ?? 0 });
+      conquistas_proximo: conquistas?.proximo ?? null, conquistas_jogos: conquistas?.jogos ?? 0,
+      conquistas_info: conquistas ? { comConquistas: conquistas.comConquistas, gravados: conquistas.gravados, erros: conquistas.erros } : null });
   } catch (e) {
     console.error(e);
     return json(e.status || 502, { erro: e.status ? e.message : 'Falha ao falar com a Steam. Tente de novo em instantes.' });

@@ -22,7 +22,7 @@ export default async (req) => {
     const porAppid = new Map();
     for (let i = 0; i < jogos.length; i += 150)
       for (const g of await api(`games?select=id,steam_appid&steam_appid=in.(${jogos.slice(i, i + 150).map((g) => g.appid).join(',')})`)) porAppid.set(g.steam_appid, g.id);
-    return json(200, await importarConquistas(sid, jogos, porAppid, uid, api, { offset: Math.max(0, Number(offset) || 0), limite: 12 }));
+    return json(200, await importarConquistas(sid, jogos, porAppid, uid, api, { offset: Math.max(0, Number(offset) || 0), limite: 8 }));
   } catch (e) {
     console.error(e);
     return json(502, { erro: 'Falha ao falar com a Steam. Tente de novo em instantes.' });
