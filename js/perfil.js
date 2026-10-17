@@ -550,17 +550,21 @@ async function importarSteam(p) {
     if (!r.ok) throw new Error(d.erro || 'Não foi possível importar.');
     // Continua lendo as conquistas de todos os jogos jogados, de 12 em 12, mostrando o progresso
     let total = d.conquistas, off = d.conquistas_proximo;
+    const diag = { lidos: 0, com: d.conquistas_info?.comConquistas || 0, gravados: d.conquistas_info?.gravados || 0, erros: [...(d.conquistas_info?.erros || [])] };
     while (off != null) {
       bt.textContent = `🏆 Lendo conquistas... ${off} de ${d.conquistas_jogos} jogos`;
       const r2 = await fetch('/.netlify/functions/conquistas-steam', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, apikey: SUPABASE_ANON_KEY }, body: JSON.stringify({ offset: off }) });
       const d2 = await r2.json().catch(() => ({}));
-      if (!r2.ok) break;   // o que já foi lido fica salvo; o robô semanal completa o resto
+      if (!r2.ok) { diag.erros.push(d2.erro || `HTTP ${r2.status}`); break; }   // o que já foi lido fica salvo; o robô semanal completa o resto
       total = d2.total; off = d2.proximo;
+      diag.com += d2.comConquistas || 0; diag.gravados += d2.gravados || 0; diag.erros.push(...(d2.erros || []));
     }
     alert(`Importação concluída!\n\n${d.importados} jogo(s) adicionados ou atualizados na sua biblioteca` +
       (d.novos_no_catalogo ? `\n${d.novos_no_catalogo} jogo(s) novos entraram no catálogo do site` : '') +
       (d.ignorados ? `\n${d.ignorados} item(ns) ignorados (ferramentas, softwares etc.)` : '') +
-      (total ? `\n🏆 ${total} conquistas da Steam em ${d.conquistas_jogos} jogos` : ''));
+      (total ? `\n🏆 ${total} conquistas da Steam em ${d.conquistas_jogos} jogos` : '') +
+      `\n\nConquistas: ${diag.com} jogo(s) com conquistas lidos, ${diag.gravados} gravado(s)` +
+      (diag.erros.length ? `\n⚠️ Problemas (mande um print para a equipe): ${[...new Set(diag.erros)].slice(0, 3).join(' | ')}` : ''));
     location.reload();
   } catch (e) { falha(e); bt.disabled = false; bt.textContent = '🖥️ Importar da Steam'; }
 }
