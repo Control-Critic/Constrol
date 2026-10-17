@@ -27,8 +27,10 @@ test('IGDB: converte jogo com lojas em links brasileiros, ID da Steam, trailer e
 
 test('IGDB: terror vence ação; jogo só de celular é Mobile', () => {
   assert.equal(categoria({ genres: [{ name: 'Shooter' }], themes: [{ name: 'Horror' }] }, ['PC']), 'fps'); // Half-Life, BioShock
-  assert.equal(categoria({ genres: [{ name: 'Shooter' }], themes: [{ name: 'Horror' }, { name: 'Survival' }] }, ['PC']), 'terror'); // Resident Evil
-  assert.equal(categoria({ genres: [{ name: 'Adventure' }], themes: [{ name: 'Horror' }] }, ['PC']), 'terror');
+  assert.equal(categoria({ genres: [{ name: 'Shooter' }], themes: [{ name: 'Horror' }, { name: 'Survival' }], keywords: [{ name: 'Survival Horror' }] }, ['PC']), 'terror'); // Resident Evil
+  assert.equal(categoria({ genres: [{ name: 'Adventure' }], themes: [{ name: 'Horror' }, { name: 'Survival' }] }, ['PC']), 'terror'); // sem palavras-chave: terror + sobrevivência
+  assert.equal(categoria({ genres: [{ name: 'Adventure' }], themes: [{ name: 'Horror' }], keywords: [{ name: 'superhero' }] }, ['PC']), 'aventura'); // Batman: só clima sombrio
+  assert.equal(categoria({ genres: [{ name: 'Adventure' }], themes: [{ name: 'Horror' }] }, ['PC']), 'aventura');
   assert.equal(categoria({ genres: [{ name: 'Strategy' }] }, plataformas({ platforms: [{ abbreviation: 'iOS' }, { abbreviation: 'Android' }] })), 'mobile');
 });
 
