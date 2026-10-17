@@ -2,7 +2,7 @@
 // fundo escuro, amarelo #FFD33C, título em Anton maiúsculo, logo e o mascote Adelino.
 import { Resvg } from '@resvg/resvg-js';
 import sharp from 'sharp';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const aqui = (p) => fileURLToPath(new URL(p, import.meta.url));
@@ -11,6 +11,18 @@ const W = 1080, H = 1350, AMARELO = '#FFD33C', PRETO = '#0B0B0D';
 const b64 = (buf, tipo = 'image/png') => `data:${tipo};base64,${Buffer.from(buf).toString('base64')}`;
 const LOGO = b64(readFileSync(aqui('../../img/ControlHeader.png')));
 const MASCOTE = b64(readFileSync(aqui('../../img/Adelino.png')));
+// Skins do Adelino: img/adelino/<tema>.png (ou <tema>-2.png, <tema>-3.png... para variar). Sem skin do tema, usa o padrão.
+// Temas: categorias do site (terror, rpg, fps, luta, esportes...), meme, enquete, promocao, urgente, resumo, noticia
+const PASTA_SKINS = aqui('../../img/adelino/');
+let skins = [];
+try { skins = readdirSync(PASTA_SKINS).filter((f) => /\.png$/i.test(f)); } catch { /* sem pasta: só o padrão */ }
+export function mascote(...temas) {
+  for (const t of temas.filter(Boolean)) {
+    const op = skins.filter((f) => new RegExp(`^${String(t).toLowerCase().replace(/[^a-z0-9]/g, '')}(-\\d+)?\\.png$`, 'i').test(f));
+    if (op.length) return b64(readFileSync(PASTA_SKINS + op[Math.floor(Math.random() * op.length)]));
+  }
+  return MASCOTE;
+}
 // Emojis não existem nas fontes da arte (viram quadrados): ficam só na legenda
 const semEmoji = (s) => String(s ?? '').replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, '').replace(/\s{2,}/g, ' ').trim();
 const esc = (s) => semEmoji(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
@@ -73,7 +85,7 @@ const etiqueta = (texto, cor = AMARELO, corTexto = PRETO) => {
 };
 
 // Notícia: imagem da notícia de fundo, título grande embaixo
-export async function arteNoticia({ titulo, fonte, data, capa, urgente = false, numero = null }) {
+export async function arteNoticia({ titulo, fonte, data, capa, urgente = false, numero = null, tema = null }) {
   const img = await fundo(capa);
   const { tam, linhas } = ajustarTitulo(titulo, W - 112, 5);
   const alturaTitulo = linhas.length * tam * 1.08;
@@ -83,7 +95,7 @@ export async function arteNoticia({ titulo, fonte, data, capa, urgente = false, 
     <rect x="56" y="${yTopo - 46}" width="120" height="10" fill="${AMARELO}"/>
     ${linhas.map((l, i) => `<text x="56" y="${yTopo + tam * (i + 0.9) * 1.08}" font-family="Anton" font-size="${tam}" fill="#FFFFFF">${esc(l)}</text>`).join('')}
     <text x="56" y="${H - 96}" font-family="Inter" font-size="30" font-weight="600" fill="${AMARELO}">${esc([fonte, data].filter(Boolean).join('  ·  '))}</text>
-    <image href="${MASCOTE}" x="${W - 190}" y="${H - 250}" width="150" height="150" preserveAspectRatio="xMidYMid meet"/>`;
+    <image href="${mascote(urgente && 'urgente', tema, 'noticia')}" x="${W - 190}" y="${H - 250}" width="150" height="150" preserveAspectRatio="xMidYMid meet"/>`;
   return renderizar(base(conteudo, img));
 }
 
@@ -106,12 +118,12 @@ export async function arteResumo({ data, titulos }) {
     <text x="56" y="460" font-family="Anton" font-size="150" fill="#FFFFFF">DO DIA</text>
     ${itens}
     <text x="56" y="${H - 96}" font-family="Inter" font-size="30" font-weight="600" fill="#c9c9d1">Arraste para o lado →</text>
-    <image href="${MASCOTE}" x="${W - 330}" y="140" width="290" height="290" preserveAspectRatio="xMidYMid meet"/>`;
+    <image href="${mascote('resumo')}" x="${W - 330}" y="140" width="290" height="290" preserveAspectRatio="xMidYMid meet"/>`;
   return renderizar(base(conteudo, null));
 }
 
 // Promoção do dia (quando não há notícia)
-export async function artePromo({ jogo, desconto, preco, loja, capa }) {
+export async function artePromo({ jogo, desconto, preco, loja, capa, tema = null }) {
   const img = await fundo(capa);
   const { tam, linhas } = ajustarTitulo(jogo, W - 112, 3, [96, 84, 72, 62]);
   const yTitulo = H - 330 - linhas.length * tam * 1.08;
@@ -122,7 +134,7 @@ export async function artePromo({ jogo, desconto, preco, loja, capa }) {
     ${linhas.map((l, i) => `<text x="56" y="${yTitulo + tam * (i + 0.9) * 1.08}" font-family="Anton" font-size="${tam}" fill="#FFFFFF">${esc(l)}</text>`).join('')}
     <text x="56" y="${H - 190}" font-family="Anton" font-size="64" fill="${AMARELO}">${esc(preco || '')}</text>
     <text x="56" y="${H - 110}" font-family="Inter" font-size="30" font-weight="600" fill="#c9c9d1">na ${esc(loja)}</text>
-    <image href="${MASCOTE}" x="${W - 190}" y="${H - 250}" width="150" height="150" preserveAspectRatio="xMidYMid meet"/>`;
+    <image href="${mascote('promocao', tema)}" x="${W - 190}" y="${H - 250}" width="150" height="150" preserveAspectRatio="xMidYMid meet"/>`;
   return renderizar(base(conteudo, img));
 }
 
@@ -137,12 +149,13 @@ export async function arteMeme({ imagem, autor }) {
     ${etiqueta('MEME')}
     <rect x="${x - 6}" y="${y - 6}" width="${info.width + 12}" height="${info.height + 12}" rx="14" fill="${AMARELO}"/>
     <image href="${b64(data, 'image/jpeg')}" x="${x}" y="${y}" width="${info.width}" height="${info.height}"/>
-    <text x="56" y="${H - 96}" font-family="Inter" font-size="32" font-weight="600" fill="${AMARELO}">por @${esc(autor)} na comunidade</text>`;
+    <text x="56" y="${H - 96}" font-family="Inter" font-size="32" font-weight="600" fill="${AMARELO}">por @${esc(autor)} na comunidade</text>
+    <image href="${mascote('meme')}" x="${W - 170}" y="${H - 230}" width="130" height="130" preserveAspectRatio="xMidYMid meet"/>`;
   return renderizar(base(conteudo, null));
 }
 
 // Enquete "Qual você prefere?": dois jogos lado a lado, resposta nos comentários
-export async function arteVersus({ a, b, categoria }) {
+export async function arteVersus({ a, b, categoria, tema = null }) {
   const [ia, ib] = await Promise.all([a.capa, b.capa].map(async (u) => {
     if (!u) return null;
     try {
@@ -164,6 +177,7 @@ export async function arteVersus({ a, b, categoria }) {
     ${lado(ia, a, 56, 'A')}${lado(ib, b, W - 516, 'B')}
     <circle cx="${W / 2}" cy="620" r="54" fill="${PRETO}" stroke="${AMARELO}" stroke-width="6"/>
     <text x="${W / 2}" y="642" text-anchor="middle" font-family="Anton" font-size="56" fill="${AMARELO}">VS</text>
-    <text x="${W / 2}" y="${H - 96}" text-anchor="middle" font-family="Inter" font-size="32" font-weight="600" fill="${AMARELO}">Responda nos comentários: A ou B?</text>`;
+    <text x="${W / 2}" y="${H - 96}" text-anchor="middle" font-family="Inter" font-size="32" font-weight="600" fill="${AMARELO}">Responda nos comentários: A ou B?</text>
+    <image href="${mascote(tema, 'enquete')}" x="${W / 2 - 75}" y="${H - 300}" width="150" height="150" preserveAspectRatio="xMidYMid meet"/>`;
   return renderizar(base(conteudo, null));
 }

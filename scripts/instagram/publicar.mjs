@@ -134,32 +134,32 @@ async function registrar(dados) {
 // ---------- Modos ----------
 async function diario() {
   const desde = new Date(Date.now() - 26 * 3600e3).toISOString();
-  const ns = (await api(`news?select=id,title,summary,body,source,cover_url,lang,created_at&published=eq.true&instagram_at=is.null&created_at=gte.${desde}&order=created_at.desc&limit=30`))
+  const ns = (await api(`news?select=id,title,summary,body,source,cover_url,lang,created_at,games(categories(slug))&published=eq.true&instagram_at=is.null&created_at=gte.${desde}&order=created_at.desc&limit=30`))
     .sort((a, b) => prioridade(b) - prioridade(a)).slice(0, 5);
   if (ns.length >= 2) {
     const imagens = [{ jpeg: await arteResumo({ data: hoje(), titulos: ns.map((n) => n.title) }), nome: 'resumo' }];
-    for (const [i, n] of ns.entries()) imagens.push({ jpeg: await arteNoticia({ titulo: n.title, fonte: n.source || 'Control Critic', data: dataCurta(n.created_at), capa: n.cover_url, numero: i + 1 }), nome: `noticia-${n.id}` });
+    for (const [i, n] of ns.entries()) imagens.push({ jpeg: await arteNoticia({ titulo: n.title, fonte: n.source || 'Control Critic', data: dataCurta(n.created_at), capa: n.cover_url, numero: i + 1, tema: n.games?.categories?.slug }), nome: `noticia-${n.id}` });
     const r = await publicar(imagens, legendaResumo(ns));
     if (!TESTE) { await marcar(ns, r); await registrar({ tipo: 'resumo', noticias: ns.length, url: r.url }); }
     return aviso(`Instagram: resumo do dia com ${ns.length} notícias ${TESTE ? 'gerado (teste)' : 'publicado'} ${r.url || ''}`);
   }
   if (ns.length === 1) {
     const n = ns[0];
-    const r = await publicar([{ jpeg: await arteNoticia({ titulo: n.title, fonte: n.source || 'Control Critic', data: dataCurta(n.created_at), capa: n.cover_url }), nome: `noticia-${n.id}` }], legendaNoticia(n, false));
+    const r = await publicar([{ jpeg: await arteNoticia({ titulo: n.title, fonte: n.source || 'Control Critic', data: dataCurta(n.created_at), capa: n.cover_url, tema: n.games?.categories?.slug }), nome: `noticia-${n.id}` }], legendaNoticia(n, false));
     if (!TESTE) { await marcar(ns, r); await registrar({ tipo: 'noticia', noticias: 1, url: r.url }); }
     return aviso(`Instagram: notícia do dia ${TESTE ? 'gerada (teste)' : 'publicada'} ${r.url || ''}`);
   }
   // Sem notícia nova: promoção do dia (para a página não ficar parada), sem repetir jogo da última semana
   const cfg = (await api('settings?key=eq.instagram_promos&select=value'))[0]?.value || {};
   const recentes = Object.entries(cfg).filter(([, d]) => Date.now() - new Date(d) < 7 * 864e5).map(([id]) => Number(id));
-  const deals = await api('deals?select=game_id,discount_pct,price_cents,store,games(title,cover_url)&discount_pct=gte.40&order=discount_pct.desc&limit=30');
+  const deals = await api('deals?select=game_id,discount_pct,price_cents,store,games(title,cover_url,categories(slug))&discount_pct=gte.40&order=discount_pct.desc&limit=30');
   const d = deals.find((x) => x.games && !recentes.includes(x.game_id));
   if (!d) return aviso('Instagram: nada novo para publicar hoje.');
   const preco = d.price_cents != null ? (d.price_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
   const loja = { steam: 'Steam', playstation: 'PlayStation Store', xbox: 'Xbox Store', nintendo: 'Nintendo eShop' }[d.store] || d.store;
   const legenda = [`💸 PROMOÇÃO DO DIA: ${d.games.title} com ${d.discount_pct}% de desconto${preco ? ` (${preco})` : ''} na ${loja}!`, '',
     '⏳ Corre que promoção acaba. Veja esta e outras ofertas no site.', `🔗 Link na bio (${SITE})`, '', '#promocao #jogosbaratos ' + TAGS].join('\n');
-  const r = await publicar([{ jpeg: await artePromo({ jogo: d.games.title, desconto: d.discount_pct, preco, loja, capa: d.games.cover_url }), nome: `promo-${d.game_id}` }], legenda);
+  const r = await publicar([{ jpeg: await artePromo({ jogo: d.games.title, desconto: d.discount_pct, preco, loja, capa: d.games.cover_url, tema: d.games.categories?.slug }), nome: `promo-${d.game_id}` }], legenda);
   if (!TESTE) {
     await api('settings?on_conflict=key', { method: 'POST', prefer: 'resolution=merge-duplicates', body: [{ key: 'instagram_promos', value: { ...Object.fromEntries(Object.entries(cfg).filter(([id]) => recentes.includes(Number(id)))), [d.game_id]: new Date().toISOString() } }] });
     await registrar({ tipo: 'promocao', url: r.url });
@@ -169,11 +169,11 @@ async function diario() {
 
 async function urgente() {
   const filtro = ID_NOTICIA ? `id=eq.${ID_NOTICIA}` : 'instagram_status=eq.urgente&instagram_at=is.null';
-  const ns = await api(`news?select=id,title,summary,body,source,cover_url,lang,created_at,published&${filtro}&order=created_at.asc&limit=3`);
+  const ns = await api(`news?select=id,title,summary,body,source,cover_url,lang,created_at,published,games(categories(slug))&${filtro}&order=created_at.asc&limit=3`);
   if (!ns.length) return aviso('Instagram: nenhuma notícia urgente pendente.');
   for (const n of ns) {
     try {
-      const r = await publicar([{ jpeg: await arteNoticia({ titulo: n.title, fonte: n.source || 'Control Critic', data: dataCurta(n.created_at), capa: n.cover_url, urgente: true }), nome: `urgente-${n.id}` }], legendaNoticia(n, true));
+      const r = await publicar([{ jpeg: await arteNoticia({ titulo: n.title, fonte: n.source || 'Control Critic', data: dataCurta(n.created_at), capa: n.cover_url, urgente: true, tema: n.games?.categories?.slug }), nome: `urgente-${n.id}` }], legendaNoticia(n, true));
       if (!TESTE) { await marcar([n], r); await registrar({ tipo: 'urgente', noticias: 1, url: r.url }); }
       aviso(`Instagram: notícia urgente ${TESTE ? 'gerada (teste)' : 'publicada'} (${n.title}) ${r.url || ''}`);
     } catch (e) {
@@ -199,7 +199,7 @@ async function entretenimento() {
   // Sem meme aprovado: enquete com dois jogos populares da mesma categoria, sem repetir pares
   const cfg = (await api('settings?key=eq.instagram_versus&select=value'))[0]?.value || { pares: [] };
   const usados = new Set(cfg.pares || []);
-  const jogos = await api('games?select=id,title,cover_url,category_id,categories(name)&cover_url=not.is.null&category_id=not.is.null&order=igdb_rating_count.desc.nullslast&limit=120');
+  const jogos = await api('games?select=id,title,cover_url,category_id,categories(name,slug)&cover_url=not.is.null&category_id=not.is.null&order=igdb_rating_count.desc.nullslast&limit=120');
   const porCat = {};
   for (const j of jogos) (porCat[j.category_id] ||= []).push(j);
   const pares = [];
@@ -213,7 +213,7 @@ async function entretenimento() {
   const legenda = [`🤔 QUAL VOCÊ PREFERE? ${p.a.title} ou ${p.b.title}?`, '',
     `🅰️ ${p.a.title}`, `🅱️ ${p.b.title}`, '', '💬 Responda nos comentários com A ou B e defenda sua escolha!',
     `⭐ Avalie os dois no site: link na bio (${SITE})`, '', '#enquete #qualvoceprefere #games #gamer #ControlCritic'].join('\n');
-  const r = await publicar([{ jpeg: await arteVersus({ a: { titulo: p.a.title, capa: p.a.cover_url }, b: { titulo: p.b.title, capa: p.b.cover_url }, categoria }), nome: `versus-${p.chave}` }], legenda);
+  const r = await publicar([{ jpeg: await arteVersus({ a: { titulo: p.a.title, capa: p.a.cover_url }, b: { titulo: p.b.title, capa: p.b.cover_url }, categoria, tema: p.a.categories?.slug }), nome: `versus-${p.chave}` }], legenda);
   if (!TESTE) {
     await api('settings?on_conflict=key', { method: 'POST', prefer: 'resolution=merge-duplicates', body: [{ key: 'instagram_versus', value: { pares: [...usados, p.chave].slice(-300) } }] });
     await registrar({ tipo: 'versus', url: r.url });

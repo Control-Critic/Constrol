@@ -6,6 +6,8 @@ O que ele faz (2 posts por dia):
 - **Dia sem notícia:** publica a **promoção do dia** (o maior desconto, sem repetir jogo na mesma semana), para a página não ficar parada.
 - **Notícia urgente:** no painel, em **Admin → Notícias**, clique em **📸 Postar agora**. O post sai em 1 a 2 minutos, com a etiqueta vermelha "URGENTE".
 
+O Adelino muda de skin conforme o tema do post (terror, RPG, meme, promoção...): veja `img/adelino/LEIA-ME.md`.
+
 As artes seguem a identidade do site: fundo escuro, amarelo, títulos em Anton, logo e o Adelino. As legendas levam emojis, fonte, "link na bio" e hashtags.
 
 Tempo de configuração: uns 30 minutos, uma vez só.
