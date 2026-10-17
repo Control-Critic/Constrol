@@ -1,5 +1,5 @@
 // Interface da call (usada nas comunidades e na call entre amigos)
-import { sb, $, esc, falha, toast, statusCall } from './app.js';
+import { sb, $, esc, falha, toast, statusCall, aplicarVolume } from './app.js';
 import { SalaVoz } from './voz.js';
 import { prefsAudio, salvarPrefsAudio, processarMic, restricoesMic, definirSaida } from './audio-mic.js';
 
@@ -238,7 +238,7 @@ export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call',
       t.querySelectorAll('audio').forEach((a) => {
         if (a.dataset.saida !== String(prefs.saida)) { a.dataset.saida = String(prefs.saida); definirSaida(a, prefs.saida); }
         a.muted = cfg.mudo;
-        a.volume = (a.classList.contains('som-tela') ? cfg.tela : cfg.voz) / 100;
+        a.dataset.volBase = (a.classList.contains('som-tela') ? cfg.tela : cfg.voz) / 100; aplicarVolume(a);   // × volume geral do site
       });
       bt.textContent = cfg.mudo ? '🔇 Silenciado' : `${cfg.voz < 50 ? '🔉' : '🔊'} ${cfg.voz}%`;
       v.querySelector('[data-vol-n="voz"]').textContent = cfg.voz + '%';
