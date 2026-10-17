@@ -773,7 +773,7 @@ async function itens() {
     <div class="controles" style="margin:12px 0"><button class="btn sec" data-acao="lote" data-id="x">🎁 Dar vários itens</button><button class="btn sec" data-acao="metas" data-id="x" title="Confere as metas automáticas para todos e entrega a quem já cumpre">🎮 Aplicar metas agora</button><button class="btn" data-acao="novo" data-id="frame">+ Nova moldura</button>
       <button class="btn" data-acao="novo" data-id="banner">+ Novo banner</button><button class="btn" data-acao="novo" data-id="badge">+ Novo selo</button></div>
     ${tabela(['Prévia', 'Item', 'Como ganha', 'Pessoas', ''], cs.map((c) => `<tr>
-      <td>${previaItem(c)}</td>
+      <td><div class="previa-celula">${previaItem(c)}</div></td>
       <td><strong>${esc(c.name)}</strong>${c.active === false ? ' <span class="tag">desativado</span>' : ''}<br><span class="muted">${TIPO_ITEM[c.kind]} · <span class="r-${c.rarity}">${esc(c.rarity)}</span>${c.custom ? ' · criado no painel' : ''}</span><br><span class="muted" style="font-size:.82rem">${esc(c.description)}</span></td>
       <td>${esc(comoGanha(c))}</td><td>${qtd(c.id)}</td>
       <td class="controles"><button class="btn ${c.destaque ? '' : 'sec'} pequeno" data-acao="destacar" data-id="${esc(c.id)}" title="${c.destaque ? 'Tirar do destaque' : 'Mostrar em destaque no topo da página de Conquistas'}">${c.destaque ? '⭐' : '☆'}</button>

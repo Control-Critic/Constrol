@@ -554,3 +554,13 @@ iframe.spotify { width: 100%; border: 0; border-radius: 12px; }
 .item-opcao .item-check { position: absolute; top: 6px; right: 8px; width: 20px; height: 20px; border-radius: 50%; background: var(--amarelo, #ffd33c); color: #000; font-weight: 800; font-size: .75rem; display: none; place-items: center; }
 .item-opcao.marcado .item-check { display: grid; }
 .destaques-conq .item { border: 1px solid var(--amarelo, #ffd33c); }
+/* Tabelas do admin: a moldura animada "vazava" e fazia a barra de rolagem aparecer e sumir sem parar */
+.tabela-wrap { overflow-y: hidden; }
+.previa-celula { width: 130px; height: 130px; display: grid; place-items: center; overflow: hidden; contain: paint; }
+.previa-celula .amostra-banner { width: 120px !important; }
+.tabela-wrap td.controles { flex-wrap: wrap; gap: 6px; min-width: 210px; align-content: flex-start; }
+.vol-topo { position: relative; display: inline-flex; }
+.vol-pop { position: absolute; top: 120%; right: -40px; z-index: 60; background: #1b1b21; border: 1px solid #2f2f37; border-radius: 12px; padding: 10px 12px; display: flex; gap: 8px; align-items: center; box-shadow: 0 8px 24px #0009; }
+.vol-pop.hidden { display: none; }
+.vol-pop input { width: 140px; }
+.vol-pop output { font-size: .8rem; min-width: 36px; }

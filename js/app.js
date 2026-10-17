@@ -191,9 +191,12 @@ export async function montarLayout() {
       ${p.role !== 'user' ? '<a class="btn sec pequeno" href="admin.html">Admin</a>' : ''}
       <a href="conquistas.html" class="chama-topo" id="chama" title="Sequência de dias e conquistas">🔥 ${p.streak_current || 0}</a>
       <a href="amigos.html" class="sino" title="Amigos" aria-label="Amigos">👥<span class="badge online hidden" id="badge-online" title="Amigos online agora"></span></a>
+      <span class="vol-topo"><button class="sino" id="vol-bt" title="Volume do site" aria-label="Volume do site" style="background:none;border:0;cursor:pointer;color:inherit">🔊</button>
+        <span class="vol-pop hidden" id="vol-pop"><input type="range" id="vol-site" min="0" max="100" step="5" aria-label="Volume do site"><output id="vol-n"></output></span></span>
       <a href="notificacoes.html" class="sino" title="Notificações" aria-label="Notificações">🔔<span class="badge hidden" id="badge"></span></a>
       <a href="perfil.html" title="${esc(p.username)}" aria-label="Meu perfil">${avatarHtml(p)}</a>
       <button class="sino sair-topo" id="sair-topo" title="Sair da conta" aria-label="Sair da conta">🚪</button>`;
+    ligarVolumeTopo(topo);
     $('#sair-topo', topo).onclick = () => { if (confirm('Sair da sua conta?')) sair(); };
     contarNotificacoes(p.id);
     if (!p.onboarded && p.onboarded !== undefined) import('./boas-vindas.js').then((m) => m.boasVindas(p)).catch(() => {});
@@ -656,4 +659,29 @@ export async function enviarVideo(uid, prefixo, arq, limiteMb = 50) {
   const { error } = await sb.storage.from('media').upload(caminho, arq, { contentType: arq.type });
   if (error) throw new Error(`Não foi possível enviar o vídeo (${error.message}).`);
   return sb.storage.from('media').getPublicUrl(caminho).data.publicUrl;
+}
+
+
+// ---------- Volume geral do site (calls, vídeos dos posts e stories, sons) ----------
+// Multiplica o volume de cada som: na call, o volume individual de cada pessoa fica em data-vol-base.
+export const volumeSite = () => { try { const v = Number(localStorage.getItem('cc_volume')); return Number.isFinite(v) && localStorage.getItem('cc_volume') !== null ? v / 100 : 0.7; } catch { return 0.7; } };
+export function aplicarVolume(el) {
+  if (!el || !('volume' in el)) return;
+  const base = el.dataset.volBase != null ? Number(el.dataset.volBase) : 1;
+  try { el.volume = Math.max(0, Math.min(1, base * volumeSite())); } catch { /* ignora */ }
+}
+const aplicarEmTodos = () => document.querySelectorAll('audio, video').forEach(aplicarVolume);
+new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => {
+  if (n.nodeType !== 1) return;
+  if (n.matches?.('audio, video')) aplicarVolume(n);
+  n.querySelectorAll?.('audio, video').forEach(aplicarVolume);
+}))).observe(document.documentElement, { childList: true, subtree: true });
+function ligarVolumeTopo(topo) {
+  const bt = $('#vol-bt', topo), pop = $('#vol-pop', topo), r = $('#vol-site', topo), n = $('#vol-n', topo);
+  if (!bt) return;
+  const pintar = () => { const v = Math.round(volumeSite() * 100); r.value = v; n.textContent = v + '%'; bt.textContent = v === 0 ? '🔇' : v < 40 ? '🔉' : '🔊'; };
+  pintar();
+  bt.onclick = (e) => { e.stopPropagation(); pop.classList.toggle('hidden'); };
+  document.addEventListener('click', (e) => { if (!pop.contains(e.target) && e.target !== bt) pop.classList.add('hidden'); });
+  r.oninput = () => { try { localStorage.setItem('cc_volume', r.value); } catch { /* ignora */ } pintar(); aplicarEmTodos(); };
 }
