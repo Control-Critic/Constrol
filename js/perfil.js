@@ -33,7 +33,7 @@ async function carregar(p, meu, u) {
     meu ? sb.rpc('recommend_games', { lim: 8 }).select(COLUNAS_CARD) : Promise.resolve({ data: null }),
   ]);
   const [{ data: selos }, { data: bib }, { count: seguidores }, { count: seguindo }, { data: sigo }] = await Promise.all([
-    sb.from('user_cosmetics').select('cosmetic_id, cosmetics(name,icon,kind,rarity,sort)').eq('user_id', p.id),
+    sb.from('user_cosmetics').select('cosmetic_id, cosmetics(name,icon,kind,rarity,sort,serie,tier,description)').eq('user_id', p.id),
     sb.from('user_games').select('*, games(id,slug,title,cover_url,avg_rating,reviews_count, deals(discount_pct,price_cents,store))').eq('user_id', p.id).order('updated_at', { ascending: false }).limit(2000),
     sb.from('follows').select('follower_id', { count: 'exact', head: true }).eq('followed_id', p.id),
     sb.from('follows').select('followed_id', { count: 'exact', head: true }).eq('follower_id', p.id),
@@ -114,9 +114,11 @@ async function carregar(p, meu, u) {
           ${p.bio ? `<p class="quebra" style="margin-top:6px">${esc(p.bio)}</p>` : meu ? '<p class="muted" style="margin-top:6px">Adicione uma bio contando o que você joga.</p>' : ''}
           <span id="status-agora"></span> <span id="steam-agora"></span>
           ${contas ? `<div class="contas-jogo">${contas}</div>` : ''}
-          ${(() => { const s = (selos || []).filter((x) => x.cosmetics?.kind === 'badge').sort((a, b) => a.cosmetics.sort - b.cosmetics.sort);
+          ${(() => { const topo = new Map(); // só o nível mais alto de cada série
+            for (const x of (selos || []).filter((y) => y.cosmetics?.kind === 'badge')) { const k = x.cosmetics.serie || x.cosmetic_id; if (!topo.has(k) || (x.cosmetics.tier || 0) > (topo.get(k).cosmetics.tier || 0)) topo.set(k, x); }
+            const s = [...topo.values()].sort((a, b) => a.cosmetics.sort - b.cosmetics.sort);
             return s.length || p.streak_current ? `<div class="vitrine">${p.streak_current ? `<span title="Dias seguidos">🔥 ${p.streak_current} dias</span>` : ''}
-              ${s.slice(-6).reverse().map((x) => `<span title="${esc(x.cosmetics.name)}">${esc(x.cosmetics.icon || '🏅')} ${esc(x.cosmetics.name)}</span>`).join('')}
+              ${s.slice(-6).reverse().map((x) => `<span class="${x.cosmetics.serie ? 'selo-r r-' + x.cosmetics.rarity : ''}" title="${esc(x.cosmetics.name)}: ${esc(x.cosmetics.description || '')}">${esc(x.cosmetics.icon || '🏅')} ${esc(x.cosmetics.name)}</span>`).join('')}
               <a href="conquistas.html" style="font-size:.82rem;align-self:center">${meu ? 'Ver conquistas →' : ''}</a></div>` : ''; })()}
           <div class="barra-xp" style="margin-top:10px;max-width:360px" title="${p.xp} XP"><div style="width:${n.pct}%"></div></div>
           <p class="muted" style="font-size:.85rem">${p.xp} XP · próximo nível em ${n.prox} XP</p>

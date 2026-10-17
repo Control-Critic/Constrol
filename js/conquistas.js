@@ -49,7 +49,8 @@ async function carregar() {
 
     <section data-p="molduras"><div class="itens">${porTipo('frame').map((i) => cartaoItem(i, tenho, p, 'frame')).join('')}</div></section>
     <section data-p="banners" class="hidden"><div class="itens">${porTipo('banner').map((i) => cartaoItem(i, tenho, p, 'banner')).join('')}</div></section>
-    <section data-p="selos" class="hidden"><div class="itens">${porTipo('badge').map((i) => cartaoItem(i, tenho, p, 'badge')).join('')}</div></section>
+    <section data-p="selos" class="hidden"><p class="muted" style="margin-bottom:10px">Selos com ◆ sobem de nível: I Comum → II Rara → III Épica → IV Lendária. Continue jogando para evoluir.</p>
+      <div class="itens">${selosAgrupados(porTipo('badge'), tenho).map((i) => cartaoItem(i, tenho, p, 'badge')).join('')}</div></section>
 
     <section data-p="ranking" class="hidden">
       <p class="muted" style="margin-bottom:12px">Quem mais ganhou XP em ${esc(mes)}. No fim do mês, o <strong>top 10</strong> ganha a moldura
@@ -92,6 +93,37 @@ async function carregar() {
 }
 
 const progresso = new Map();
+const ROMANO = ['', 'I', 'II', 'III', 'IV'];
+// Uma carta por série: mostra o nível mais alto já liberado (ou o primeiro) e a meta do próximo
+const series = new Map();
+function selosAgrupados(lista, tenho) {
+  series.clear();
+  const soltos = [];
+  for (const i of lista) {
+    if (!i.serie) { soltos.push(i); continue; }
+    if (!series.has(i.serie)) series.set(i.serie, []);
+    series.get(i.serie).push(i);
+  }
+  const cartas = [...soltos];
+  for (const niveis of series.values()) {
+    niveis.sort((a, b) => a.tier - b.tier);
+    const feitos = niveis.filter((n) => tenho.has(n.id));
+    cartas.push(feitos.at(-1) || niveis[0]);
+  }
+  return cartas.sort((a, b) => a.sort - b.sort || (a.tier || 0) - (b.tier || 0));
+}
+function trilhaNiveis(i, tenho) {
+  const niveis = series.get(i.serie);
+  if (!niveis || niveis.length < 2) return '';
+  const prox = niveis.find((n) => !tenho.has(n.id));
+  const g = prox && progresso.get(prox.id);
+  const pc = g ? Math.min(100, Math.round(g.v / g.alvo * 100)) : 100;
+  return `<div class="niveis-selo">${niveis.map((n) => `<span class="nv r-${n.rarity} ${tenho.has(n.id) ? 'ok' : ''}" title="${esc(n.name)}: ${esc(n.description)}">◆</span>`).join('')}</div>
+    ${tenho.has(i.id) && prox ? `<span class="muted" style="font-size:.78rem">Próximo: <strong>${ROMANO[prox.tier]}</strong> · ${esc(prox.description)}</span>
+      ${g ? `<div class="barra-xp" style="width:100%;margin-top:4px"><div style="width:${pc}%"></div></div>
+      <span class="muted" style="font-size:.75rem">${Math.floor(g.v).toLocaleString('pt-BR')}${g.pct ? '%' : ''} de ${g.alvo.toLocaleString('pt-BR')}${g.pct ? '%' : ''}</span>` : ''}`
+    : tenho.has(i.id) ? '<span class="muted" style="font-size:.78rem">🏆 Nível máximo!</span>' : ''}`;
+}
 function cartaoItem(i, tenho, p, tipo) {
   const meu = tenho.get(i.id);
   const equipado = p && ((tipo === 'frame' && p.equipped_frame === i.id) || (tipo === 'banner' && p.equipped_banner === i.id));
@@ -105,10 +137,11 @@ function cartaoItem(i, tenho, p, tipo) {
     ${visual}
     <strong>${esc(i.name)}</strong>
     <span class="raridade r-${i.rarity}">${RARIDADE[i.rarity] || ''}</span>
-    <span class="muted" style="font-size:.82rem">${meu ? (meu.expires_at ? `Válido até ${new Date(meu.expires_at).toLocaleDateString('pt-BR')}` : '✓ Desbloqueado') : '🔒 ' + esc(i.description)}</span>
+    <span class="muted" style="font-size:.82rem">${meu ? `✓ ${meu.expires_at ? `Válido até ${new Date(meu.expires_at).toLocaleDateString('pt-BR')}` : `Desbloqueado em ${new Date(meu.unlocked_at).toLocaleDateString('pt-BR')}`}<br><span class="como-ganhou">🎯 ${esc(i.description)}</span>` : '🔒 ' + esc(i.description)}</span>
     ${!meu && progresso.has(i.id) ? (() => { const g = progresso.get(i.id), pc = Math.min(100, Math.round(g.v / g.alvo * 100));
       return `<div class="barra-xp" style="width:100%;margin-top:4px" title="${pc}%"><div style="width:${pc}%"></div></div>
         <span class="muted" style="font-size:.75rem">${Math.floor(g.v).toLocaleString('pt-BR')}${g.pct ? '%' : ''} de ${g.alvo.toLocaleString('pt-BR')}${g.pct ? '%' : ''}</span>`; })() : ''}
+    ${i.serie ? trilhaNiveis(i, tenho) : ''}
     ${acao}
   </div>`;
 }
