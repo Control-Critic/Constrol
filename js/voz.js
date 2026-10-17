@@ -527,18 +527,26 @@ export class SalaVoz {
   }
 
   #detectarFala(stream, el) {
-    if (!stream.getAudioTracks().length || el.dataset.analisando) return;
+    if (el.dataset.analisando) return;
     el.dataset.analisando = '1';
     this.audioCtx ||= new AudioContext();
     const an = this.audioCtx.createAnalyser();
     an.fftSize = 512;
-    this.audioCtx.createMediaStreamSource(stream).connect(an);
     const buf = new Uint8Array(an.frequencyBinCount);
+    // A trilha do microfone é trocada (supressão de ruído, troca de aparelho):
+    // religa o analisador sempre que a trilha atual mudar.
+    let fonte = null, trilhaId = '';
     const loop = () => {
-      if (!el.isConnected) return;
-      an.getByteFrequencyData(buf);
-      const media = buf.reduce((a, b) => a + b, 0) / buf.length;
-      el.classList.toggle('falando', media > 18);
+      if (!el.isConnected) { fonte?.disconnect(); return; }
+      const t = stream.getAudioTracks()[0];
+      if ((t?.id || '') !== trilhaId) {
+        fonte?.disconnect(); fonte = null; trilhaId = t?.id || '';
+        if (t) { fonte = this.audioCtx.createMediaStreamSource(new MediaStream([t])); fonte.connect(an); }
+      }
+      if (this.audioCtx.state === 'suspended') this.audioCtx.resume().catch(() => {});
+      let media = 0;
+      if (fonte && t.enabled && !t.muted) { an.getByteFrequencyData(buf); media = buf.reduce((x, y) => x + y, 0) / buf.length; }
+      el.classList.toggle('falando', media > 12);
       requestAnimationFrame(loop);
     };
     loop();
