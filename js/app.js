@@ -192,7 +192,7 @@ export async function montarLayout() {
       <a href="conquistas.html" class="chama-topo" id="chama" title="Sequência de dias e conquistas">🔥 ${p.streak_current || 0}</a>
       <a href="amigos.html" class="sino" title="Amigos" aria-label="Amigos">👥<span class="badge online hidden" id="badge-online" title="Amigos online agora"></span></a>
       <span class="vol-topo"><button class="sino" id="vol-bt" title="Volume do site" aria-label="Volume do site" style="background:none;border:0;cursor:pointer;color:inherit">🔊</button>
-        <span class="vol-pop hidden" id="vol-pop"><input type="range" id="vol-site" min="0" max="100" step="5" aria-label="Volume do site"><output id="vol-n"></output></span></span>
+        <span class="vol-pop hidden" id="vol-pop"><input type="range" id="vol-site" min="0" max="100" step="5" aria-label="Volume do site"><output id="vol-n"></output><small class="vol-dica">Spotify: em 0% ele pausa e não toca sozinho. Para ajustar o volume dele, use o do aparelho.</small></span></span>
       <a href="notificacoes.html" class="sino" title="Notificações" aria-label="Notificações">🔔<span class="badge hidden" id="badge"></span></a>
       <a href="perfil.html" title="${esc(p.username)}" aria-label="Meu perfil">${avatarHtml(p)}</a>
       <button class="sino sair-topo" id="sair-topo" title="Sair da conta" aria-label="Sair da conta">🚪</button>`;
@@ -621,7 +621,7 @@ export const notaAtiva = (p) => p?.nota && p.nota_at && Date.now() - new Date(p.
 
 // ---------- Música tocando sozinha (como no Instagram), a menos que a pessoa tenha silenciado ----------
 // Usa a API oficial do player do Spotify. Preferência guardada no aparelho: cc_som = 'off' quando silenciou.
-export const somLigado = () => { try { return localStorage.getItem('cc_som') !== 'off'; } catch { return true; } };
+export const somLigado = () => { try { return localStorage.getItem('cc_som') !== 'off' && volumeSite() > 0; } catch { return true; } };
 export const definirSom = (on) => { try { localStorage.setItem('cc_som', on ? 'on' : 'off'); } catch { /* ignora */ } };
 let apiSpotify = null, tocandoAgora = null;
 function carregarApiSpotify() {
@@ -683,5 +683,5 @@ function ligarVolumeTopo(topo) {
   pintar();
   bt.onclick = (e) => { e.stopPropagation(); pop.classList.toggle('hidden'); };
   document.addEventListener('click', (e) => { if (!pop.contains(e.target) && e.target !== bt) pop.classList.add('hidden'); });
-  r.oninput = () => { try { localStorage.setItem('cc_volume', r.value); } catch { /* ignora */ } pintar(); aplicarEmTodos(); };
+  r.oninput = () => { try { localStorage.setItem('cc_volume', r.value); } catch { /* ignora */ } pintar(); aplicarEmTodos(); if (r.value === '0') pararMusica(); };
 }
