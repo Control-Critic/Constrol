@@ -566,3 +566,8 @@ iframe.spotify { width: 100%; border: 0; border-radius: 12px; }
 .vol-pop output { font-size: .8rem; min-width: 36px; }
 .vol-pop .vol-dica{display:block;width:100%;margin-top:6px;font-size:.72rem;opacity:.75;line-height:1.3}
 .vol-pop:not(.hidden){flex-wrap:wrap;max-width:230px}
+.niveis-selo{display:flex;gap:4px;justify-content:center;font-size:1rem}
+.niveis-selo .nv{opacity:.25}
+.niveis-selo .nv.ok{opacity:1;text-shadow:0 0 6px currentColor}
+.vitrine .selo-r{border:1px solid currentColor}
+.vitrine .selo-r.r-lendaria{box-shadow:0 0 10px #ffb30066}

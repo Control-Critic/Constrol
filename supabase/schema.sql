@@ -3203,7 +3203,8 @@ declare c record;
 begin
   if uid is null then return; end if;
   for c in select id, regra from cosmetics where regra is not null and active
-             and not exists (select 1 from user_cosmetics uc where uc.user_id = uid and uc.cosmetic_id = cosmetics.id) loop
+             and not exists (select 1 from user_cosmetics uc where uc.user_id = uid and uc.cosmetic_id = cosmetics.id)
+             order by tier desc nulls last loop
     if regra_valor(uid, c.regra) >= coalesce((c.regra->>'min')::numeric, (c.regra->>'pct')::numeric) then perform grant_cosmetic(uid, c.id); end if;
   end loop;
 exception when others then null;
@@ -3298,6 +3299,65 @@ on conflict (id) do nothing;
 -- Começam em destaque na página de Conquistas (dá para trocar em Admin → Itens → ⭐)
 update public.cosmetics set destaque = true where id in ('f_dmc','b_dmc','s_platina','f_10mil','f_re','f_zomboid') and not destaque
   and not exists (select 1 from public.cosmetics where destaque and id not in ('f_dmc','b_dmc','s_platina','f_10mil','f_re','f_zomboid'));
+
+do $$ declare r record; begin
+  for r in select distinct user_id from public.user_games loop perform public.check_regras(r.user_id); end loop;
+end $$;
+
+-- =====================================================================
+-- SELOS QUE SOBEM DE NÍVEL: cada meta de selo vira uma série de 4 níveis
+--   I Comum (25% da meta) · II Rara (a meta) · III Épica (2,5×) · IV Lendária (5×)
+--   Metas de % de conquistas: 25% · 50% · 75% · 100%
+-- No perfil aparece só o nível mais alto de cada série.
+-- =====================================================================
+alter table public.cosmetics add column if not exists serie text;
+alter table public.cosmetics add column if not exists tier smallint;
+
+do $$
+declare c record; t int; mult numeric[] := array[0.25, 1, 2.5, 5]; pcts int[] := array[25, 50, 75, 100];
+  rar text[] := array['comum','rara','epica','lendaria']; rom text[] := array['I','II','III','IV'];
+  r jsonb; base_tier int; alvo numeric; descr text;
+begin
+  for c in select * from public.cosmetics where kind = 'badge' and regra is not null and (serie is null or serie = id) loop
+    if c.serie is not null then base_tier := c.tier;
+    elsif c.regra ? 'pct' then base_tier := greatest(1, least(4, round((c.regra->>'pct')::numeric / 25)::int));
+    else base_tier := 2; end if;
+    if c.serie is null then
+      update public.cosmetics set serie = c.id, tier = base_tier, rarity = rar[base_tier], name = c.name || ' ' || rom[base_tier] where id = c.id;
+    end if;
+    for t in 1..4 loop
+      continue when t = base_tier;
+      if c.regra ? 'pct' then
+        alvo := pcts[t]; r := jsonb_set(c.regra, '{pct}', to_jsonb(alvo));
+        descr := 'Tenha ' || alvo || '% das conquistas de ' || case when coalesce(c.regra->>'padrao', '') = '' then 'algum jogo' else initcap(c.regra->>'padrao') end || ' na Steam';
+      else
+        alvo := greatest(1, round((c.regra->>'min')::numeric * mult[t]));
+        r := jsonb_set(c.regra, '{min}', to_jsonb(alvo));
+        descr := regexp_replace(c.description, '\d[\d.]*', replace(to_char(alvo, 'FM999,999,999'), ',', '.'), '');
+      end if;
+      insert into public.cosmetics (id, kind, name, description, rarity, icon, sort, custom, style, regra, serie, tier)
+      values (c.id || '_n' || t, 'badge', regexp_replace(c.name, ' (I|II|III|IV)$', '') || ' ' || rom[t], descr, rar[t], c.icon, c.sort, false, null, r, c.id, t)
+      on conflict (id) do update set name = excluded.name, description = excluded.description, regra = excluded.regra, icon = excluded.icon, sort = excluded.sort;
+    end loop;
+  end loop;
+end $$;
+
+-- Ao liberar um nível, os anteriores da série também são liberados (sem notificação extra)
+create or replace function public.serie_niveis_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare s text; t smallint;
+begin
+  select serie, tier into s, t from cosmetics where id = new.cosmetic_id;
+  if s is not null and t > 1 then
+    insert into user_cosmetics (user_id, cosmetic_id)
+      select new.user_id, id from cosmetics where serie = s and tier < t
+    on conflict do nothing;
+  end if;
+  return null;
+end $$;
+drop trigger if exists user_cosmetics_serie on public.user_cosmetics;
+create trigger user_cosmetics_serie after insert on public.user_cosmetics
+  for each row execute function public.serie_niveis_trg();
 
 do $$ declare r record; begin
   for r in select distinct user_id from public.user_games loop perform public.check_regras(r.user_id); end loop;
