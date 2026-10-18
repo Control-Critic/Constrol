@@ -2,9 +2,12 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
+  <!-- A 404 é servida em qualquer caminho (ex.: /a/b/c): base na raiz para os links relativos do menu funcionarem -->
+  <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Página não encontrada | Control Critic</title>
-  <meta name="description" content="Aqui, as novidades estão ao seu alcance!">
+  <meta name="description" content="A página que você procurou não existe no Control Critic.">
+  <meta name="robots" content="noindex, follow">
   <link rel="icon" href="/img/Control.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#0b0b0d">
@@ -13,10 +16,6 @@
 </head>
 <body>
   <main id="conteudo"></main>
-  <script type="module">
-    import { $, montarLayout } from '/js/app.js';
-    await montarLayout();
-    $('#conteudo').insertAdjacentHTML('beforeend', '<div class="vazio"><h1>Página não encontrada</h1><p><a class="btn" href="index.html">Voltar ao início</a></p></div>');
-  </script>
+  <script type="module" src="/js/404.js"></script>
 </body>
 </html>

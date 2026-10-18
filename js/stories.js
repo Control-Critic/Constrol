@@ -1,7 +1,7 @@
 // Stories (24 h), inspirados no Instagram: foto/print com legenda, enquete, caixinha de perguntas,
 // música do Spotify, "só melhores amigos" e destaques no perfil. Também mostra as Notas (status de 24 h).
 import { aoMudarOnline, estadoOnline } from './app.js';
-import { sb, $, esc, avatar, toast, falha, enviarImagem, spotifyId, spotifyPlayer, notaAtiva, srcCapa, playerSpotify, somLigado, definirSom, pararMusica, tocarSo, enviarVideo, destruirPlayer } from './app.js';
+import { sb, $, esc, urlSegura, avatar, toast, falha, enviarImagem, spotifyId, spotifyPlayer, notaAtiva, srcCapa, playerSpotify, somLigado, definirSom, pararMusica, tocarSo, enviarVideo, destruirPlayer } from './app.js';
 
 const COLS = 'id,user_id,image_url,video_url,caption,poll,question,musica,close_friends,highlight,created_at,expires_at';
 const tempo = (d) => { const m = Math.round((Date.now() - new Date(d)) / 6e4); return m < 60 ? `${m} min` : `${Math.round(m / 60)} h`; };
@@ -44,7 +44,7 @@ export async function barraStories(box, u) {
       b.classList.toggle('on', online.has(id)); b.classList.toggle('em-call', !!est.get(id)?.call);
     });
     const n = [...amigos].filter((id) => online.has(id)).length, chip = box.querySelector('.online-chip');
-    if (chip) { chip.classList.toggle('hidden', !n); chip.querySelector('.online-n').textContent = n; chip.title = `${n} amigo(s) online agora`; }
+    if (chip) { chip.classList.toggle('hidden', !n); chip.querySelector('.online-n').textContent = n; chip.title = `${n} ${n === 1 ? 'amigo online' : 'amigos online'} agora`; }
   });
 
   box.querySelectorAll('[data-dono]').forEach((b) => b.onclick = () => {
@@ -156,7 +156,7 @@ export function verStories(u, grupos, gi = 0, aoFechar) {
       <div class="story-topo"><img src="${avatar(g.p)}" alt=""><a href="perfil.html?u=${encodeURIComponent(g.p.username)}"><strong>${esc(g.p.username)}</strong></a>
         <span class="muted">${tempo(s.created_at)}</span>${s.close_friends ? '<span class="tag" style="background:#1db954;color:#000">💚 amigos</span>' : ''}
         <button type="button" class="story-x" aria-label="Fechar">✕</button></div>
-      <div class="story-img">${s.video_url ? `<video src="${esc(s.video_url)}" playsinline autoplay ${somLigado() && !s.musica ? '' : 'muted'}></video>` : `<img src="${esc(s.image_url)}" alt="">`}<button type="button" class="story-ant" aria-label="Anterior"></button><button type="button" class="story-prox" aria-label="Próximo"></button></div>
+      <div class="story-img">${s.video_url ? `<video src="${urlSegura(s.video_url)}" playsinline autoplay ${somLigado() && !s.musica ? '' : 'muted'}></video>` : `<img src="${urlSegura(s.image_url)}" alt="">`}<button type="button" class="story-ant" aria-label="Anterior"></button><button type="button" class="story-prox" aria-label="Próximo"></button></div>
       ${s.caption ? `<p class="story-leg">${esc(s.caption)}</p>` : ''}
       ${s.poll ? `<div class="story-poll" data-poll><strong>📊 ${esc(s.poll.pergunta)}</strong><div class="controles">
         <button type="button" class="btn sec" data-voto="a">${esc(s.poll.a)}</button><button type="button" class="btn sec" data-voto="b">${esc(s.poll.b)}</button></div></div>` : ''}
@@ -253,6 +253,6 @@ export async function destaquesPerfil(box, p, u) {
   for (const s of data || []) (pastas.get(s.highlight) || pastas.set(s.highlight, []).get(s.highlight)).push(s);
   if (!pastas.size) { box.innerHTML = ''; return; }
   box.innerHTML = `<div class="stories-barra destaques">${[...pastas].map(([nome, l]) => `<button type="button" class="story-bola destaque" data-pasta="${esc(nome)}">
-    ${l[l.length - 1].image_url ? `<img ${srcCapa(l[l.length - 1].image_url, 160)} alt="">` : `<video src="${esc(l[l.length - 1].video_url)}#t=0.5" muted preload="metadata" class="story-mini"></video>`}<span class="story-nome">${esc(nome)}</span></button>`).join('')}</div>`;
+    ${l[l.length - 1].image_url ? `<img ${srcCapa(l[l.length - 1].image_url, 160)} alt="">` : `<video src="${urlSegura(l[l.length - 1].video_url)}#t=0.5" muted preload="metadata" class="story-mini"></video>`}<span class="story-nome">${esc(nome)}</span></button>`).join('')}</div>`;
   box.querySelectorAll('[data-pasta]').forEach((b) => b.onclick = () => verStories(u, [{ p, lista: pastas.get(b.dataset.pasta) }], 0));
 }

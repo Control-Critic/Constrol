@@ -87,7 +87,7 @@ export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call',
     el('musica').classList.toggle('ligado', sala.musicaAtiva);
     el('musica').textContent = sala.musicaAtiva ? '🎵 Parar música' : '🎵 Tocar música';
     const outros = sala.participantes - 1;
-    el('info').textContent = outros ? `${sala.participantes} pessoas na call · ${sala.conectados} de ${outros} conectada(s)` : 'Você está na call. Aguardando outras pessoas...';
+    el('info').textContent = outros ? `${sala.participantes} pessoas na call · ${sala.conectados} de ${outros} ${outros === 1 ? 'conectada' : 'conectadas'}` : 'Você está na call. Aguardando outras pessoas...';
   };
   const avisar = (tipo) => {
     if (tipo === 'som-bloqueado') { el('som').classList.remove('hidden'); toast('O navegador bloqueou o som. Clique em "Ativar som".', true); return; }
