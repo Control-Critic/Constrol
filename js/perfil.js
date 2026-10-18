@@ -1,5 +1,5 @@
 import { SUPABASE_ANON_KEY } from './config.js';
-import { sb, $, esc, montarLayout, configurado, usuario, perfil, nivel, avatar, estrelas, data, cardJogo, toast, falha, param, urlSegura, denunciar, avatarHtml, sair, COLUNAS_CARD, aoVivo, seloAoVivo, estadoPush, ativarPush, desativarPush, testarPush, steamAgora, carrossel, enviarImagem, srcCapa, imagemAceitavel, spotifyId, spotifyPlayer, notaAtiva, aoMudarOnline, estadoOnline, playerSpotify, somLigado, definirSom, tocarSo, pararMusica } from './app.js';
+import { sb, $, esc, montarLayout, configurado, usuario, perfil, nivel, avatar, estrelas, data, cardJogo, toast, falha, param, urlSegura, plural, cssUrl, corSegura, denunciar, avatarHtml, sair, COLUNAS_CARD, aoVivo, seloAoVivo, estadoPush, ativarPush, desativarPush, testarPush, steamAgora, carrossel, enviarImagem, srcCapa, imagemAceitavel, spotifyId, spotifyPlayer, notaAtiva, aoMudarOnline, estadoOnline, playerSpotify, somLigado, definirSom, tocarSo, pararMusica } from './app.js';
 import { destaquesPerfil, editarNota, criarStory } from './stories.js';
 import { COLUNAS_POST, postHtml, ligarPosts, compositorHtml, ligarCompositor } from './posts.js';
 
@@ -81,7 +81,7 @@ async function carregar(p, meu, u) {
       <span style="flex:1"><strong>${esc(x.games.title)}</strong>${x.hours ? ` <span class="muted">· ${Number(x.hours).toLocaleString('pt-BR')} h</span>` : ''}</span>
       ${d ? `<span class="tag amarela">-${d.discount_pct}% ${d.price_cents != null ? reais(d.price_cents) : ''}</span>` : ''}</a>`;
   };
-  const banner = urlSegura(p.banner_url);
+  const banner = esc(cssUrl(p.banner_url));
   // Banner só de cor: "#cor" ou "#cor1,#cor2[,#cor3]" (degradê)
   const cores = /^#[0-9a-fA-F]{6}(,#[0-9a-fA-F]{6}){0,2}$/.test(p.banner_cor || '') ? p.banner_cor.split(',') : null;
   const corBanner = cores ? (cores.length > 1 ? `linear-gradient(135deg,${cores.join(',')})` : cores[0]) : null;
@@ -89,8 +89,8 @@ async function carregar(p, meu, u) {
     p.psn_id && `<span title="PlayStation Network">🎮 PSN: ${esc(p.psn_id)}</span>`,
     p.xbox_gamertag && `<span title="Xbox">🟩 Xbox: ${esc(p.xbox_gamertag)}</span>`,
     p.discord_user && `<span title="Discord">💬 Discord: ${esc(p.discord_user)}</span>`,
-    p.steam_profile && `<a href="${urlSegura(p.steam_profile)}" target="_blank" rel="noopener">🖥️ Steam</a>`,
-    p.twitch_user && `<a href="https://twitch.tv/${encodeURIComponent(p.twitch_user)}" target="_blank" rel="noopener" id="link-twitch">📺 Twitch</a>`,
+    p.steam_profile && `<a href="${urlSegura(p.steam_profile)}" target="_blank" rel="noopener noreferrer">🖥️ Steam</a>`,
+    p.twitch_user && `<a href="https://twitch.tv/${encodeURIComponent(p.twitch_user)}" target="_blank" rel="noopener noreferrer" id="link-twitch">📺 Twitch</a>`,
   ].filter(Boolean).join('');
 
   // Banner da loja de conquistas vira o fundo da página; a imagem enviada pela pessoa fica no topo do perfil
@@ -109,7 +109,7 @@ async function carregar(p, meu, u) {
           <h1 style="margin:0">${esc(p.username)}</h1>
           <p><span class="tag amarela">Nível ${n.lv} · ${n.titulo}</span>
             ${p.role === 'admin' ? '<span class="tag">🛡️ Administrador</span>' : p.role === 'moderator' ? '<span class="tag">🛡️ Moderador</span>' : ''}
-            ${(titulos || []).filter((t) => (p.titles || []).includes(t.id)).map((t) => `<span class="tag" style="background:${esc(t.color)};color:#000">${esc(t.icon || '')} ${esc(t.name)}</span>`).join(' ')}</p>
+            ${(titulos || []).filter((t) => (p.titles || []).includes(t.id)).map((t) => `<span class="tag" style="background:${corSegura(t.color)};color:#000">${esc(t.icon || '')} ${esc(t.name)}</span>`).join(' ')}</p>
           ${notaAtiva(p) ? `<p style="margin-top:6px"><span class="tag" style="font-size:.85rem">💭 ${esc(notaAtiva(p))}</span></p>` : ''}
           ${p.bio ? `<p class="quebra" style="margin-top:6px">${esc(p.bio)}</p>` : meu ? '<p class="muted" style="margin-top:6px">Adicione uma bio contando o que você joga.</p>' : ''}
           <span id="status-agora"></span> <span id="steam-agora"></span>
@@ -169,7 +169,7 @@ async function carregar(p, meu, u) {
     <h2>📋 Listas</h2>
     <div class="grade" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">
       ${(listas || []).map((l) => `<a class="cartao" href="lista.html?id=${l.id}" style="color:var(--texto);text-decoration:none">
-        <strong>${l.is_public ? '' : '🔒 '}${esc(l.title)}</strong><br><span class="muted">${l.list_items?.[0]?.count ?? 0} jogo(s)</span></a>`).join('')}
+        <strong>${l.is_public ? '' : '🔒 '}${esc(l.title)}</strong><br><span class="muted">${plural(l.list_items?.[0]?.count ?? 0, 'jogo')}</span></a>`).join('')}
       ${meu ? '<button class="cartao" id="nova-lista" style="cursor:pointer;color:var(--amarelo);font:inherit;font-weight:700">+ Nova lista</button>' : ''}
       ${!(listas || []).length && !meu ? '<p class="muted">Nenhuma lista pública.</p>' : ''}
     </div>
@@ -354,7 +354,7 @@ async function abrirEditor(p) {
     <div class="editor-imagens">
       <div>
         <label>Banner <span class="muted">(recomendado 1500×500; fotos grandes são reduzidas automaticamente)</span></label>
-        <label class="zona-upload banner" id="zona-banner" style="${p.banner_url ? `background-image:url('${urlSegura(p.banner_url)}')` : ''}">
+        <label class="zona-upload banner" id="zona-banner" style="${cssUrl(p.banner_url) ? `background-image:url('${esc(cssUrl(p.banner_url))}')` : ''}">
           <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-tipo="banner">
           <span class="dica">📷 Clique ou arraste uma imagem para o banner</span>
         </label>
@@ -365,7 +365,7 @@ async function abrirEditor(p) {
             <span class="muted" style="font-size:.8rem">1 cor = sólida; 2 ou 3 = degradê</span></div></div>
       </div>
       <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-        <label class="zona-upload foto" id="zona-foto" style="background-image:url('${avatar(p)}')">
+        <label class="zona-upload foto" id="zona-foto" style="background-image:url('${esc(cssUrl(p.avatar_url) || 'img/perfilpadrao.png')}')">
           <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-tipo="foto">
           <span class="dica">📷 Trocar</span>
         </label>
@@ -469,7 +469,7 @@ async function abrirEditor(p) {
   const previaCor = () => {
     const zona = $('#zona-banner'), cs = [...dlg.querySelectorAll('#cores-banner input[type=color]')].map((i) => i.value);
     if ($('#usar-cor').checked) zona.style.background = cs.length > 1 ? `linear-gradient(135deg,${cs.join(',')})` : cs[0];
-    else { zona.style.background = ''; if (p.banner_url) zona.style.backgroundImage = `url('${urlSegura(p.banner_url)}')`; }
+    else { zona.style.background = ''; if (cssUrl(p.banner_url)) zona.style.backgroundImage = `url(${JSON.stringify(cssUrl(p.banner_url))})`; }
   };
   $('#cores-banner').addEventListener('input', previaCor);
   $('#usar-cor').onchange = previaCor;
@@ -561,11 +561,11 @@ async function importarSteam(p) {
       total = d2.total; off = d2.proximo;
       diag.com += d2.comConquistas || 0; diag.gravados += d2.gravados || 0; diag.erros.push(...(d2.erros || []));
     }
-    alert(`Importação concluída!\n\n${d.importados} jogo(s) adicionados ou atualizados na sua biblioteca` +
-      (d.novos_no_catalogo ? `\n${d.novos_no_catalogo} jogo(s) novos entraram no catálogo do site` : '') +
-      (d.ignorados ? `\n${d.ignorados} item(ns) ignorados (ferramentas, softwares etc.)` : '') +
+    alert(`Importação concluída!\n\n${plural(d.importados, 'jogo adicionado ou atualizado', 'jogos adicionados ou atualizados')} na sua biblioteca` +
+      (d.novos_no_catalogo ? `\n${plural(d.novos_no_catalogo, 'jogo novo entrou', 'jogos novos entraram')} no catálogo do site` : '') +
+      (d.ignorados ? `\n${plural(d.ignorados, 'item ignorado', 'itens ignorados')} (ferramentas, softwares etc.)` : '') +
       (total ? `\n🏆 ${total} conquistas da Steam em ${d.conquistas_jogos} jogos` : '') +
-      `\n\nConquistas: ${diag.com} jogo(s) com conquistas lidos, ${diag.gravados} gravado(s)` +
+      `\n\nConquistas: ${plural(diag.com, 'jogo com conquistas lido', 'jogos com conquistas lidos')}, ${plural(diag.gravados, 'gravado')}` +
       (diag.erros.length ? `\n⚠️ Problemas (mande um print para a equipe): ${[...new Set(diag.erros)].slice(0, 3).join(' | ')}` : ''));
     location.reload();
   } catch (e) { falha(e); bt.disabled = false; bt.textContent = '🖥️ Importar da Steam'; }
