@@ -217,12 +217,16 @@ async function diario() {
 async function promocao() {
   const cfg = (await api('settings?key=eq.instagram_promos&select=value'))[0]?.value || {};
   const recentes = Object.entries(cfg).filter(([, d]) => Date.now() - new Date(d) < 7 * 864e5).map(([id]) => Number(id));
-  const deals = await api('deals?select=game_id,discount_pct,price_cents,store,games(title,cover_url,categories(slug))&discount_pct=gte.40&order=discount_pct.desc&limit=30');
-  const d = deals.find((x) => x.games && !recentes.includes(x.game_id));
+  // Jogos em destaque no site entram primeiro (a partir de 20% de desconto); depois, os maiores descontos (40%+)
+  const [destaques, deals] = await Promise.all([
+    api('deals?select=game_id,discount_pct,price_cents,store,games!inner(title,cover_url,featured,categories(slug))&games.featured=eq.true&discount_pct=gte.20&order=discount_pct.desc&limit=30'),
+    api('deals?select=game_id,discount_pct,price_cents,store,games(title,cover_url,featured,categories(slug))&discount_pct=gte.40&order=discount_pct.desc&limit=30'),
+  ]);
+  const d = [...destaques, ...deals].find((x) => x.games && !recentes.includes(x.game_id));
   if (!d) return false;
   const preco = d.price_cents != null ? (d.price_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
   const loja = { steam: 'Steam', playstation: 'PlayStation Store', xbox: 'Xbox Store', nintendo: 'Nintendo eShop' }[d.store] || d.store;
-  const legenda = [`💸 PROMOÇÃO DO DIA: ${d.games.title} com ${d.discount_pct}% de desconto${preco ? ` (${preco})` : ''} na ${loja}!`, '',
+  const legenda = [`💸 PROMOÇÃO DO DIA${d.games.featured ? ' ⭐ DESTAQUE' : ''}: ${d.games.title} com ${d.discount_pct}% de desconto${preco ? ` (${preco})` : ''} na ${loja}!`, '',
     '⏳ Corre que promoção acaba. Veja esta e outras ofertas no site.', `🔗 Link na bio (${SITE})`, '', '#promocao #jogosbaratos ' + TAGS].join('\n');
   const r = await publicar([{ jpeg: await artePromo({ jogo: d.games.title, desconto: d.discount_pct, preco, loja, capa: d.games.cover_url, tema: d.games.categories?.slug }), nome: `promo-${d.game_id}` }], legenda);
   if (!TESTE) {
@@ -267,11 +271,15 @@ async function entretenimento({ soEnquete = false } = {}) {
   // (pelo menos 2 categorias em comum e lançados em épocas próximas).
   const cfg = (await api('settings?key=eq.instagram_versus&select=value'))[0]?.value || { pares: [] };
   const usados = new Set(cfg.pares || []);
+  // Uma enquete por dia e nenhum jogo repetido em enquetes dos últimos 14 dias
+  const diaBR = (d) => new Date(d).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  if (cfg.ultima && diaBR(cfg.ultima) === diaBR(Date.now())) return aviso('Instagram: já teve enquete hoje; sem meme aprovado, nada a postar agora.');
+  const jogosRecentes = Object.fromEntries(Object.entries(cfg.jogos || {}).filter(([, d]) => Date.now() - new Date(d) < 14 * 864e5));
   const [jogos, cats] = await Promise.all([
     api('games?select=id,title,cover_url,category_id,category_ids,release_year,categories(name,slug)&cover_url=not.is.null&category_id=not.is.null&order=igdb_rating_count.desc.nullslast&limit=200'),
     api('categories?select=id,name,slug'),
   ]);
-  const p = escolherVersus(jogos, cats, usados);
+  const p = escolherVersus(jogos.filter((j) => !jogosRecentes[j.id]), cats, usados);
   if (!p) return aviso('Instagram: sem meme aprovado e sem enquete nova hoje.');
   const categoria = p.rotulo;
   const legenda = [`🤔 QUAL VOCÊ PREFERE? ${p.a.title} ou ${p.b.title}?`, '',
@@ -279,7 +287,8 @@ async function entretenimento({ soEnquete = false } = {}) {
     `⭐ Avalie os dois no site: link na bio (${SITE})`, '', '#enquete #qualvoceprefere #games #gamer #ControlCritic'].join('\n');
   const r = await publicar([{ jpeg: await arteVersus({ a: { titulo: p.a.title, capa: p.a.cover_url }, b: { titulo: p.b.title, capa: p.b.cover_url }, categoria, tema: p.tema || p.a.categories?.slug }), nome: `versus-${p.chave}` }], legenda);
   if (!TESTE) {
-    await api('settings?on_conflict=key', { method: 'POST', prefer: 'resolution=merge-duplicates', body: [{ key: 'instagram_versus', value: { pares: [...usados, p.chave].slice(-300) } }] });
+    await api('settings?on_conflict=key', { method: 'POST', prefer: 'resolution=merge-duplicates', body: [{ key: 'instagram_versus', value: { pares: [...usados, p.chave].slice(-300), ultima: new Date().toISOString(),
+      jogos: { ...jogosRecentes, [p.a.id]: new Date().toISOString(), [p.b.id]: new Date().toISOString() } } }] });
     await registrar({ tipo: 'versus', url: r.url });
   }
   aviso(`Instagram: enquete ${p.a.title} x ${p.b.title} ${TESTE ? 'gerada (teste)' : 'publicada'} ${r.url || ''}`);
