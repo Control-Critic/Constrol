@@ -332,6 +332,9 @@ async function carregar(p, meu, u) {
     try { await navigator.clipboard.writeText(link); toast('Link do perfil copiado!'); } catch { prompt('Copie o link do seu perfil:', link); }
   };
   $('#editar').onclick = () => abrirEditor(p);
+  // Atalhos do checklist da home: perfil.html#editar abre o editor; #steam leva à importação
+  if (location.hash === '#editar') abrirEditor(p);
+  else if (location.hash === '#steam') $('#importar-steam')?.scrollIntoView({ block: 'center' });
 
   $('#form-senha')?.addEventListener('submit', async (e) => {
     e.preventDefault();

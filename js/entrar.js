@@ -31,6 +31,8 @@ document.querySelectorAll('.aba').forEach((b) => b.onclick = () => {
   $('#enviar').textContent = modo === 'criar' ? 'Criar conta' : 'Entrar';
   $('#senha').autocomplete = modo === 'criar' ? 'new-password' : 'current-password';
 });
+// Link "Criar conta grátis" (entrar.html?modo=cadastro) já abre na aba de cadastro
+if (param('modo') === 'cadastro') document.querySelector('.aba[data-m="criar"]')?.click();
 
 $('#form').onsubmit = async (e) => {
   e.preventDefault();
