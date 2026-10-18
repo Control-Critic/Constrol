@@ -2,7 +2,7 @@
 // WebRTC em malha (cada participante conecta direto com os outros) e o
 // Supabase Realtime como "sinalização" (troca das ofertas/respostas).
 // Funciona bem para grupos pequenos (até ~6 pessoas).
-import { sb, esc } from './app.js';
+import { sb, esc, cabecalhosLogin } from './app.js';
 import { ICE_SERVERS } from './config.js';
 import { prefsAudio, salvarPrefsAudio, restricoesMic, processarMic, melhorarOpus } from './audio-mic.js';
 export { prefsAudio } from './audio-mic.js';
@@ -13,7 +13,7 @@ let iceCache = null;
 async function servidoresIce() {
   if (iceCache && iceCache.expira > Date.now()) return iceCache;
   try {
-    const r = await fetch('/.netlify/functions/turn');
+    const r = await fetch('/.netlify/functions/turn', { headers: await cabecalhosLogin() });
     if (r.ok) {
       const d = await r.json();
       if (d.iceServers?.length) {

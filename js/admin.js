@@ -1,6 +1,6 @@
 import { SUPABASE_ANON_KEY } from './config.js';
 import { avatarHtml, cssDoItem, cssMolduraImagem, aoMudarOnline, estadoOnline } from './app.js';
-import { sb, $, esc, montarLayout, configurado, exigirLogin, perfil, data, toast, falha, urlSegura } from './app.js';
+import { sb, $, esc, montarLayout, configurado, exigirLogin, perfil, data, toast, falha, urlSegura, cabecalhosLogin } from './app.js';
 
 await montarLayout();
 const main = $('#conteudo');
@@ -1033,7 +1033,7 @@ async function site() {
   $('#testar-turn').onclick = async () => {
     const box = $('#res-turn'); box.innerHTML = '<p class="muted">Testando (até 8 s por servidor)...</p>';
     let d;
-    try { const r = await fetch('/.netlify/functions/turn'); d = await r.json(); if (!r.ok) throw new Error(d.erro || r.status); }
+    try { const r = await fetch('/.netlify/functions/turn', { headers: await cabecalhosLogin() }); d = await r.json(); if (!r.ok) throw new Error(d.erro || r.status); }
     catch (e) { box.innerHTML = `<p class="aviso erro">A função de TURN falhou: ${esc(e.message)}. Confira as variáveis no Netlify.</p>`; return; }
     const testes = [];
     for (const [grupo, lista] of [['Próprio', d.primarios || []], ['Cloudflare (reserva)', d.reserva || (d.primarios ? [] : d.iceServers)]])

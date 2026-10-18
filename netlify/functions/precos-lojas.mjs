@@ -2,11 +2,15 @@
 //   GET /.netlify/functions/precos-lojas?appid=1091500   (jogo da Steam)  ou  ?titulo=Hollow%20Knight
 // Resposta: { atual: { loja, preco, desconto, url }, menor: { loja, preco, desconto, quando }, link } ou {} se não achar
 // Variável no Netlify: ITAD_API_KEY (crie grátis em isthereanydeal.com → Settings → API Keys)
+import { metodo, limitar, registrarErro } from '../../lib/http.mjs';
+
 const env = (k) => (process.env[k] || '').trim();
 const json = (status, corpo, cache = 'no-store') => new Response(JSON.stringify(corpo), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': cache } });
 const API = 'https://api.isthereanydeal.com';
 
 export default async (req) => {
+  const m = metodo(req, ['GET']); if (m) return m;
+  const lim = await limitar(req, { nome: 'precos', max: 40, segundos: 60 }); if (lim) return lim;
   if (!env('ITAD_API_KEY')) return json(200, {});   // sem chave: o site só mostra os links
   const q = new URL(req.url).searchParams;
   const appid = q.get('appid'), titulo = (q.get('titulo') || '').slice(0, 120);
@@ -26,5 +30,5 @@ export default async (req) => {
     };
     // Cache de 6 h na CDN do Netlify: poupa a cota da API e deixa a página rápida
     return json(200, out, 'public, max-age=1800, s-maxage=21600');
-  } catch { return json(200, {}); }
+  } catch (e) { registrarErro('precos-lojas', e); return json(200, {}); }
 };

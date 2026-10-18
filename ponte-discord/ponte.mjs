@@ -11,6 +11,7 @@
 //
 // Configuração por variáveis de ambiente (arquivo .env): veja .env.exemplo e o LEIA-ME.md.
 import { createClient } from '@supabase/supabase-js';
+import { createHash } from 'node:crypto';
 import wrtc from '@roamhq/wrtc';
 import { Readable } from 'node:stream';
 
@@ -91,7 +92,7 @@ const volume = (a) => { let s = 0; for (const x of a) s += x * x; return Math.ro
 async function servidoresIce() {
   const lista = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }];
   try {
-    const r = await fetch(`${CFG.site}/.netlify/functions/turn`, { signal: AbortSignal.timeout(10000) });
+    const r = await fetch(`${CFG.site}/.netlify/functions/turn`, { headers: { Authorization: `Bearer ponte.${createHash('sha256').update('turn:' + CFG.chaveSecreta).digest('hex')}` }, signal: AbortSignal.timeout(10000) });
     if (r.ok) { const d = await r.json(); if (d.iceServers?.length) { log('TURN do site obtido.'); return [...lista, ...d.iceServers]; } }
   } catch { /* segue só com STUN */ }
   log('⚠️ Sem TURN: pessoas em redes restritas (4G, CGNAT) podem não ouvir a ponte.');
