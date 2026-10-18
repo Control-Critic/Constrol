@@ -9,6 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { supabaseRest } from '../../lib/igdb.mjs';
+import { escolherVersus } from './versus.mjs';
 import { arteNoticia, arteResumo, artePromo, arteMeme, arteVersus, arteStory } from './arte.mjs';
 
 const gh = !!process.env.GITHUB_ACTIONS;
@@ -254,24 +255,22 @@ async function entretenimento() {
     if (!TESTE) { await api(`posts?id=eq.${m.id}`, { method: 'PATCH', body: { instagram_at: new Date().toISOString(), instagram_url: r.url } }); await registrar({ tipo: 'meme', url: r.url }); }
     return aviso(`Instagram: meme de @${autor} ${TESTE ? 'gerado (teste)' : 'publicado'} ${r.url || ''}`);
   }
-  // Sem meme aprovado: enquete com dois jogos populares da mesma categoria, sem repetir pares
+  // Sem meme aprovado: enquete "Qual você prefere?" com dois jogos que FAZEM SENTIDO juntos, sem repetir pares.
+  // Ordem de preferência: rivalidade clássica (lista abaixo) → dois jogos da mesma franquia → jogos parecidos
+  // (pelo menos 2 categorias em comum e lançados em épocas próximas).
   const cfg = (await api('settings?key=eq.instagram_versus&select=value'))[0]?.value || { pares: [] };
   const usados = new Set(cfg.pares || []);
-  const jogos = await api('games?select=id,title,cover_url,category_id,categories(name,slug)&cover_url=not.is.null&category_id=not.is.null&order=igdb_rating_count.desc.nullslast&limit=120');
-  const porCat = {};
-  for (const j of jogos) (porCat[j.category_id] ||= []).push(j);
-  const pares = [];
-  for (const lista of Object.values(porCat)) for (let i = 0; i < lista.length; i++) for (let k = i + 1; k < Math.min(lista.length, i + 6); k++) {
-    const chave = [lista[i].id, lista[k].id].sort((x, y) => x - y).join('-');
-    if (!usados.has(chave)) pares.push({ a: lista[i], b: lista[k], chave });
-  }
-  if (!pares.length) return aviso('Instagram: sem meme aprovado e sem enquete nova hoje.');
-  const p = pares[Math.floor(Math.random() * Math.min(pares.length, 25))];
-  const categoria = p.a.categories?.name;
+  const [jogos, cats] = await Promise.all([
+    api('games?select=id,title,cover_url,category_id,category_ids,release_year,categories(name,slug)&cover_url=not.is.null&category_id=not.is.null&order=igdb_rating_count.desc.nullslast&limit=200'),
+    api('categories?select=id,name,slug'),
+  ]);
+  const p = escolherVersus(jogos, cats, usados);
+  if (!p) return aviso('Instagram: sem meme aprovado e sem enquete nova hoje.');
+  const categoria = p.rotulo;
   const legenda = [`🤔 QUAL VOCÊ PREFERE? ${p.a.title} ou ${p.b.title}?`, '',
-    `🅰️ ${p.a.title}`, `🅱️ ${p.b.title}`, '', '💬 Responda nos comentários com A ou B e defenda sua escolha!',
+    `🅰️ ${p.a.title}`, `🅱️ ${p.b.title}`, '', `🔗 ${p.motivo}`, '', '💬 Responda nos comentários com A ou B e defenda sua escolha!',
     `⭐ Avalie os dois no site: link na bio (${SITE})`, '', '#enquete #qualvoceprefere #games #gamer #ControlCritic'].join('\n');
-  const r = await publicar([{ jpeg: await arteVersus({ a: { titulo: p.a.title, capa: p.a.cover_url }, b: { titulo: p.b.title, capa: p.b.cover_url }, categoria, tema: p.a.categories?.slug }), nome: `versus-${p.chave}` }], legenda);
+  const r = await publicar([{ jpeg: await arteVersus({ a: { titulo: p.a.title, capa: p.a.cover_url }, b: { titulo: p.b.title, capa: p.b.cover_url }, categoria, tema: p.tema || p.a.categories?.slug }), nome: `versus-${p.chave}` }], legenda);
   if (!TESTE) {
     await api('settings?on_conflict=key', { method: 'POST', prefer: 'resolution=merge-duplicates', body: [{ key: 'instagram_versus', value: { pares: [...usados, p.chave].slice(-300) } }] });
     await registrar({ tipo: 'versus', url: r.url });
@@ -280,3 +279,4 @@ async function entretenimento() {
 }
 
 if (MODO === 'urgente') await urgente(); else if (MODO === 'entretenimento') await entretenimento(); else await diario();
+
