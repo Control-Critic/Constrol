@@ -2,14 +2,15 @@ name: Instagram
 
 on:
   schedule:
+    - cron: '20 12 * * *'      # todo dia às 09h20 (Brasília): promoção do dia (ou enquete)
     - cron: '50 15 * * *'      # todo dia às 12h50 (Brasília): meme da comunidade ou enquete
     - cron: '50 21 * * *'      # todo dia às 18h50 (Brasília): resumo do dia, notícia ou promoção
   workflow_dispatch:
     inputs:
       modo:
-        description: 'diario = resumo do dia | entretenimento = meme ou enquete | urgente = publica agora as notícias marcadas como urgentes'
+        description: 'manha = promoção do dia | diario = resumo do dia | entretenimento = meme ou enquete | urgente = publica agora as notícias marcadas como urgentes'
         type: choice
-        options: [diario, entretenimento, urgente]
+        options: [manha, diario, entretenimento, urgente]
         default: diario
       noticia:
         description: 'ID da notícia (opcional, só no modo urgente)'
@@ -34,7 +35,7 @@ jobs:
       - run: npm ci --omit=dev
       - name: ffmpeg (para os Reels com música)
         run: which ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
-      - run: node scripts/instagram/publicar.mjs "${{ inputs.modo || (github.event.schedule == '50 15 * * *' && 'entretenimento') || 'diario' }}" "${{ inputs.noticia }}"
+      - run: node scripts/instagram/publicar.mjs "${{ inputs.modo || (github.event.schedule == '20 12 * * *' && 'manha') || (github.event.schedule == '50 15 * * *' && 'entretenimento') || 'diario' }}" "${{ inputs.noticia }}"
         env:
           TESTE: ${{ inputs.teste && '1' || '' }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
