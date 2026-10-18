@@ -1,4 +1,5 @@
 // Publica no Instagram do Control Critic pela API oficial (Instagram API com login do Instagram).
+//   node scripts/instagram/publicar.mjs manha           -> promoção do dia; sem promoção nova, enquete "Qual você prefere?"
 //   node scripts/instagram/publicar.mjs diario          -> resumo do dia (carrossel) ou uma notícia; sem notícia, a promoção do dia
 //   node scripts/instagram/publicar.mjs entretenimento   -> meme da comunidade aprovado pela equipe; sem meme, enquete "Qual você prefere?"
 //   node scripts/instagram/publicar.mjs urgente [id]    -> notícias marcadas como urgentes no painel (ou a de id informado)
@@ -208,12 +209,17 @@ async function diario() {
     if (!TESTE) { await marcar(ns, r); await registrar({ tipo: 'noticia', noticias: 1, url: r.url }); }
     return aviso(`Instagram: notícia do dia ${TESTE ? 'gerada (teste)' : 'publicada'} ${r.url || ''}`);
   }
-  // Sem notícia nova: promoção do dia (para a página não ficar parada), sem repetir jogo da última semana
+  // Sem notícia nova: promoção do dia (para a página não ficar parada)
+  if (!(await promocao())) aviso('Instagram: nada novo para publicar hoje.');
+}
+
+// Promoção do dia, sem repetir jogo da última semana. Devolve false se não houver.
+async function promocao() {
   const cfg = (await api('settings?key=eq.instagram_promos&select=value'))[0]?.value || {};
   const recentes = Object.entries(cfg).filter(([, d]) => Date.now() - new Date(d) < 7 * 864e5).map(([id]) => Number(id));
   const deals = await api('deals?select=game_id,discount_pct,price_cents,store,games(title,cover_url,categories(slug))&discount_pct=gte.40&order=discount_pct.desc&limit=30');
   const d = deals.find((x) => x.games && !recentes.includes(x.game_id));
-  if (!d) return aviso('Instagram: nada novo para publicar hoje.');
+  if (!d) return false;
   const preco = d.price_cents != null ? (d.price_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
   const loja = { steam: 'Steam', playstation: 'PlayStation Store', xbox: 'Xbox Store', nintendo: 'Nintendo eShop' }[d.store] || d.store;
   const legenda = [`💸 PROMOÇÃO DO DIA: ${d.games.title} com ${d.discount_pct}% de desconto${preco ? ` (${preco})` : ''} na ${loja}!`, '',
@@ -224,6 +230,7 @@ async function diario() {
     await registrar({ tipo: 'promocao', url: r.url });
   }
   aviso(`Instagram: promoção do dia ${TESTE ? 'gerada (teste)' : 'publicada'} (${d.games.title}) ${r.url || ''}`);
+  return true;
 }
 
 async function urgente() {
@@ -243,8 +250,8 @@ async function urgente() {
 }
 
 // ---------- Entretenimento (12h50): alcance e comentários ----------
-async function entretenimento() {
-  const [m] = await api('posts?select=id,body,image_url,profiles!posts_user_id_fkey(username)&ig_ok=eq.true&ig_aprovado=eq.true&instagram_at=is.null&status=eq.published&image_url=not.is.null&order=created_at.asc&limit=1');
+async function entretenimento({ soEnquete = false } = {}) {
+  const [m] = soEnquete ? [] : await api('posts?select=id,body,image_url,profiles!posts_user_id_fkey(username)&ig_ok=eq.true&ig_aprovado=eq.true&instagram_at=is.null&status=eq.published&image_url=not.is.null&order=created_at.asc&limit=1');
   if (m) {
     const autor = m.profiles?.username || 'membro';
     const texto = corta(m.body && m.body !== '📷' ? m.body : '', 300);
@@ -278,5 +285,7 @@ async function entretenimento() {
   aviso(`Instagram: enquete ${p.a.title} x ${p.b.title} ${TESTE ? 'gerada (teste)' : 'publicada'} ${r.url || ''}`);
 }
 
-if (MODO === 'urgente') await urgente(); else if (MODO === 'entretenimento') await entretenimento(); else await diario();
+// Manhã: promoção do dia; sem promoção nova, a enquete
+if (MODO === 'manha') { if (!(await promocao())) await entretenimento({ soEnquete: true }); }
+else if (MODO === 'urgente') await urgente(); else if (MODO === 'entretenimento') await entretenimento(); else await diario();
 
