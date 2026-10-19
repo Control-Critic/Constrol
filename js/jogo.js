@@ -63,6 +63,12 @@ async function carregar() {
   const cats = Object.fromEntries((listaCats || []).map((c) => [c.id, c.name]));
   if (!g) { main.innerHTML += '<p class="vazio">Jogo não encontrado.</p>'; return; }
   document.title = `${g.title} | Control Critic`;
+  // Dados estruturados (Google): avaliação agregada só quando há avaliações reais no site
+  const ld = { '@context': 'https://schema.org', '@type': 'VideoGame', name: g.title, url: location.origin + '/jogo.html?slug=' + encodeURIComponent(g.slug),
+    ...(g.cover_url ? { image: g.cover_url } : {}), ...(g.description ? { description: String(g.description).slice(0, 500) } : {}),
+    ...(g.platforms?.length ? { gamePlatform: g.platforms } : {}), ...(g.release_year ? { datePublished: String(g.release_year) } : {}),
+    ...(g.reviews_count > 0 ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: Number(g.avg_rating).toFixed(1), bestRating: '5', worstRating: '1', ratingCount: g.reviews_count } } : {}) };
+  const sld = document.createElement('script'); sld.type = 'application/ld+json'; sld.textContent = JSON.stringify(ld).replace(/</g, '\\u003c'); document.head.append(sld);
   const u = await usuario();
   // Outras versões do mesmo jogo (original x remake/remaster): mesmo nome sem "Remake", "HD", ano etc.
   const baseTitulo = (t) => String(t).toLowerCase().replace(/\(.*?\)/g, ' ')
@@ -93,7 +99,10 @@ async function carregar() {
         <img id="capa-jogo" ${srcCapa(g.cover_url, 1000)} alt="" style="border-radius:14px;width:100%">
         <p style="text-align:right;margin-top:4px;font-size:.8rem"><button type="button" class="bt-link muted" id="capa-errada">📷 Capa errada?</button>
           <button type="button" class="bt-link hidden" id="trocar-capa">🖼️ Trocar capa</button></p>
-        <h1 style="margin-top:16px">${esc(g.title)}</h1>
+        <h1 style="margin-top:16px">${esc(g.title)}${g.release_year ? ` <span class="muted ano-jogo">(${Number(g.release_year)})</span>` : ''}</h1>
+        <p class="controles" style="margin:6px 0"><button type="button" class="btn sec pequeno" id="compartilhar">🔗 Compartilhar</button>
+          <a class="btn sec pequeno" href="index.html#b-grupo">🎮 Procurar grupo</a></p>
+        <div id="grupos-jogo"></div>
         <p>${(g.category_ids?.length ? g.category_ids : g.categories ? [g.categories.id] : []).map((id) => cats[id] ? `<a class="tag" href="jogos.html?cat=${id}">${esc(cats[id])}</a>` : '').join(' ')} ${g.release_year ? `<span class="tag">${g.release_year}</span>` : ''}
           ${(g.platforms || []).map((pl) => `<a class="tag" href="jogos.html?plat=${encodeURIComponent(pl)}">${esc(pl)}</a>`).join(' ')}</p>
         <p class="quebra" style="margin-top:12px" id="descricao">${esc(g.description || '')}</p>
@@ -115,6 +124,7 @@ async function carregar() {
           ${esc(d.store)}: ${d.price_cents != null ? `<strong>${reais(d.price_cents)}</strong>` : ''}
           ${d.original_cents ? `<s class="muted">${reais(d.original_cents)}</s>` : ''}
           ${d.url ? ` · <a href="${urlSegura(d.url)}" target="_blank" rel="noopener noreferrer">ver oferta</a>` : ''}</p>`).join('')}
+        ${(deals || []).some((d) => d.discount_pct > 0) ? `<p class="muted" style="font-size:.78rem;margin-top:8px">Preço atualizado ${data((deals || []).reduce((m, d) => (d.updated_at > m ? d.updated_at : m), ''))}. Confira na loja antes de comprar.</p>` : ''}
         </div>
         ${versoes.length ? `<div class="cartao"><h3>🔁 Outras versões</h3>${versoes.map((v) => `<p><a href="jogo.html?slug=${encodeURIComponent(v.slug)}">${esc(v.title)}</a>
           <span class="muted">${v.release_year ? `· ${v.release_year}` : ''}${v.release_year && g.release_year ? (v.release_year > g.release_year ? ' (mais nova)' : v.release_year < g.release_year ? ' (original)' : '') : ''}</span></p>`).join('')}</div>` : ''}
@@ -212,6 +222,18 @@ async function carregar() {
     ligarPosts($('#posts-jogo'), { u });
   };
   ligarCapa(g);
+  $('#compartilhar').onclick = async () => {
+    const dados = { title: `${g.title} no Control Critic`, text: `Veja notas, preços e grupos de ${g.title}`, url: location.href };
+    try { if (navigator.share) await navigator.share(dados); else { await navigator.clipboard.writeText(location.href); toast('Link copiado!'); } } catch { /* cancelado */ }
+  };
+  // Grupos abertos para este jogo (o diferencial do site): aparece só se houver algum
+  sb.from('lfg_posts').select('id,platform,starts_at,slots,lfg_interest(user_id)').eq('game_id', g.id).gt('expires_at', new Date().toISOString()).limit(5)
+    .then(({ data: gs }) => {
+      if (!gs?.length) return;
+      $('#grupos-jogo').innerHTML = `<div class="cartao" style="margin:8px 0"><strong>🎮 ${gs.length === 1 ? '1 grupo aberto' : `${gs.length} grupos abertos`} para este jogo</strong>
+        <p class="muted" style="margin:4px 0">${gs.map((x) => `${esc(x.platform || 'Qualquer plataforma')} · ${x.slots ? `${x.lfg_interest.length}/${x.slots} vagas` : 'vagas livres'}`).join(' — ')}</p>
+        <a class="btn pequeno" href="index.html#b-grupo">Ver e entrar</a></div>`;
+    }, () => {});
   carregarPrecosLojas(g);
   if ($('#compositor')) ligarCompositor($('#compositor'), { u, jogo: { id: g.id, title: g.title }, aoPublicar: carregarPostsJogo });
   carregarPostsJogo();
