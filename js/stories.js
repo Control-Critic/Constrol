@@ -1,7 +1,7 @@
 // Stories (24 h), inspirados no Instagram: foto/print com legenda, enquete, caixinha de perguntas,
 // música do Spotify, "só melhores amigos" e destaques no perfil. Também mostra as Notas (status de 24 h).
 import { apagarArquivos } from './app.js';
-import { aoMudarOnline, estadoOnline } from './app.js';
+import { aoMudarOnline, estadoOnline, bloqueados, carregarBloqueados } from './app.js';
 import { sb, $, esc, urlSegura, avatar, toast, falha, enviarImagem, spotifyId, spotifyPlayer, notaAtiva, srcCapa, playerSpotify, somLigado, definirSom, pararMusica, tocarSo, enviarVideo, destruirPlayer } from './app.js';
 
 const COLS = 'id,user_id,image_url,video_url,caption,poll,question,musica,close_friends,highlight,created_at,expires_at';
@@ -19,7 +19,8 @@ export async function barraStories(box, u) {
   ]);
   const visto = new Set((vistos || []).map((v) => v.story_id));
   const por = new Map();
-  for (const s of sts || []) (por.get(s.user_id) || por.set(s.user_id, []).get(s.user_id)).push(s);
+  await carregarBloqueados();
+  for (const s of (sts || []).filter((x) => !bloqueados.has(x.user_id))) (por.get(s.user_id) || por.set(s.user_id, []).get(s.user_id)).push(s);
   const P = Object.fromEntries((perfis || []).map((p) => [p.id, p]));
   const comNota = (perfis || []).filter((p) => p.id !== u.id && notaAtiva(p) && !por.has(p.id));
   const ordem = [u.id, ...[...por.keys()].filter((id) => id !== u.id).sort((a, b) =>

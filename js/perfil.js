@@ -1,4 +1,5 @@
 import { SUPABASE_ANON_KEY } from './config.js';
+import { bloqueados, carregarBloqueados, bloquear, desbloquear } from './app.js';
 import { sb, $, esc, montarLayout, configurado, usuario, perfil, nivel, avatar, estrelas, data, cardJogo, toast, falha, param, urlSegura, plural, cssUrl, corSegura, denunciar, avatarHtml, sair, COLUNAS_CARD, aoVivo, seloAoVivo, estadoPush, ativarPush, desativarPush, testarPush, steamAgora, carrossel, enviarImagem, srcCapa, imagemAceitavel, spotifyId, spotifyPlayer, notaAtiva, aoMudarOnline, estadoOnline, playerSpotify, somLigado, definirSom, tocarSo, pararMusica } from './app.js';
 import { destaquesPerfil, editarNota, criarStory } from './stories.js';
 import { COLUNAS_POST, postHtml, ligarPosts, compositorHtml, ligarCompositor } from './posts.js';
@@ -128,9 +129,9 @@ async function carregar(p, meu, u) {
         ${!meu ? `<div class="controles">${u ? `<button class="btn ${sigo ? 'sec' : ''}" id="seguir">${sigo ? '✓ Seguindo' : '+ Seguir'}</button>
           <button class="btn sec" id="amizade">${amizade?.status === 'aceita' ? '🤝 Amigos' : amizade ? (amizade.requester === u.id ? '⏳ Pedido enviado' : '✓ Aceitar amizade') : '👥 Adicionar amigo'}</button>` : ''}
           ${amizade?.status === 'aceita' ? '<button class="btn sec" id="melhor-amigo" title="Quem é melhor amigo vê seus stories marcados como 💚">💚 Melhores amigos</button>' : ''}
-          ${u ? '<button class="bt-denunciar" id="den-perfil">🚩 Denunciar perfil</button>' : ''}</div>` : ''}
+          ${u ? '<button class="bt-denunciar" id="den-perfil">🚩 Denunciar perfil</button> <button class="bt-denunciar" id="bloquear">🚫 Bloquear</button>' : ''}</div>` : ''}
         ${meu ? `<div class="controles"><button class="btn" id="editar">✏️ Editar perfil</button>
-          <button class="btn sec" id="novo-story">📸 Story</button><button class="btn sec" id="nota">💭 Nota</button>
+          <button class="btn sec" id="novo-story">📸 Story</button><button class="btn sec" id="nota">💭 Nota</button><button class="btn sec" id="ver-bloqueados">🚫 Bloqueados</button>
           <a class="btn sec" href="conquistas.html">🏆 Conquistas</a><button class="btn sec" id="compartilhar">🔗 Copiar link</button><button class="btn sec" id="logout">Sair</button></div>` : ''}
       </div>
     </section>
@@ -252,6 +253,15 @@ async function carregar(p, meu, u) {
 
   if (!meu) {
     $('#den-perfil')?.addEventListener('click', () => denunciar('profile', p.id));
+    await carregarBloqueados();
+    const btBloq = $('#bloquear');
+    const pintarBloq = () => { if (btBloq) btBloq.textContent = bloqueados.has(p.id) ? '✓ Bloqueado · desbloquear' : '🚫 Bloquear'; };
+    pintarBloq();
+    btBloq?.addEventListener('click', async () => {
+      const ok = bloqueados.has(p.id) ? await desbloquear(p.id, p.username) : await bloquear(p.id, p.username);
+      if (ok) setTimeout(() => location.reload(), 600);
+    });
+    if (bloqueados.has(p.id)) main.querySelector('.perfil-info')?.insertAdjacentHTML('afterend', '<div class="aviso" role="status">Você bloqueou esta pessoa. Posts, comentários e stories dela ficam escondidos para você.</div>');
     if ($('#melhor-amigo')) {
       const { data: cf } = await sb.from('close_friends').select('friend_id').eq('owner_id', u.id).eq('friend_id', p.id).maybeSingle();
       const bt = $('#melhor-amigo'); let sou = !!cf;
@@ -332,6 +342,21 @@ async function carregar(p, meu, u) {
     try { await navigator.clipboard.writeText(link); toast('Link do perfil copiado!'); } catch { prompt('Copie o link do seu perfil:', link); }
   };
   $('#editar').onclick = () => abrirEditor(p);
+  $('#ver-bloqueados')?.addEventListener('click', async () => {
+    const { data: lista } = await sb.from('user_blocks').select('blocked_id, created_at').order('created_at', { ascending: false });
+    const ids = (lista || []).map((x) => x.blocked_id);
+    const { data: ps } = ids.length ? await sb.from('profiles').select('id,username').in('id', ids) : { data: [] };
+    const dlg = document.createElement('dialog');
+    dlg.setAttribute('aria-labelledby', 'bl-t');
+    dlg.innerHTML = `<h2 id="bl-t" style="margin-top:0">🚫 Pessoas bloqueadas</h2>
+      ${(ps || []).map((x) => `<div class="controles" style="justify-content:space-between;align-items:center;margin:6px 0"><span>${esc(x.username)}</span><button class="btn sec pequeno" data-desbl="${esc(x.id)}" data-n="${esc(x.username)}">Desbloquear</button></div>`).join('') || '<p class="muted">Você não bloqueou ninguém.</p>'}
+      <p class="muted" style="font-size:.85rem">Para bloquear alguém, abra o perfil da pessoa e toque em 🚫 Bloquear.</p>
+      <div class="controles" style="margin-top:12px"><button class="btn" data-fechar>Fechar</button></div>`;
+    document.body.append(dlg); dlg.showModal();
+    dlg.addEventListener('close', () => dlg.remove());
+    dlg.querySelector('[data-fechar]').onclick = () => dlg.close();
+    dlg.querySelectorAll('[data-desbl]').forEach((b) => b.onclick = async () => { if (await desbloquear(b.dataset.desbl, b.dataset.n)) b.closest('.controles').remove(); });
+  });
   // Atalhos do checklist da home: perfil.html#editar abre o editor; #steam leva à importação
   if (location.hash === '#editar') abrirEditor(p);
   else if (location.hash === '#steam') $('#importar-steam')?.scrollIntoView({ block: 'center' });
