@@ -86,6 +86,20 @@
   status = 404
   force = true
 
+# Links curtos e amigáveis (para compartilhar): levam às páginas atuais, que continuam funcionando
+[[redirects]]
+  from = "/jogo/:slug"
+  to = "/jogo.html?slug=:slug"
+  status = 301
+[[redirects]]
+  from = "/u/:nome"
+  to = "/perfil.html?u=:nome"
+  status = 301
+[[redirects]]
+  from = "/c/:id"
+  to = "/comunidade.html?id=:id"
+  status = 301
+
 # Prévia de links para robôs (WhatsApp, Discord...) e SEO
 [[redirects]]
   from = "/sitemap.xml"
