@@ -1,4 +1,5 @@
 // Posts com imagem, curtidas e comentários (usado na página inicial, nas comunidades e no perfil)
+import { bloqueados } from './app.js';
 import { sb, $, esc, avatarHtml, toast, falha, urlSegura, denunciar, enviarImagem, esqueletoLista, imagemAceitavel, spotifyId, spotifyPlayer, playerSpotify, somLigado, definirSom, tocarSo, pararMusica, enviarVideo } from './app.js';
 
 export const COLUNAS_POST = '*, profiles!posts_user_id_fkey(username,avatar_url,equipped_frame), games(slug,title), communities(id,name)';
@@ -19,6 +20,7 @@ const comLinks = (t) => esc(t)
   .replace(/(^|[\s(])@([A-Za-z0-9_]{3,30})\b/g, (_, a, n) => `${a}<a href="perfil.html?u=${n}">@${n}</a>`);
 
 export function postHtml(x, { u, moderar = false, mostrarComunidade = true } = {}) {
+  if (bloqueados.has(x.user_id)) return ''; // pessoa bloqueada: o post não aparece
   const meu = u && x.user_id === u.id;
   return `<article class="post ${x.aviso ? 'post-aviso' : ''}" data-post="${x.id}">${x.aviso ? '<span class="tag amarela" style="margin-bottom:6px">📢 Aviso da comunidade</span>' : ''}
     <header>${avatarHtml(x.profiles)}
@@ -125,7 +127,7 @@ async function abrirComentarios(art, u) {
   box.classList.remove('hidden'); box.dataset.ok = 1;
   box.innerHTML = esqueletoLista(1);
   const { data: cs } = await sb.from('post_comments').select('*, profiles(username,avatar_url,equipped_frame)').eq('post_id', id).order('created_at').limit(100);
-  box.innerHTML = `${(cs || []).map((c) => `<div class="comentario">${avatarHtml(c.profiles)}<div style="flex:1">
+  box.innerHTML = `${(cs || []).filter((c) => !bloqueados.has(c.user_id)).map((c) => `<div class="comentario">${avatarHtml(c.profiles)}<div style="flex:1">
       <a class="usuario" href="perfil.html?u=${encodeURIComponent(c.profiles?.username || '')}">${esc(c.profiles?.username)}</a> <span class="muted" style="font-size:.78rem">${tempo(c.created_at)}</span>
       <p class="quebra">${comLinks(c.body)}</p></div>
       ${u && c.user_id === u.id ? `<button class="bt-denunciar" data-c-del="${c.id}" aria-label="Apagar">✕</button>` : u ? `<button class="bt-denunciar" data-c-den="${c.id}" aria-label="Denunciar">🚩</button>` : ''}</div>`).join('') || '<p class="muted" style="font-size:.85rem">Nenhum comentário ainda.</p>'}
