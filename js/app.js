@@ -112,7 +112,7 @@ const LINKS = [
   ['comunidades.html', 'Comunidades'],
 ];
 // Ficam no menu "Mais" (deixa a barra do topo numa linha só)
-const LINKS_MAIS = [['conquistas.html', '🏆 Conquistas'], ['sobre.html', 'Quem Somos'], ['contato.html', 'Fale Conosco'], ['privacidade.html', 'Privacidade']];
+const LINKS_MAIS = [['feed.html', '📣 Feed da comunidade'], ['conquistas.html', '🏆 Conquistas'], ['sobre.html', 'Quem Somos'], ['contato.html', 'Fale Conosco'], ['privacidade.html', 'Privacidade']];
 
 // ---------- Erros do site (agregados no banco, sem dados pessoais) ----------
 export const VERSAO_SITE = '__BUILD__'; // trocado pelo commit no deploy (netlify.toml)

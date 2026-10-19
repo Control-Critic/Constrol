@@ -2,6 +2,8 @@ import { sb, $, esc, montarLayout, cardJogo, plural, configurado, usuario, perfi
 import { barraStories } from './stories.js';
 import { COLUNAS_POST_DESAFIO as COLUNAS_POST, postHtml, ligarPosts, compositorHtml, ligarCompositor } from './posts.js';
 
+// feed.html usa este mesmo módulo só com o feed completo e a atividade dos amigos
+const PAGINA_FEED = location.pathname.endsWith('feed.html');
 let compositor = null, paginaFeed = 0; // declarados antes do uso (o código abaixo roda já no carregamento)
 await montarLayout();
 const main = $('#conteudo');
@@ -64,8 +66,10 @@ main.insertAdjacentHTML('beforeend', `
   <section id="b-comunidades" class="hidden">${ver('🏰 Comunidades', 'comunidades.html')}<div id="comunidades-home"></div></section>
   <section id="b-feed-wrap" class="detalhe hidden" style="margin-top:8px">
     <section><div id="desafio"></div><h2>📣 Feed da comunidade</h2><div id="compor"></div><div class="lista" id="feed" style="margin-top:12px">${esqueletoLista(3)}</div>
-      <button class="btn sec hidden" id="mais-feed" style="margin-top:12px;width:100%">Carregar mais</button></section>
-    <aside><div id="jogando-agora"></div><h2>👥 Atividade dos amigos</h2><div class="lista" id="atividade"><p class="muted">Siga pessoas para ver o que elas estão jogando e avaliando.</p></div></aside>
+      <button class="btn sec hidden" id="mais-feed" style="margin-top:12px;width:100%">Carregar mais</button>
+      <a class="btn sec hidden ver-tudo" id="ver-feed" href="feed.html">Ver o feed completo →</a></section>
+    <aside><div id="jogando-agora"></div><h2>👥 Atividade dos amigos</h2><div class="lista" id="atividade"><p class="muted">Siga pessoas para ver o que elas estão jogando e avaliando.</p></div>
+      <a class="btn sec hidden ver-tudo" id="ver-atividade" href="feed.html#atividade">Ver toda a atividade →</a></aside>
   </section>
   <section id="b-rec" class="hidden">${ver('🎯 Recomendados para você')}<div id="rec"></div></section>
   <section id="b-desejos" class="hidden">${ver('💸 Promoções da sua lista de desejos', 'promocoes.html')}<div id="desejos"></div></section>
@@ -82,24 +86,30 @@ main.insertAdjacentHTML('beforeend', `
 const ORDEM = {
   visitante: ['b-hero', 'b-como', 'b-destaques', 'b-grupo', 'b-comunidades', 'b-promos', 'b-avaliacoes', 'b-cadastro', 'b-noticias', 'b-lancamentos'],
   novo: ['b-hero', 'b-checklist', 'b-grupo', 'b-comunidades', 'b-destaques', 'b-rec', 'b-promos', 'b-noticias', 'b-lancamentos', 'b-feed-wrap'],
-  recorrente: ['stories', 'b-hero', 'b-feed-wrap', 'b-grupo', 'b-rec', 'b-desejos', 'b-destaques', 'b-promos', 'b-noticias', 'b-lancamentos', 'b-comunidades'],
+  recorrente: ['stories', 'b-hero', 'b-grupo', 'b-feed-wrap', 'b-rec', 'b-desejos', 'b-destaques', 'b-promos', 'b-noticias', 'b-lancamentos', 'b-comunidades'],
 };
-function ordenar(estado) { for (const id of ORDEM[estado]) { const el = document.getElementById(id); if (el) main.append(el); } }
+function ordenar(estado) {
+  if (PAGINA_FEED) { for (const s of [...main.children]) if (s.id !== 'b-feed-wrap') s.remove(); return; }
+  for (const id of ORDEM[estado]) { const el = document.getElementById(id); if (el) main.append(el); }
+}
 
 // Preenche um bloco; sem itens, esconde a seção inteira (não mostra espaço vazio)
 function preencher(secao, alvo, html) {
   const s = document.getElementById(secao);
+  if (!s) return; // seção que não existe nesta página (feed.html)
   if (!html) { s.classList.add('hidden'); return; }
   s.classList.remove('hidden');
   $(alvo).innerHTML = html;
 }
 // Erro com nova tentativa, só no bloco que falhou
 function erroBloco(secao, alvo, tentar) {
+  if (!document.getElementById(secao)) return;
   document.getElementById(secao).classList.remove('hidden');
   $(alvo).innerHTML = '<p class="vazio" role="alert">Não foi possível carregar agora. <button class="btn sec pequeno" type="button">Tentar de novo</button></p>';
   $(alvo).querySelector('button').onclick = () => { $(alvo).innerHTML = carrossel(esqueletoCards(4)); tentar(); };
 }
 async function bloco(secao, alvo, consulta, montar) {
+  if (!document.getElementById(secao)) return;
   try {
     const { data: d, error } = await consulta();
     if (error) throw error;
@@ -126,9 +136,10 @@ if (configurado) {
   }
   document.body.dataset.estadoHome = estado;
   ordenar(estado);
+  if (PAGINA_FEED) main.insertAdjacentHTML('afterbegin', '<h1>Feed da comunidade</h1>');
   if (u) {
-    $('#hero-acoes').innerHTML = `<a class="btn" href="#b-grupo" id="hero-grupo">Encontrar grupo</a><a class="btn sec" href="#b-rec">Ver recomendações</a>`;
-    if (estado === 'recorrente') $('#b-hero').classList.add('hero-compacto');
+    if ($('#hero-acoes')) $('#hero-acoes').innerHTML = `<a class="btn" href="#b-grupo" id="hero-grupo">Encontrar grupo</a><a class="btn sec" href="#b-rec">Ver recomendações</a>`;
+    if (estado === 'recorrente') $('#b-hero')?.classList.add('hero-compacto');
   }
 
   bloco('b-destaques', '#destaques', () => sb.from('games').select(COLUNAS_CARD).eq('featured', true).order('avg_rating', { ascending: false }).order('igdb_rating', { ascending: false, nullsFirst: false }).limit(12),
@@ -148,7 +159,11 @@ if (configurado) {
       <strong>${esc(c.name)}</strong><p class="muted" style="font-size:.85rem;margin:4px 0">${esc(String(c.description || '').slice(0, 90))}</p>
 </a>`).join('')}</div>` : '');
 
-  if (estado === 'visitante') {
+  if (PAGINA_FEED && estado === 'visitante') {
+    // feed completo também para visitantes (só leitura)
+    $('#b-feed-wrap').classList.remove('hidden');
+    carregarFeed(true); carregarDesafio();
+  } else if (estado === 'visitante') {
     $('#b-como').classList.remove('hidden');
     $('#b-cadastro').classList.remove('hidden');
     diferenciais();
@@ -159,7 +174,7 @@ if (configurado) {
         <p style="margin-top:4px">${esc(String(r.body).slice(0, 220))}</p></a>`).join(''));
   } else {
     $('#b-feed-wrap').classList.remove('hidden');
-    if (estado === 'novo') checklist(u, p);
+    if (estado === 'novo' && !PAGINA_FEED) checklist(u, p);
     const { data: rec } = await sb.rpc('recommend_games', { lim: 12 }).select(COLUNAS_CARD);
     preencher('b-rec', '#rec', rec?.length ? carrossel(rec.map(cardJogo).join('')) : '');
     if (estado === 'recorrente') {
@@ -172,7 +187,7 @@ if (configurado) {
     }
     carregarAtividade();
     carregarJogandoAgora(u).catch(() => {});
-    barraStories($('#stories'), u);
+    if ($('#stories')) barraStories($('#stories'), u);
     $('#compor').innerHTML = compositorHtml();
     compositor = ligarCompositor($('#compositor'), { u, aoPublicar: () => { carregarFeed(true); carregarDesafio(); } });
     carregarFeed(true);
@@ -249,7 +264,7 @@ async function carregarDesafio() {
 
 // ---------- Feed: posts ordenados por relevância (amigos, quem você segue, suas comunidades e jogos) ----------
 async function carregarFeed(reiniciar) {
-  const u = await usuario(), box = $('#feed'), POR = 15;
+  const u = await usuario(), box = $('#feed'), POR = PAGINA_FEED ? 15 : 3; // na home, só uma amostra
   if (reiniciar) paginaFeed = 0;
   const { data: ps, error } = await sb.rpc('home_feed', { lim: POR, offs: paginaFeed * POR }).select(COLUNAS_POST);
   if (error) { box.innerHTML = '<p class="muted">O feed fica disponível depois que o administrador atualizar o banco (schema.sql).</p>'; return; }
@@ -266,7 +281,8 @@ async function carregarFeed(reiniciar) {
   else box.insertAdjacentHTML('beforeend', html);
   $('#primeiro-post')?.addEventListener('click', () => { $('#cp-txt')?.focus(); $('#compositor')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
   ligarPosts(box, { u });
-  $('#mais-feed').classList.toggle('hidden', (ps || []).length < POR);
+  $('#mais-feed').classList.toggle('hidden', !PAGINA_FEED || (ps || []).length < POR);
+  $('#ver-feed').classList.toggle('hidden', PAGINA_FEED || (ps || []).length < POR);
   $('#mais-feed').onclick = () => { paginaFeed++; carregarFeed(false); };
   if (reiniciar && alvo) box.querySelector(`[data-post="${alvo}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -283,10 +299,12 @@ async function carregarJogandoAgora(u) {
 }
 
 async function carregarAtividade() {
-  const { data: at, error } = await sb.rpc('friends_activity', { lim: 12 });
+  const lim = PAGINA_FEED ? 40 : 5; // na home, só as mais recentes
+  const { data: at, error } = await sb.rpc('friends_activity', { lim: lim + 1 });
   if (error) return;
   const st = { jogando: 'está jogando', zerado: 'zerou' };
-  $('#atividade').innerHTML = (at || []).map((a) => `<a class="atividade" href="jogo.html?slug=${encodeURIComponent(a.game_slug)}" style="color:var(--texto);text-decoration:none">
+  $('#ver-atividade').classList.toggle('hidden', PAGINA_FEED || (at || []).length <= lim);
+  $('#atividade').innerHTML = (at || []).slice(0, lim).map((a) => `<a class="atividade" href="jogo.html?slug=${encodeURIComponent(a.game_slug)}" style="color:var(--texto);text-decoration:none">
     ${avatarHtml(a)}<span style="flex:1;min-width:0;font-size:.9rem"><strong>${esc(a.username)}</strong> ${a.tipo === 'review' ? `avaliou com ${'★'.repeat(a.nota)}` : st[a.status] || 'jogou'}
       <br><span class="muted">${esc(a.game_title)} · ${data(a.quando)}</span></span>
     ${urlSegura(a.cover_url) ? `<img class="capa" src="${urlSegura(a.cover_url)}" alt="" loading="lazy">` : ''}</a>`).join('')
@@ -294,7 +312,7 @@ async function carregarAtividade() {
 }
 
 // ---------- Procurando grupo agora ----------
-if (configurado) carregarLfg().then(() => { if (['#grupo', '#b-grupo'].includes(location.hash)) $('#b-grupo').scrollIntoView(); }); // #grupo: links de notificações antigas
+if (configurado && !PAGINA_FEED) carregarLfg().then(() => { if (['#grupo', '#b-grupo'].includes(location.hash)) $('#b-grupo').scrollIntoView(); }); // #grupo: links de notificações antigas
 const MIC = { obrigatorio: '🎙️ Microfone obrigatório', opcional: '🎧 Call opcional', sem: '🔇 Sem call' };
 async function carregarLfg() {
   const u = await usuario();
