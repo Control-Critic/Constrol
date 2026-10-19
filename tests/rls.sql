@@ -204,6 +204,41 @@ do $$ begin
 end $$;
 reset role;
 
+
+-- ---------- Procurando grupo e onboarding (fase 6) ----------
+select set_config('cc.sistema', '1', true);
+insert into public.friendships (user_a, user_b, requester, status) values ('bbbbbbbb-0000-0000-0000-00000000000b', 'dddddddd-0000-0000-0000-00000000000d', 'bbbbbbbb-0000-0000-0000-00000000000b', 'aceita') on conflict do nothing;
+insert into public.lfg_posts (id, user_id, slots, visibility, expires_at) values
+  (900001, 'bbbbbbbb-0000-0000-0000-00000000000b', 1, 'publico', now() + interval '1 hour'),
+  (900002, 'bbbbbbbb-0000-0000-0000-00000000000b', 3, 'amigos', now() + interval '1 hour');
+select set_config('cc.sistema', '', true);
+select teste.como(null);
+do $$ begin
+  assert teste.ve('select 1 from public.lfg_posts where id = 900001') = 1, 'visitante deveria ver grupo público';
+  assert teste.ve('select 1 from public.lfg_posts where id = 900002') = 0, 'visitante viu grupo só de amigos';
+end $$;
+reset role;
+select teste.como('aaaaaaaa-0000-0000-0000-00000000000a');
+do $$ begin
+  assert teste.ve('select 1 from public.lfg_posts where id = 900002') = 0, 'quem não é amigo viu grupo só de amigos';
+  assert teste.faz($q$insert into public.lfg_interest (lfg_id, user_id) values (900002, 'aaaaaaaa-0000-0000-0000-00000000000a')$q$) <= 0, 'entrou em grupo só de amigos';
+  assert teste.faz($q$insert into public.lfg_interest (lfg_id, user_id) values (900001, 'aaaaaaaa-0000-0000-0000-00000000000a')$q$) = 1, 'deveria entrar no grupo público';
+  assert teste.faz($q$insert into public.lfg_posts (user_id, starts_at, expires_at) values ('aaaaaaaa-0000-0000-0000-00000000000a', now() + interval '3 days', now() + interval '3 days 1 hour')$q$) <= 0, 'criou grupo para daqui a 3 dias';
+  assert teste.faz($q$insert into public.lfg_posts (user_id, starts_at, expires_at) values ('aaaaaaaa-0000-0000-0000-00000000000a', now(), now() + interval '10 hours')$q$) <= 0, 'criou grupo de 10 horas';
+  assert teste.faz($q$insert into public.lfg_posts (user_id, starts_at, expires_at, mic, crossplay) values ('aaaaaaaa-0000-0000-0000-00000000000a', now() + interval '2 hours', now() + interval '4 hours', 'obrigatorio', true)$q$) = 1, 'deveria criar grupo agendado';
+  -- XP de boas-vindas só uma vez
+  assert (select public.concluir_onboarding()) = 25, 'boas-vindas deveria dar XP';
+  assert (select public.concluir_onboarding()) = 0, 'boas-vindas deu XP de novo';
+  assert teste.faz($q$update public.profiles set plataformas = array['Atari'] where id = 'aaaaaaaa-0000-0000-0000-00000000000a'$q$) = -1, 'aceitou plataforma inválida';
+end $$;
+reset role;
+select teste.como('dddddddd-0000-0000-0000-00000000000d');
+do $$ begin
+  assert teste.ve('select 1 from public.lfg_posts where id = 900002') = 1, 'amigo deveria ver o grupo só de amigos';
+  assert teste.faz($q$insert into public.lfg_interest (lfg_id, user_id) values (900001, 'dddddddd-0000-0000-0000-00000000000d')$q$) <= 0, 'entrou em grupo cheio';
+end $$;
+reset role;
+
 -- ---------- Admin ----------
 select teste.como('cccccccc-0000-0000-0000-00000000000c');
 do $$ begin
