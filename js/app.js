@@ -17,6 +17,12 @@ export const $ = (sel, el = document) => el.querySelector(sel);
 export const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 export const param = (nome) => new URLSearchParams(location.search).get(nome);
 
+// Cabeçalhos para chamar as Netlify Functions como o usuário logado (TURN das calls, admin)
+export async function cabecalhosLogin(extra = {}) {
+  const { data: { session } } = sb ? await sb.auth.getSession() : { data: {} };
+  return { ...extra, ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}), apikey: SUPABASE_ANON_KEY };
+}
+
 export { esc, plural, paginaInterna, corSegura, cssUrl, urlSegura } from './seguro.js';
 import { esc, plural, urlSegura } from './seguro.js';
 
@@ -108,7 +114,36 @@ const LINKS = [
 // Ficam no menu "Mais" (deixa a barra do topo numa linha só)
 const LINKS_MAIS = [['conquistas.html', '🏆 Conquistas'], ['sobre.html', 'Quem Somos'], ['contato.html', 'Fale Conosco'], ['privacidade.html', 'Privacidade']];
 
+// ---------- Bloqueios: quem eu bloqueei some do feed, comentários e stories ----------
+export const bloqueados = new Set();
+let _bloqCarregado = null;
+export function carregarBloqueados() {
+  if (_bloqCarregado) return _bloqCarregado;
+  _bloqCarregado = (async () => {
+    const u = sb ? await usuario() : null;
+    if (!u) return bloqueados;
+    const { data } = await sb.from('user_blocks').select('blocked_id').limit(1000);
+    for (const b of data || []) bloqueados.add(b.blocked_id);
+    return bloqueados;
+  })().catch(() => bloqueados);
+  return _bloqCarregado;
+}
+export async function bloquear(alvo, nome) {
+  const u = await usuario();
+  if (!u || !alvo || alvo === u.id) return false;
+  if (!confirm(`Bloquear ${nome}?\n\nVocês deixam de ser amigos e de se seguir, você não verá mais posts, comentários e stories dessa pessoa, e ela não poderá falar com você. Ela não é avisada.`)) return false;
+  const { error } = await sb.from('user_blocks').insert({ blocker_id: u.id, blocked_id: alvo });
+  if (error && error.code !== '23505') { falha(error); return false; }
+  bloqueados.add(alvo); toast(`Você bloqueou ${nome}.`); return true;
+}
+export async function desbloquear(alvo, nome) {
+  const { error } = await sb.from('user_blocks').delete().eq('blocked_id', alvo);
+  if (error) { falha(error); return false; }
+  bloqueados.delete(alvo); toast(`Você desbloqueou ${nome}.`); return true;
+}
+
 export async function montarLayout() {
+  carregarBloqueados();
   const pagina = location.pathname.split('/').pop() || 'index.html';
   const topo = document.createElement('header');
   topo.className = 'topo';
@@ -139,7 +174,7 @@ export async function montarLayout() {
     </div>
     <p>© ${new Date().getFullYear()} Control Critic. Todos os direitos reservados.</p>
     <p style="font-size:.8rem;margin-top:6px">Dados de jogos: <a href="https://www.igdb.com" target="_blank" rel="noopener noreferrer">IGDB.com</a> e Steam.</p>
-    <p style="font-size:.85rem;margin-top:8px"><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos de uso</a> ·
+    <p style="font-size:.85rem;margin-top:8px"><a href="diretrizes.html">Diretrizes da comunidade</a> · <a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos de uso</a> ·
       <a href="contato.html">Contato</a> <button class="btn sec pequeno hidden" id="instalar" style="margin-left:8px">📲 Instalar app</button>
       <button class="btn sec pequeno" id="reportar" style="margin-left:8px">🐞 Reportar problema</button>
       <button class="btn sec pequeno" id="tema" style="margin-left:8px" aria-label="Alternar tema claro/escuro">${document.documentElement.dataset.tema === 'claro' ? '🌙 Tema escuro' : '☀️ Tema claro'}</button></p>`;
@@ -173,7 +208,13 @@ export async function montarLayout() {
   // Conta suspensa: avisa a própria pessoa (ela continua navegando, mas não publica)
   if (p?.banned && (!p.banned_until || new Date(p.banned_until) > new Date())) {
     $('main')?.insertAdjacentHTML('afterbegin', `<div class="aviso erro">⛔ Sua conta está suspensa${p.banned_until ? ' até ' + new Date(p.banned_until).toLocaleString('pt-BR') : ''}.
-      ${p.ban_reason ? 'Motivo: ' + esc(p.ban_reason) + '. ' : ''}Você pode navegar, mas não pode publicar. Dúvidas? <a href="contato.html">Fale Conosco</a>.</div>`);
+      ${p.ban_reason ? 'Motivo: ' + esc(p.ban_reason) + '. ' : ''}Você pode navegar, mas não pode publicar. <a href="diretrizes.html">Diretrizes</a> · <button class="btn sec pequeno" id="pedir-revisao">Pedir revisão</button></div>`);
+    $('#pedir-revisao')?.addEventListener('click', async () => {
+      const texto = (prompt('Explique por que a suspensão deve ser revista (10 a 1000 caracteres):', '') || '').trim();
+      if (texto.length < 10) return;
+      const { error } = await sb.from('appeals').insert({ user_id: p.id, texto: texto.slice(0, 1000) });
+      error ? toast(/row-level/.test(error.message) ? 'Você já pediu uma revisão nesta semana.' : error.message, true) : toast('Pedido enviado. A equipe vai analisar.');
+    });
   }
   if (!p) {
     conta.innerHTML = `<a class="btn pequeno" href="entrar.html">Entrar</a>`;
@@ -352,7 +393,7 @@ export async function denunciar(tipo, id) {
   let dlg = $('#dlg-denuncia');
   if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'dlg-denuncia'; document.body.append(dlg); }
   dlg.innerHTML = `<form method="dialog"><h2 style="margin-top:0">Denunciar</h2>
-    <p class="muted">A equipe de moderação vai analisar. Quem você denunciou não fica sabendo.</p>
+    <p class="muted">A equipe de moderação vai analisar conforme as <a href="diretrizes.html" target="_blank" rel="noopener">diretrizes da comunidade</a>. Quem você denunciou não fica sabendo.</p>
     <label for="den-motivo">Motivo</label><select id="den-motivo" required>${MOTIVOS.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select>
     <label for="den-det">Detalhes (opcional)</label><textarea id="den-det" rows="3" maxlength="1000"></textarea>
     <div class="controles" style="margin-top:14px"><button class="btn perigo" value="ok">Enviar denúncia</button><button class="btn sec" value="cancel" formnovalidate>Cancelar</button></div></form>`;
@@ -651,13 +692,73 @@ export function pararMusica() { tocandoAgora?.pause?.(); tocandoAgora = null; }
 // Pausa e remove o player (o iframe some, então o som para de vez)
 export function destruirPlayer(c) { if (!c) return; try { c.pause?.(); c.destroy?.(); } catch { /* já removido */ } if (tocandoAgora === c) tocandoAgora = null; }
 
-// Vídeo (MP4/WebM/MOV) direto para o armazenamento, sem conversão (limite do plano grátis do Supabase: 50 MB por arquivo)
-export async function enviarVideo(uid, prefixo, arq, limiteMb = 50) {
+// Apaga do armazenamento os arquivos de um conteúdo excluído (só funciona na própria pasta ou para admin)
+export async function apagarArquivos(...urls) {
+  const caminhos = urls.map((u) => String(u || '').split('/storage/v1/object/public/media/')[1]).filter(Boolean).map(decodeURIComponent);
+  if (caminhos.length && sb) await sb.storage.from('media').remove(caminhos).catch(() => {});
+}
+
+// ---------- Vídeo: compressão no próprio navegador antes de enviar ----------
+// O plano grátis do Supabase tem pouco armazenamento: vídeos grandes são regravados em WebM 720p (~1,5 Mbps),
+// o que costuma reduzir 5 a 10 vezes. A regravação acontece em tempo real (um vídeo de 30 s leva ~30 s).
+// Navegadores sem suporte (ex.: Safari do iPhone) enviam o original, com limite menor.
+export const podeComprimirVideo = () => typeof MediaRecorder !== 'undefined' && 'captureStream' in HTMLMediaElement.prototype
+  && ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].some((t) => MediaRecorder.isTypeSupported(t));
+
+export async function duracaoVideo(arq) {
+  const v = document.createElement('video');
+  v.preload = 'metadata'; v.muted = true; v.src = URL.createObjectURL(arq);
+  try {
+    await new Promise((ok, erro) => { v.onloadedmetadata = ok; v.onerror = () => erro(new Error('Não foi possível ler o vídeo.')); });
+    return { duracao: v.duration, largura: v.videoWidth, altura: v.videoHeight };
+  } finally { URL.revokeObjectURL(v.src); }
+}
+
+export async function comprimirVideo(arq, { maxLado = 1280, bitrate = 1_500_000, aoProgresso } = {}) {
+  const tipo = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find((t) => MediaRecorder.isTypeSupported(t));
+  const v = document.createElement('video');
+  v.src = URL.createObjectURL(arq); v.playsInline = true; v.muted = false; v.volume = 0; // volume 0 mantém a trilha de áudio na gravação
+  await new Promise((ok, erro) => { v.onloadedmetadata = ok; v.onerror = () => erro(new Error('Não foi possível ler o vídeo.')); });
+  const escala = Math.min(1, maxLado / Math.max(v.videoWidth, v.videoHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(v.videoWidth * escala / 2) * 2; canvas.height = Math.round(v.videoHeight * escala / 2) * 2;
+  const ctx = canvas.getContext('2d');
+  const fluxo = canvas.captureStream(30);
+  try { for (const t of v.captureStream().getAudioTracks()) fluxo.addTrack(t); } catch { /* sem áudio */ }
+  const rec = new MediaRecorder(fluxo, { mimeType: tipo, videoBitsPerSecond: bitrate, audioBitsPerSecond: 96_000 });
+  const partes = [];
+  rec.ondataavailable = (e) => e.data.size && partes.push(e.data);
+  const fim = new Promise((ok) => { rec.onstop = ok; });
+  let quadro;
+  const desenhar = () => { ctx.drawImage(v, 0, 0, canvas.width, canvas.height); aoProgresso?.(Math.min(1, v.currentTime / (v.duration || 1))); quadro = requestAnimationFrame(desenhar); };
+  rec.start(1000);
+  await v.play();
+  desenhar();
+  await new Promise((ok) => { v.onended = ok; });
+  cancelAnimationFrame(quadro); rec.stop(); await fim;
+  URL.revokeObjectURL(v.src);
+  const blob = new Blob(partes, { type: 'video/webm' });
+  return new File([blob], arq.name.replace(/\.\w+$/, '') + '.webm', { type: 'video/webm' });
+}
+
+// Vídeo para o armazenamento: confere duração, comprime se ficar menor e envia
+export async function enviarVideo(uid, prefixo, arq, limiteMb = 50, { maxSegundos = 180, aoProgresso } = {}) {
   if (!/^video\/(mp4|webm|quicktime)$/.test(arq.type)) throw new Error('Vídeo precisa ser MP4, WebM ou MOV.');
-  if (arq.size > limiteMb * 1024 * 1024) throw new Error(`O vídeo deve ter no máximo ${limiteMb} MB (corte um trecho menor ou reduza a qualidade).`);
-  const ext = { 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' }[arq.type];
+  const { duracao } = await duracaoVideo(arq);
+  if (duracao > maxSegundos + 0.5) throw new Error(`O vídeo pode ter no máximo ${maxSegundos >= 60 ? `${Math.round(maxSegundos / 60)} min` : `${maxSegundos} s`}. Corte um trecho menor.`);
+  let final = arq;
+  if (arq.size > 6 * 1024 * 1024 && podeComprimirVideo()) {
+    try {
+      const menor = await comprimirVideo(arq, { aoProgresso });
+      if (menor.size > 0 && menor.size < arq.size * 0.9) final = menor;
+    } catch { /* se falhar, segue com o original */ }
+  }
+  const limite = podeComprimirVideo() ? limiteMb : Math.min(limiteMb, 25);
+  if (final.size > limite * 1024 * 1024) throw new Error(`O vídeo deve ter no máximo ${limite} MB (corte um trecho menor ou reduza a qualidade).`);
+  const tipo = final.type.split(';')[0];
+  const ext = { 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' }[tipo];
   const caminho = `avatars/${uid}/${prefixo}-${Date.now()}.${ext}`;
-  const { error } = await sb.storage.from('media').upload(caminho, arq, { contentType: arq.type });
+  const { error } = await sb.storage.from('media').upload(caminho, final, { contentType: tipo });
   if (error) throw new Error(`Não foi possível enviar o vídeo (${error.message}).`);
   return sb.storage.from('media').getPublicUrl(caminho).data.publicUrl;
 }
