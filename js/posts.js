@@ -1,4 +1,5 @@
 // Posts com imagem, curtidas e comentários (usado na página inicial, nas comunidades e no perfil)
+import { apagarArquivos } from './app.js';
 import { sb, $, esc, avatarHtml, toast, falha, urlSegura, denunciar, enviarImagem, esqueletoLista, imagemAceitavel, spotifyId, spotifyPlayer, playerSpotify, somLigado, definirSom, tocarSo, pararMusica, enviarVideo } from './app.js';
 
 export const COLUNAS_POST = '*, profiles!posts_user_id_fkey(username,avatar_url,equipped_frame), games(slug,title), communities(id,name)';
@@ -103,8 +104,10 @@ export async function ligarPosts(box, { u, aoMudar } = {}) {
   box.querySelectorAll('[data-p-den]:not([data-ok])').forEach((b) => { b.dataset.ok = 1; b.onclick = () => denunciar('post', b.dataset.pDen); });
   box.querySelectorAll('[data-p-del]:not([data-ok])').forEach((b) => { b.dataset.ok = 1; b.onclick = async () => {
     if (!confirm('Apagar este post?')) return;
+    const { data: antes } = await sb.from('posts').select('image_url,video_url').eq('id', b.dataset.pDel).maybeSingle();
     const { error } = await sb.from('posts').delete().eq('id', b.dataset.pDel);
     if (error) return falha(error);
+    apagarArquivos(antes?.image_url, antes?.video_url); // libera espaço no armazenamento
     b.closest('.post').remove(); aoMudar?.();
   }; });
   // Clique na imagem: abre grande
@@ -217,7 +220,8 @@ export function ligarCompositor(form, { u, comunidade = null, jogo = null, aoPub
       const ehVideo = arquivo?.type.startsWith('video/');
       if (ehVideo) bt.textContent = 'Enviando vídeo...';
       const image_url = arquivo && !ehVideo ? await enviarImagem(u.id, 'post', arquivo) : null;
-      const video_url = ehVideo ? await enviarVideo(u.id, 'video', arquivo) : null;
+      const video_url = ehVideo ? await enviarVideo(u.id, 'video', arquivo, 50, { maxSegundos: 180, aoProgresso: (p) => { bt.textContent = `Otimizando vídeo... ${Math.round(p * 100)}%`; } }) : null;
+      if (ehVideo) bt.textContent = 'Publicando...';
       const { error } = await sb.from('posts').insert({ user_id: u.id, community_id: comunidade, body: texto || '📷',
         image_url, ...(video_url ? { video_url } : {}), game_id: $('#cp-jogo', form).value ? Number($('#cp-jogo', form).value) : null, ...(desafio ? { challenge_id: desafio.id } : {}), ...(arquivo && $('#cp-meme', form).checked ? { ig_ok: true } : {}),
         ...(linkMus ? { musica: spotifyId(linkMus) } : {}), ...($('#cp-aviso', form).checked ? { aviso: true } : {}) });

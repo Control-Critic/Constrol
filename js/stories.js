@@ -1,5 +1,6 @@
 // Stories (24 h), inspirados no Instagram: foto/print com legenda, enquete, caixinha de perguntas,
 // música do Spotify, "só melhores amigos" e destaques no perfil. Também mostra as Notas (status de 24 h).
+import { apagarArquivos } from './app.js';
 import { aoMudarOnline, estadoOnline } from './app.js';
 import { sb, $, esc, urlSegura, avatar, toast, falha, enviarImagem, spotifyId, spotifyPlayer, notaAtiva, srcCapa, playerSpotify, somLigado, definirSom, pararMusica, tocarSo, enviarVideo, destruirPlayer } from './app.js';
 
@@ -127,7 +128,7 @@ export function criarStory(u, depois) {
     try {
       const video = arquivo.type.startsWith('video/');
       const image_url = video ? null : await enviarImagem(u.id, 'story', arquivo, 25, 1440);
-      const video_url = video ? await enviarVideo(u.id, 'story', arquivo, 30) : null;
+      const video_url = video ? await enviarVideo(u.id, 'story', arquivo, 30, { maxSegundos: 60, aoProgresso: (p) => { bt.textContent = `Otimizando vídeo... ${Math.round(p * 100)}%`; } }) : null;
       const { error } = await sb.from('stories').insert({ user_id: u.id, image_url, video_url, caption: $('#st-leg').value.trim() || null,
         poll: pq ? { pergunta: pq, a, b } : null, question: $('#st-q').value.trim() || null, musica: spotifyId(mus), close_friends: $('#st-cf').checked });
       if (error) throw error;
@@ -215,6 +216,7 @@ export function verStories(u, grupos, gi = 0, aoFechar) {
         if (!confirm('Apagar este story?')) return;
         const { error } = await sb.from('stories').delete().eq('id', s.id);
         if (error) return falha(error);
+        apagarArquivos(s.image_url, s.video_url); // libera espaço no armazenamento
         g.lista.splice(si, 1); toast('Story apagado.'); mostrar();
       };
       dlg.querySelector('[data-destacar]').onclick = async () => {
