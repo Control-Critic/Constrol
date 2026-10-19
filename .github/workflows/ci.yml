@@ -51,8 +51,8 @@ jobs:
           fetch-depth: 0
       - name: Procura segredos no código e no histórico (gitleaks)
         run: |
-          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar -xz gitleaks
-          ./gitleaks detect --source . --config .gitleaks.toml --redact --no-banner --log-opts="${{ github.event_name == 'pull_request' && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) || '-1' }}"
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar -xz -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" detect --source . --config .gitleaks.toml --redact --no-banner --log-opts="${{ github.event_name == 'pull_request' && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) || '-1' }}"
       - name: Tamanho dos arquivos do site (nenhum arquivo público acima de 1,5 MB)
         run: node scripts/tamanho-assets.mjs
       - name: Dependências com vulnerabilidade alta
