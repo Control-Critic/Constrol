@@ -15,6 +15,11 @@
     "check:links": "node scripts/checar-links.mjs",
     "check:syntax": "for f in js/*.js lib/*.mjs netlify/functions/*.mjs scripts/*.mjs scripts/instagram/*.mjs; do node --check \"$f\" || exit 1; done",
     "check:html": "npx --yes html-validate@8.24.1 \"*.html\"",
-    "check": "npm run check:syntax && npm test && npm run check:links"
+    "check": "npm run check:syntax && npm test && npm run check:links",
+    "check:a11y": "node scripts/a11y.mjs"
+  },
+  "devDependencies": {
+    "axe-core": "4.10.2",
+    "playwright-core": "1.48.2"
   }
 }

@@ -2,7 +2,7 @@
 [build]
   publish = "."
   # Sem build de verdade: só carimba o commit na versão do service worker (invalida o cache a cada deploy)
-  command = "sed -i \"s/__BUILD__/${COMMIT_REF:-local}/\" sw.js"
+  command = "sed -i \"s/__BUILD__/${COMMIT_REF:-local}/\" sw.js js/app.js"
 
 # Funções no servidor (busca de jogos no IGDB)
 [functions]
@@ -85,6 +85,20 @@
   to = "/404.html"
   status = 404
   force = true
+
+# Links curtos e amigáveis (para compartilhar): levam às páginas atuais, que continuam funcionando
+[[redirects]]
+  from = "/jogo/:slug"
+  to = "/jogo.html?slug=:slug"
+  status = 301
+[[redirects]]
+  from = "/u/:nome"
+  to = "/perfil.html?u=:nome"
+  status = 301
+[[redirects]]
+  from = "/c/:id"
+  to = "/comunidade.html?id=:id"
+  status = 301
 
 # Prévia de links para robôs (WhatsApp, Discord...) e SEO
 [[redirects]]

@@ -1,6 +1,6 @@
 // Boas-vindas para contas novas: 3 passos rápidos (gostos, comunidades e próximos passos).
 // Só aparece uma vez (profiles.onboarded).
-import { sb, esc, toast } from './app.js';
+import { sb, esc, toast, contarEvento } from './app.js';
 
 export async function boasVindas(p) {
   if (location.pathname.endsWith('entrar.html') || document.querySelector('#dlg-boas-vindas')) return;
@@ -79,6 +79,7 @@ export async function boasVindas(p) {
     for (const cid of entrar) await sb.rpc('join_community', { cid, codigo: null, mensagem: null });
     // Marca como concluído e dá o XP de boas-vindas (uma única vez, conferido no banco)
     const { data: xp } = await sb.rpc('concluir_onboarding');
+    contarEvento('onboarding_fim');
     toast(xp ? `Perfil configurado! +${xp} XP de boas-vindas 🎉` : 'Perfil configurado!');
     if (location.pathname.endsWith('/') || location.pathname.endsWith('index.html')) setTimeout(() => location.reload(), 900);
   }

@@ -1,6 +1,7 @@
 // Interface da call (usada nas comunidades e na call entre amigos)
-import { sb, $, esc, falha, toast, statusCall, aplicarVolume } from './app.js';
+import { sb, $, esc, falha, toast, statusCall, aplicarVolume, contarEvento } from './app.js';
 import { SalaVoz } from './voz.js';
+import { preEntrar } from './pre-call.js';
 import { prefsAudio, salvarPrefsAudio, processarMic, restricoesMic, definirSaida } from './audio-mic.js';
 
 export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call', janela = false }) {
@@ -15,6 +16,7 @@ export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call',
       <button class="btn sec hidden" data-v="som">🔈 Ativar som</button>
       <button class="btn sec" data-v="cfg-audio" title="Microfone, supressão de ruído e eco">⚙️ Áudio</button>
       ${janela ? '' : '<button class="btn sec" data-v="popout" title="Abre a call numa janela separada: você continua navegando pelo site sem cair">🗗 Abrir em janela</button>'}
+      <button class="btn sec hidden" data-v="diag" title="Copia um resumo técnico da conexão (sem dados pessoais) para mandar ao suporte">📋 Diagnóstico</button>
       <button class="btn perigo hidden" data-v="sair">Sair da call</button>
     </div>
     <div class="opcoes-tela cartao hidden painel-audio" data-v="audio">
@@ -73,7 +75,7 @@ export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call',
   const atualizar = () => {
     const dentro = !!sala?.local;
     el('entrar').classList.toggle('hidden', dentro);
-    ['mudo', 'cam', 'tela', 'sair', 'layout'].forEach((k) => el(k).classList.toggle('hidden', !dentro));
+    ['mudo', 'cam', 'tela', 'sair', 'layout', 'diag'].forEach((k) => el(k).classList.toggle('hidden', !dentro));
     el('musica').classList.toggle('hidden', !dentro || !navigator.mediaDevices?.getDisplayMedia);
     el('chat').classList.toggle('hidden', !dentro);
     if (!dentro && emCall) { emCall = false; statusCall(null); clearInterval(relogioCall); }
@@ -89,11 +91,14 @@ export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call',
     const outros = sala.participantes - 1;
     el('info').textContent = outros ? `${sala.participantes} pessoas na call · ${sala.conectados} de ${outros} ${outros === 1 ? 'conectada' : 'conectadas'}` : 'Você está na call. Aguardando outras pessoas...';
   };
-  const avisar = (tipo) => {
+  const avisar = (tipo, nome) => {
     if (tipo === 'som-bloqueado') { el('som').classList.remove('hidden'); toast('O navegador bloqueou o som. Clique em "Ativar som".', true); return; }
     const msgs = {
       'sem-turn': '⚠️ Não foi possível conectar com alguém da call. Isso costuma acontecer em redes de celular ou de provedores que bloqueiam conexão direta. O administrador do site pode ativar o servidor de retransmissão (TURN) — veja o README.',
       lento: '⏳ A conexão com alguém está demorando. Se não conectar, saiam e entrem de novo na call.',
+      falhou: `❌ Não foi possível conectar com ${nome || 'uma pessoa'} depois de 3 tentativas. Peça para ela sair e entrar de novo; se continuar, troquem de rede (Wi-Fi ↔ dados) ou toque em 📋 Diagnóstico e envie em "Reportar problema".`,
+      'mic-trocado': '🎤 Seu microfone foi desconectado. Passamos para o microfone padrão do aparelho.',
+      'sem-mic': '⚠️ Seu microfone foi desconectado e não há outro disponível. Conecte um fone com microfone.',
       'sem-video': 'Essa pessoa não está com câmera ou tela ligada.',
       'sem-pip': 'Seu navegador não permite janela flutuante para este vídeo.',
     };
@@ -109,9 +114,12 @@ export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call',
 
   el('entrar').onclick = async () => {
     el('entrar').disabled = true;
+    // Tela de pré-entrada: navegador, permissão, microfone (com medidor), saída de som
+    if (!(await preEntrar())) { el('entrar').disabled = false; return; }
     sala = new SalaVoz({ salaId, eu: u.id, nome: p.username, container: el('sala'), aoMudar: atualizar, aoChat: mostrarMsg, aoAviso: avisar });
     try {
       await sala.entrar();
+      contarEvento('call_entrou');
       // Avisa aos amigos que você está em call (comunidade: com link para entrar; privada: só "em call")
       const cid = /^dm-/.test(salaId) ? null : Number(String(salaId).split('-')[0]) || null;
       statusCall({ titulo: String(titulo).slice(0, 60), cid });
@@ -122,6 +130,12 @@ export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call',
     } finally { el('entrar').disabled = false; }
   };
   el('sair').onclick = () => { statusCall(null); sala.sair(); };
+  el('diag').onclick = async () => {
+    const texto = JSON.stringify(sala?.diagnostico?.() || {}, null, 1);
+    try { await navigator.clipboard.writeText(texto); toast('Diagnóstico copiado. Cole em "Reportar problema" (rodapé).'); } catch { prompt('Copie o diagnóstico:', texto); }
+  };
+  // Saída limpa: fechar a aba ou a janela encerra a call e avisa os outros
+  addEventListener('pagehide', () => { try { sala?.sair(); } catch { /* já saiu */ } });
   addEventListener('pagehide', () => statusCall(null));
   el('mudo').onclick = () => sala.alternarMudo();
   el('som').onclick = async () => { await sala.ativarSom(); el('som').classList.add('hidden'); };

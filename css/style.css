@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
   --amarelo: #FFD33C;
@@ -634,3 +633,47 @@ label.check { display: inline-flex; align-items: center; gap: 6px; margin: 0; cu
 button.link { background: none; border: 0; color: var(--amarelo); cursor: pointer; padding: 4px; font: inherit; text-decoration: underline; }
 #aviso-versao { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 100; }
 .offline-caixa { padding: 48px 16px; text-align: center; } .offline-caixa img { max-width: 160px; height: auto; }
+.regras-com summary { cursor: pointer; }
+
+/* ---------- Acessibilidade (fase 11) ---------- */
+/* Links dentro de texto: sublinhados (não dependem só da cor) */
+.aviso a, p a:not(.btn):not(.tag):not(.usuario), li a:not(.btn):not(.tag), .muted a:not(.btn):not(.tag), .rodape a { text-decoration: underline; text-underline-offset: 2px; }
+h2.h3 { font-size: 1.17em; }
+/* Itens bloqueados: o desenho fica apagado, mas o texto mantém contraste */
+.item.bloqueado { opacity: 1; filter: none; }
+.item.bloqueado > :is(.selo, .avatar, .amostra-banner, img, .moldura) { opacity: .45; filter: grayscale(.8); }
+/* Foco sempre visível no teclado */
+:focus-visible { outline: 3px solid var(--amarelo); outline-offset: 2px; }
+.car-trilho:focus-visible { outline-offset: -3px; }
+/* Pular para o conteúdo */
+.pular { position: absolute; left: 8px; top: -60px; z-index: 200; background: var(--amarelo); color: #111; padding: 10px 14px; border-radius: 10px; font-weight: 800; }
+.pular:focus { top: 8px; }
+/* Movimento reduzido: sem animações nem rolagem suave */
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+/* Alto contraste do sistema */
+@media (forced-colors: active) { .btn, .chip, .tag { border: 1px solid ButtonText; } }
+/* Alvos de toque mínimos */
+.btn.pequeno, .chip, .bt-denunciar { min-height: 32px; }
+
+/* ---------- Desempenho (fase 13): sem "pulos" de layout enquanto a página monta ---------- */
+/* O rodapé entra pelo JS: o conteúdo ocupa a tela toda desde o início, então o rodapé já nasce abaixo da dobra */
+main#conteudo { min-height: calc(100vh - 69px); }
+/* A área da conta (Entrar/avatar) e o botão do menu têm espaço reservado antes de carregar */
+.topo .conta { min-width: 64px; min-height: 36px; display: inline-flex; align-items: center; justify-content: flex-end; }
+.topo-reserva { height: 67px; background: var(--preto); border-bottom: 3px solid var(--amarelo); box-sizing: border-box; }
+@media (min-width: 1200px) { .topo-reserva { height: 69px; } }
+/* Capa do jogo com proporção reservada (a imagem não empurra o título ao carregar) */
+#capa-jogo { aspect-ratio: 16 / 9; object-fit: contain; background: var(--cartao-2); }
+/* Categorias do catálogo chegam depois: espaço reservado para não empurrar a grade */
+#cats:empty { min-height: 84px; }
+@media (max-width: 760px) { #cats:empty { min-height: 150px; } }
+
+/* ---------- Calls (fase 14) ---------- */
+.pre-call { width: min(480px, 96vw); }
+.pre-call .medidor { height: 10px; background: var(--cartao-2); border-radius: 999px; overflow: hidden; margin-top: 8px; }
+.pre-call .medidor > div { height: 100%; width: 0; background: var(--amarelo); transition: width .08s; }
+.pc-suporte { list-style: none; padding: 0; margin: 10px 0 0; font-size: .9rem; }
+.qualidade { position: absolute; top: 10px; left: 10px; width: 12px; height: 12px; border-radius: 50%; background: var(--texto-2); box-shadow: 0 0 0 2px #0008; z-index: 2; }
+.qualidade[data-nivel="boa"] { background: #22c55e; }
+.qualidade[data-nivel="media"] { background: #f59e0b; }
+.qualidade[data-nivel="ruim"] { background: #ef4444; }

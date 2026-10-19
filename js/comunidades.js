@@ -1,13 +1,21 @@
 import { urlSegura } from './app.js';
 import { sb, $, esc, montarLayout, configurado, usuario, falha, toast } from './app.js';
 
+const POR_PAG = 24;
+let pag = 0, ctrlC = null; // declarados antes do uso (carregar() roda já no carregamento)
 await montarLayout();
 const main = $('#conteudo');
 main.insertAdjacentHTML('beforeend', `
   <h1>Comunidades</h1>
   <p class="muted">Converse, marque partidas e entre em call com quem joga o mesmo que você.</p>
-  <div class="controles" style="margin:16px 0"><input id="q" type="search" placeholder="Buscar comunidade..." style="max-width:360px"><button class="btn" id="nova">+ Criar comunidade</button></div>
-  <div class="grade" id="lista"></div>
+  <div class="controles" style="margin:16px 0" role="search">
+    <label for="q" class="sr-only">Buscar comunidade</label><input id="q" type="search" placeholder="🔎 Buscar comunidade..." style="max-width:320px">
+    <label for="ordem-c" class="sr-only">Ordenar</label><select id="ordem-c" style="max-width:200px"><option value="ultima_atividade">Mais ativas</option><option value="members_count">Mais membros</option><option value="created_at">Mais novas</option></select>
+    <label class="check"><input type="checkbox" id="so-discord"> Com Discord</label>
+    <button class="btn" id="nova">+ Criar comunidade</button></div>
+  <p class="muted" id="contagem-c" role="status" aria-live="polite"></p>
+  <div class="grade" id="lista" aria-busy="true"></div>
+  <div style="text-align:center;margin:16px 0"><button class="btn sec hidden" id="mais-c">Carregar mais</button></div>
   <dialog id="dlg"><form id="form" method="dialog">
     <h2 style="margin-top:0">Nova comunidade</h2>
     <label for="nome">Nome</label><input id="nome" required minlength="3" maxlength="60">
@@ -23,7 +31,8 @@ main.insertAdjacentHTML('beforeend', `
 
 if (configurado) {
   carregar();
-  let t; $('#q').oninput = () => { clearTimeout(t); t = setTimeout(carregar, 300); };
+  let t; $('#q').oninput = () => { clearTimeout(t); t = setTimeout(() => carregar(), 300); };
+  $('#ordem-c').onchange = () => carregar(); $('#so-discord').onchange = () => carregar(); $('#mais-c').onclick = () => carregar(true);
   // Busca de jogo com sugestões (o catálogo tem milhares de jogos)
   let tBusca;
   const escolher = (id, titulo) => {
@@ -62,16 +71,31 @@ if (configurado) {
   });
 }
 
-async function carregar() {
-  let q = sb.from('communities').select('*, games(title)').order('members_count', { ascending: false }).limit(60);
+const ha = (d) => { if (!d) return ''; const m = Math.round((Date.now() - new Date(d)) / 60000); return m < 60 ? 'ativa agora' : m < 1440 ? `ativa há ${Math.round(m / 60)} h` : m < 43200 ? `ativa há ${Math.round(m / 1440)} d` : ''; };
+async function carregar(mais = false) {
+  pag = mais ? pag + 1 : 0;
+  ctrlC?.abort(); ctrlC = new AbortController();
+  const ordem = $('#ordem-c').value;
+  let q = sb.from('communities').select('*, games(title)', { count: 'exact' }).order('oficial', { ascending: false }).order(ordem, { ascending: false, nullsFirst: false })
+    .range(pag * POR_PAG, pag * POR_PAG + POR_PAG - 1).abortSignal(ctrlC.signal);
   const termo = $('#q').value.trim().replace(/[%,()]/g, '');
   if (termo) q = q.ilike('name', `%${termo}%`);
-  const { data } = await q;
-  $('#lista').innerHTML = (data || []).map((c) => `
-    <a class="cartao" href="comunidade.html?id=${c.id}" style="color:var(--texto);text-decoration:none">
-      <h3 style="display:flex;gap:10px;align-items:center">${urlSegura(c.icon_url) ? `<img src="${urlSegura(c.icon_url)}" alt="" style="width:40px;height:40px;border-radius:10px;object-fit:cover">` : ''}${c.is_private ? '🔒 ' : ''}${esc(c.name)}</h3>
+  if ($('#so-discord').checked) q = q.not('discord_invite', 'is', null);
+  let { data, error, count } = await q;
+  // Banco ainda sem a migração da fase 9: volta para a ordem antiga
+  if (error?.code === '42703') ({ data, error, count } = await sb.from('communities').select('*, games(title)', { count: 'exact' }).order('members_count', { ascending: false }).range(pag * POR_PAG, pag * POR_PAG + POR_PAG - 1));
+  if (/abort/i.test(error?.message || '')) return;
+  $('#lista').setAttribute('aria-busy', 'false');
+  if (error) { $('#lista').innerHTML = '<p class="vazio" role="alert">Não foi possível carregar. <button class="btn sec pequeno" id="tentar-c">Tentar de novo</button></p>'; $('#tentar-c').onclick = () => carregar(); return; }
+  const html = (data || []).map((c) => `
+    <a class="cartao" href="comunidade.html?id=${Number(c.id)}" style="color:var(--texto);text-decoration:none">
+      <h3 style="display:flex;gap:10px;align-items:center">${urlSegura(c.icon_url) ? `<img src="${urlSegura(c.icon_url)}" alt="" style="width:40px;height:40px;border-radius:10px;object-fit:cover">` : ''}${c.is_private ? '🔒 ' : ''}${esc(c.name)}${c.oficial ? ' <span class="tag amarela">✔ Oficial</span>' : ''}</h3>
       <p class="muted">${esc(c.description || '')}</p>
-      <p style="margin-top:8px">${c.games ? `<span class="tag">${esc(c.games.title)}</span> ` : ''}<span class="tag">${c.members_count} membros</span>
-      ${c.discord_invite ? ' <span class="tag" style="background:#5865F2;color:#fff">Discord</span>' : ''}</p>
-    </a>`).join('') || '<p class="vazio">Nenhuma comunidade ainda. Crie a primeira!</p>';
+      <p style="margin-top:8px">${c.games ? `<span class="tag">${esc(c.games.title)}</span> ` : ''}<span class="tag">${Number(c.members_count) === 1 ? '1 membro' : `${Number(c.members_count || 0).toLocaleString('pt-BR')} membros`}</span>
+      ${c.discord_invite ? ' <span class="tag" style="background:#5865F2;color:#fff">Discord</span>' : ''} ${ha(c.ultima_atividade) ? `<span class="muted" style="font-size:.8rem">· ${ha(c.ultima_atividade)}</span>` : ''}</p>
+    </a>`).join('');
+  if (mais) $('#lista').insertAdjacentHTML('beforeend', html);
+  else $('#lista').innerHTML = html || `<p class="vazio">${termo ? `Nenhuma comunidade com “${esc(termo)}”.` : 'Nenhuma comunidade ainda.'} Que tal criar a primeira?</p>`;
+  $('#contagem-c').textContent = count != null ? (count === 1 ? '1 comunidade' : `${count.toLocaleString('pt-BR')} comunidades`) : '';
+  $('#mais-c').classList.toggle('hidden', (pag + 1) * POR_PAG >= (count ?? 0));
 }

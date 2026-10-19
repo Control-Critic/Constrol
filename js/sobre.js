@@ -15,7 +15,7 @@ $('#conteudo').insertAdjacentHTML('beforeend', `
     <img src="img/Adelino.png" alt="Adelino, mascote do Control Critic">
   </section>
   <div class="grade" style="margin-top:20px">
-    <div class="cartao"><h3>⭐ Avalie</h3><p class="muted">Dê sua nota, escreva sua crítica e ganhe XP.</p></div>
-    <div class="cartao"><h3>📰 Informe-se</h3><p class="muted">Notícias oficiais e promoções atualizadas automaticamente.</p></div>
-    <div class="cartao"><h3>👥 Conecte-se</h3><p class="muted">Comunidades com mural, call de voz, compartilhamento de tela e Discord.</p></div>
+    <div class="cartao"><h2 class="h3">⭐ Avalie</h2><p class="muted">Dê sua nota, escreva sua crítica e ganhe XP.</p></div>
+    <div class="cartao"><h2 class="h3">📰 Informe-se</h2><p class="muted">Notícias oficiais e promoções atualizadas automaticamente.</p></div>
+    <div class="cartao"><h2 class="h3">👥 Conecte-se</h2><p class="muted">Comunidades com mural, call de voz, compartilhamento de tela e Discord.</p></div>
   </div>`);

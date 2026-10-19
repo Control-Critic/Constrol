@@ -8,7 +8,7 @@ const main = $('#conteudo');
 let P;
 
 const ABAS = [
-  ['geral', 'Visão geral'], ['problemas', 'Problemas 🐞'], ['denuncias', 'Denúncias'], ['apelacoes', 'Apelações'], ['jogos', 'Jogos'], ['noticias', 'Notícias'], ['promos', 'Promoções'], ['memes', 'Memes 😂'], ['stories', 'Stories 📸'],
+  ['geral', 'Visão geral'], ['status', 'Status 🩺'], ['metricas', 'Métricas 📊'], ['problemas', 'Problemas 🐞'], ['denuncias', 'Denúncias'], ['apelacoes', 'Apelações'], ['jogos', 'Jogos'], ['noticias', 'Notícias'], ['promos', 'Promoções'], ['memes', 'Memes 😂'], ['stories', 'Stories 📸'],
   ['reviews', 'Avaliações'], ['posts', 'Posts'], ['comunidades', 'Comunidades'], ['mensagens', 'Mensagens'],
   ['usuarios', 'Usuários'], ['cargos', 'Cargos', true], ['itens', 'Itens', true], ['desafios', 'Desafios', true], ['registro', 'Registro'], ['site', 'Site', true], ['auto', 'Automação', true],
 ];
@@ -26,7 +26,7 @@ function iniciar() {
 }
 
 const painel = () => $('#painel');
-const VIEWS = { geral, problemas, denuncias, apelacoes, jogos, noticias, promos, memes, stories, reviews, posts, comunidades, mensagens, usuarios, cargos, itens, desafios, registro, site, auto };
+const VIEWS = { geral, status, metricas, problemas, denuncias, apelacoes, jogos, noticias, promos, memes, stories, reviews, posts, comunidades, mensagens, usuarios, cargos, itens, desafios, registro, site, auto };
 function abrir(k) { painel().innerHTML = '<p class="muted">Carregando...</p>'; VIEWS[k]().catch(falha); }
 
 // Campo de busca de jogo com sugestões (o catálogo tem milhares de jogos)
@@ -361,6 +361,66 @@ async function promos() {
   });
 }
 
+// ---------------- Métricas de produto (agregadas; ninguém é identificado) ----------------
+async function metricas() {
+  const dias = Number(painel().dataset.dias || 28);
+  const { data: m, error } = await sb.rpc('metricas_produto', { dias });
+  if (error) throw error;
+  const pct = (n, total) => (total ? `${Math.round((100 * n) / total)}%` : '—');
+  const novos = m.novos_cadastros || 0, at = m.ativacao || {}, ev = m.eventos || {}, ret = m.retencao || {}, uso = m.uso_7_dias || {};
+  const cartao = (titulo, valor, sub = '') => `<div class="cartao" style="text-align:center"><div class="nota-grande" style="font-size:2rem">${valor}</div><strong>${titulo}</strong>${sub ? `<p class="muted" style="font-size:.82rem;margin:4px 0 0">${sub}</p>` : ''}</div>`;
+  painel().innerHTML = `
+    <div class="chips" style="margin-bottom:12px">${[7, 28, 90].map((d) => `<button class="chip ${d === dias ? 'ativo' : ''}" data-d="${d}">${d} dias</button>`).join('')}</div>
+    <div class="grade">
+      ${cartao('Usuários semanais ativos de verdade', m.usuarios_semanais_significativos ?? 0, 'Métrica principal: pessoas que avaliaram, postaram, comentaram, criaram/entraram em grupo, mandaram mensagem, postaram story ou mexeram na biblioteca nos últimos 7 dias')}
+      ${cartao('Novos cadastros', novos, `nos últimos ${dias} dias`)}
+      ${cartao('Visitas (navegadores/dia)', ev.visita || 0, 'contagem diária sem identificar ninguém')}
+    </div>
+    <h2>Conversão</h2>
+    <p>Cliques em "Criar conta": <strong>${ev.clique_cadastro || 0}</strong> · Abriram o cadastro: <strong>${ev.cadastro_inicio || 0}</strong> · Enviaram o cadastro: <strong>${ev.cadastro_enviado || 0}</strong>
+      ${ev.cadastro_inicio ? `(${pct(ev.cadastro_enviado || 0, ev.cadastro_inicio)} de quem abriu)` : ''}</p>
+    <h2>Ativação de quem chegou no período</h2>
+    ${tabela(['Etapa', 'Pessoas', '% dos novos'], [['Concluiu as boas-vindas', at.onboarding], ['Adicionou o primeiro jogo', at.primeiro_jogo], ['Fez a primeira avaliação', at.primeira_avaliacao],
+      ['Entrou numa comunidade', at.primeira_comunidade], ['Criou ou entrou num grupo', at.primeiro_grupo], ['Entrou numa call', at.primeira_call]].map(([e, n]) => `<tr><td>${e}</td><td>${n || 0}</td><td>${pct(n || 0, novos)}</td></tr>`))}
+    <h2>Retenção</h2>
+    <p>Voltaram no dia seguinte: <strong>${ret.d1 ?? '—'}${ret.d1 != null ? '%' : ''}</strong> · na 2ª semana: <strong>${ret.d7 ?? '—'}${ret.d7 != null ? '%' : ''}</strong> · depois de 30 dias: <strong>${ret.d30 ?? '—'}${ret.d30 != null ? '%' : ''}</strong>
+      <br><span class="muted" style="font-size:.82rem">Base: login diário registrado. "—" = ainda não há gente suficiente com esse tempo de conta.</span></p>
+    <h2>Uso por funcionalidade (7 dias)</h2>
+    <p>${Object.entries(uso).map(([k, n]) => `<span class="tag">${esc(k)}: ${n}</span>`).join(' ')} ${ev.grupo_criado ? `<span class="tag">grupos criados (evento): ${ev.grupo_criado}</span>` : ''} ${ev.call_entrou ? `<span class="tag">entradas em call: ${ev.call_entrou}</span>` : ''} ${ev.instalou_app ? `<span class="tag">instalações do app: ${ev.instalou_app}</span>` : ''}</p>
+    <h2>Erros por página (${dias} dias)</h2>
+    <p>${Object.entries(m.erros_por_pagina || {}).map(([p, n]) => `<span class="tag">${esc(p)}: ${n}</span>`).join(' ') || 'Nenhum erro registrado. 🎉'}</p>
+    <p class="muted" style="font-size:.82rem;margin-top:14px">Privacidade: só contadores agregados. Nenhum id, nome, IP ou página com parâmetros é registrado para métricas; navegadores com "Não rastrear" não entram na contagem.</p>`;
+  painel().querySelectorAll('[data-d]').forEach((b) => b.onclick = () => { painel().dataset.dias = b.dataset.d; metricas(); });
+}
+
+// ---------------- Status: robôs, erros do site e serviços ----------------
+async function status() {
+  const [{ data: robos }, { data: erros }, { data: cfg }] = await Promise.all([
+    sb.from('robot_runs').select('*').order('robo'),
+    sb.from('client_errors').select('*').gte('dia', new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)).order('vezes', { ascending: false }).limit(100),
+    sb.from('settings').select('key,value').in('key', ['push', 'last_sync', 'last_igdb']),
+  ]);
+  const conf = Object.fromEntries((cfg || []).map((x) => [x.key, x.value]));
+  const ROBOS = { sync: 'Notícias e promoções (6/6 h)', igdb: 'Catálogo IGDB (diário)', instagram: 'Instagram (3x/dia)', semanal: 'Robô semanal', backup: 'Backup (domingo)' };
+  const dur = (r) => (r.inicio && r.fim ? `${Math.max(0, Math.round((new Date(r.fim) - new Date(r.inicio)) / 1000))} s` : '—');
+  const porCat = {};
+  for (const e of erros || []) porCat[e.categoria] = (porCat[e.categoria] || 0) + e.vezes;
+  painel().innerHTML = `
+    <h2>🤖 Robôs</h2>
+    ${tabela(['Robô', 'Última execução', 'Duração', 'Resultado'], Object.entries(ROBOS).map(([k, nome]) => { const r = (robos || []).find((x) => x.robo === k);
+      return `<tr><td>${nome}</td><td>${r ? data(r.fim || r.inicio) : '<span class="muted">sem registro ainda</span>'}</td><td>${r ? dur(r) : '—'}</td>
+        <td>${!r ? '—' : r.ok === null ? '⏳ rodando' : r.ok ? '✅ ok' : '❌ falhou'} <span class="muted" style="font-size:.8rem">${esc(r?.resumo || '')}</span></td></tr>`; }))}
+    <h2>🔔 Serviços</h2>
+    <ul>
+      <li>Notificações no celular: ${conf.push?.url ? '✅ configuradas' : '⚠️ não configuradas (aba Site)'}</li>
+      <li>Última sincronização de notícias: ${conf.last_sync?.at ? data(conf.last_sync.at) : '—'}</li>
+      <li>TURN e robô do Discord: teste na aba <strong>Site</strong>.</li>
+    </ul>
+    <h2>🐞 Erros do site (7 dias)</h2>
+    <p class="muted">Agrupados por mensagem; sem dados pessoais. ${Object.entries(porCat).map(([c, n]) => `<span class="tag">${esc(c)}: ${n}</span>`).join(' ') || 'Nenhum erro registrado. 🎉'}</p>
+    ${(erros || []).length ? tabela(['Dia', 'Vezes', 'Tipo', 'Página', 'Mensagem', 'Versão'], erros.map((e) => `<tr><td>${esc(e.dia)}</td><td>${e.vezes}</td><td>${esc(e.categoria)}</td><td>${esc(e.pagina)}</td><td>${corta(e.mensagem, 160)}</td><td><code>${esc(String(e.versao || '').slice(0, 7))}</code></td></tr>`)) : ''}`;
+}
+
 // ---------------- Apelações de suspensão ----------------
 async function apelacoes() {
   const { data: ap, error } = await sb.from('appeals').select('*, profiles(username,banned,banned_until,ban_reason)').order('created_at', { ascending: false }).limit(100);
@@ -489,8 +549,9 @@ async function comunidades() {
   painel().innerHTML = tabela(['Comunidade', 'Dono', 'Membros', 'Discord', 'Criada', ''], cs.map((c) => `<tr>
     <td><a href="comunidade.html?id=${c.id}" target="_blank">${esc(c.name)}</a></td><td>${esc(c.profiles?.username || '—')}</td>
     <td>${c.members_count}</td><td>${c.discord_invite ? '✔' : ''}</td><td>${data(c.created_at)}</td>
-    <td><button class="btn perigo pequeno" data-acao="excluir" data-id="${c.id}">Excluir</button></td></tr>`));
-  acoes({ excluir: async (id) => { if (!confirm('Excluir comunidade e posts?')) return; const { error } = await sb.from('communities').delete().eq('id', id); if (error) throw error; comunidades(); } });
+    <td class="controles"><button class="btn sec pequeno" data-acao="oficial" data-id="${c.id}">${c.oficial ? '✔ Oficial · tirar' : 'Marcar oficial'}</button><button class="btn perigo pequeno" data-acao="excluir" data-id="${c.id}">Excluir</button></td></tr>`));
+  acoes({ oficial: async (id) => { const c = cs.find((x) => x.id == id); const { error } = await sb.from('communities').update({ oficial: !c.oficial }).eq('id', id); if (error) throw error; comunidades(); },
+    excluir: async (id) => { if (!confirm('Excluir comunidade e posts?')) return; const { error } = await sb.from('communities').delete().eq('id', id); if (error) throw error; comunidades(); } });
 }
 
 async function mensagens() {

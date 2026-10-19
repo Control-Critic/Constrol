@@ -120,7 +120,7 @@ async function carregar(p, meu, u) {
             const s = [...topo.values()].sort((a, b) => a.cosmetics.sort - b.cosmetics.sort);
             return s.length || p.streak_current ? `<div class="vitrine">${p.streak_current ? `<span title="Dias seguidos">🔥 ${p.streak_current} dias</span>` : ''}
               ${s.slice(-6).reverse().map((x) => `<span class="${x.cosmetics.serie ? 'selo-r r-' + x.cosmetics.rarity : ''}" title="${esc(x.cosmetics.name)}: ${esc(x.cosmetics.description || '')}">${esc(x.cosmetics.icon || '🏅')} ${esc(x.cosmetics.name)}</span>`).join('')}
-              <a href="conquistas.html" style="font-size:.82rem;align-self:center">${meu ? 'Ver conquistas →' : ''}</a></div>` : ''; })()}
+              ${meu ? '<a href="conquistas.html" style="font-size:.82rem;align-self:center">Ver conquistas →</a>' : ''}</div>` : ''; })()}
           <div class="barra-xp" style="margin-top:10px;max-width:360px" title="${p.xp} XP"><div style="width:${n.pct}%"></div></div>
           <p class="muted" style="font-size:.85rem">${p.xp} XP · próximo nível em ${n.prox} XP</p>
           <p style="margin-top:6px"><strong id="n-seguidores">${seguidores ?? 0}</strong> seguidores · <strong>${seguindo ?? 0}</strong> seguindo ·
@@ -541,11 +541,17 @@ const enviar = (uid, tipo, arq) => enviarImagem(uid, tipo, arq, LIMITE_MB, tipo 
 async function exportarDados(p) {
   const tabelas = [['avaliacoes', 'reviews', 'user_id'], ['posts', 'posts', 'user_id'], ['biblioteca', 'user_games', 'user_id'],
     ['comunidades', 'community_members', 'user_id'], ['seguindo', 'follows', 'follower_id'], ['seguidores', 'follows', 'followed_id'], ['amizades_a', 'friendships', 'user_a'], ['amizades_b', 'friendships', 'user_b'],
-    ['partidas', 'event_attendees', 'user_id'], ['notificacoes', 'notifications', 'user_id']];
+    ['partidas', 'event_attendees', 'user_id'], ['notificacoes', 'notifications', 'user_id'],
+    // completo para a LGPD: tudo o que o site guarda ligado à sua conta
+    ['comentarios_em_posts', 'post_comments', 'user_id'], ['comentarios_em_avaliacoes', 'review_comments', 'user_id'], ['curtidas', 'post_likes', 'user_id'],
+    ['mensagens_enviadas', 'direct_messages', 'sender_id'], ['mensagens_recebidas', 'direct_messages', 'receiver_id'],
+    ['stories', 'stories', 'user_id'], ['stories_vistos', 'story_views', 'user_id'], ['melhores_amigos', 'close_friends', 'owner_id'],
+    ['listas', 'user_lists', 'user_id'], ['grupos', 'lfg_posts', 'user_id'], ['itens_e_conquistas', 'user_cosmetics', 'user_id'], ['historico_de_xp', 'xp_log', 'user_id'],
+    ['bloqueados', 'user_blocks', 'blocker_id'], ['denuncias_enviadas', 'reports', 'reporter_id'], ['apelacoes', 'appeals', 'user_id'], ['aparelhos_com_notificacao', 'push_subscriptions', 'user_id']];
   const out = { exportado_em: new Date().toISOString(), perfil: p };
   const { data: { user } } = await sb.auth.getUser();
   out.conta = { email: user?.email, criada_em: user?.created_at };
-  for (const [nome, t, col] of tabelas) out[nome] = (await sb.from(t).select('*').eq(col, p.id)).data || [];
+  for (const [nome, t, col] of tabelas) out[nome] = (await sb.from(t).select('*').eq(col, p.id).limit(10000)).data || [];
   const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `control-critic-${p.username}.json` });
   a.click(); URL.revokeObjectURL(a.href);

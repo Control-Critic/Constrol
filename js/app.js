@@ -114,6 +114,33 @@ const LINKS = [
 // Ficam no menu "Mais" (deixa a barra do topo numa linha só)
 const LINKS_MAIS = [['conquistas.html', '🏆 Conquistas'], ['sobre.html', 'Quem Somos'], ['contato.html', 'Fale Conosco'], ['privacidade.html', 'Privacidade']];
 
+// ---------- Erros do site (agregados no banco, sem dados pessoais) ----------
+export const VERSAO_SITE = '__BUILD__'; // trocado pelo commit no deploy (netlify.toml)
+let errosEnviados = 0;
+const limparErro = (t) => String(t || '').replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '***@***').replace(/(eyJ[\w-]+\.[\w-]+\.[\w-]+|sb_[a-z]+_[\w-]+|Bearer\s+\S+)/g, '***').replace(/https?:\/\/\S+/g, (u) => u.split('?')[0]).slice(0, 300);
+export function reportarErro(categoria, mensagem, acao = null) {
+  if (!sb || errosEnviados >= 5) return; // no máximo 5 por carregamento de página
+  errosEnviados++;
+  sb.rpc('registrar_erro', { categoria, pagina: location.pathname, mensagem: limparErro(mensagem), acao, versao: VERSAO_SITE }).then(() => {}, () => {});
+}
+const RUIDO = /ResizeObserver|Script error|extension|chrome-extension|AbortError|NetworkError|Failed to fetch|Load failed/i;
+addEventListener('error', (e) => { if (e.message && !RUIDO.test(e.message + (e.filename || ''))) reportarErro('js', `${e.message} @${String(e.filename || '').split('/').pop()}:${e.lineno}`); });
+addEventListener('unhandledrejection', (e) => { const m = e.reason?.message || String(e.reason || ''); if (m && !RUIDO.test(m) && !/abort/i.test(m)) reportarErro('promessa', m); });
+
+// ---------- Métricas de produto (só contadores do dia por tipo de evento; sem usuário, IP ou página) ----------
+// Respeita "Não rastrear" / Global Privacy Control do navegador.
+const semMetricas = navigator.globalPrivacyControl === true || navigator.doNotTrack === '1';
+export function contarEvento(nome) {
+  if (!sb || semMetricas) return;
+  sb.rpc('contar_evento', { nome }).then(() => {}, () => {});
+}
+try {
+  const hoje = new Date().toISOString().slice(0, 10);
+  if (localStorage.getItem('cc_visita') !== hoje) { localStorage.setItem('cc_visita', hoje); contarEvento('visita'); }
+} catch { /* sem armazenamento: não conta */ }
+document.addEventListener('click', (e) => { if (e.target.closest('a[href*="modo=cadastro"]')) contarEvento('clique_cadastro'); });
+addEventListener('appinstalled', () => contarEvento('instalou_app'));
+
 // ---------- Bloqueios: quem eu bloqueei some do feed, comentários e stories ----------
 export const bloqueados = new Set();
 let _bloqCarregado = null;
@@ -153,15 +180,19 @@ export async function montarLayout() {
         <img class="marca" src="img/ControlHeader.png" alt="Control Critic">
         <img class="mascote" src="img/Adelino.png" alt="">
       </a>
-      <button class="menu-toggle" aria-label="Abrir menu">☰</button>
-      <nav class="nav">${LINKS.map(([h, t]) => `<a href="${h}" class="${h === pagina ? 'ativo' : ''}">${t}</a>`).join('')}
+      <button class="menu-toggle" aria-label="Abrir menu" aria-expanded="false" aria-controls="nav-principal">☰</button>
+      <nav class="nav" id="nav-principal" aria-label="Principal">${LINKS.map(([h, t]) => `<a href="${h}" class="${h === pagina ? 'ativo' : ''}" ${h === pagina ? 'aria-current="page"' : ''}>${t}</a>`).join('')}
         <details class="nav-mais"><summary class="${LINKS_MAIS.some(([h]) => h === pagina) ? 'ativo' : ''}">Mais ▾</summary>
-          <div class="nav-sub">${LINKS_MAIS.map(([h, t]) => `<a href="${h}" class="${h === pagina ? 'ativo' : ''}">${t}</a>`).join('')}</div></details></nav>
+          <div class="nav-sub">${LINKS_MAIS.map(([h, t]) => `<a href="${h}" class="${h === pagina ? 'ativo' : ''}" ${h === pagina ? 'aria-current="page"' : ''}>${t}</a>`).join('')}</div></details></nav>
       <form class="busca" action="jogos.html"><input name="q" type="search" placeholder="Buscar jogo..." aria-label="Buscar jogo"></form>
       <div class="conta"></div>
     </div>`;
   document.body.prepend(topo);
-  $('.menu-toggle', topo).onclick = () => topo.classList.toggle('aberto');
+  document.querySelector('.topo-reserva')?.remove(); // o espaço já estava reservado: o conteúdo não pula
+  // Atalho de teclado para pular o menu
+  const main0 = document.querySelector('main');
+  if (main0) { main0.id ||= 'conteudo'; main0.tabIndex = -1; topo.insertAdjacentHTML('beforebegin', `<a class="pular" href="#${main0.id}">Pular para o conteúdo</a>`); }
+  $('.menu-toggle', topo).onclick = (e) => { const aberto = topo.classList.toggle('aberto'); e.currentTarget.setAttribute('aria-expanded', String(aberto)); e.currentTarget.setAttribute('aria-label', aberto ? 'Fechar menu' : 'Abrir menu'); };
   document.addEventListener('click', (e) => { const m = $('.nav-mais', topo); if (m?.open && !m.contains(e.target)) m.open = false; });
 
   const rodape = document.createElement('footer');
@@ -282,7 +313,7 @@ export const esqueletoLista = (n = 3) => Array.from({ length: n }, () => '<div c
 // Carrossel horizontal com setas (rolagem por toque no celular)
 export function carrossel(itensHtml, vazio = '') {
   if (!itensHtml) return vazio ? `<p class="vazio">${vazio}</p>` : '';
-  return `<div class="carrossel"><button class="car-seta esq" aria-label="Anterior">‹</button><div class="car-trilho">${itensHtml}</div><button class="car-seta dir" aria-label="Próximo">›</button></div>`;
+  return `<div class="carrossel"><button class="car-seta esq" aria-label="Anterior">‹</button><div class="car-trilho" tabindex="0">${itensHtml}</div><button class="car-seta dir" aria-label="Próximo">›</button></div>`;
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest('.car-seta');
@@ -427,20 +458,7 @@ export async function reportarProblema(textoInicial = '') {
   }, { once: true });
 }
 
-// Erros do site no navegador das pessoas são registrados automaticamente (aparecem no admin → Problemas)
-let errosEnviados = 0;
-async function registrarErro(msg, extra) {
-  if (!sb || errosEnviados >= 5 || !msg) return;
-  const m = String(msg).slice(0, 500);
-  if (/ResizeObserver|Script error|extension|chrome-extension|AbortError|NetworkError|Failed to fetch|Load failed/i.test(m + (extra?.arquivo || ''))) return;
-  errosEnviados++;
-  try {
-    const u = await usuario();
-    await sb.from('app_feedback').insert({ user_id: u?.id ?? null, kind: 'erro', message: m, page: (location.pathname + location.search).slice(0, 300), agent: navigator.userAgent.slice(0, 300), details: extra || null });
-  } catch { /* nunca quebra a página por causa do registro */ }
-}
-addEventListener('error', (e) => registrarErro(e.message, { arquivo: String(e.filename || '').split('/').pop(), linha: e.lineno, coluna: e.colno }));
-addEventListener('unhandledrejection', (e) => registrarErro(e.reason?.message || String(e.reason), { tipo: 'promise', pilha: String(e.reason?.stack || '').slice(0, 800) }));
+// Erros do site: ver reportarErro() no topo (agregados em client_errors, painel Admin → Status)
 
 // ---------- Tradução ----------
 // Usa o tradutor embutido do navegador (Chrome 138+), que roda no próprio aparelho e é gratuito.
@@ -657,7 +675,7 @@ export function spotifyId(link) {
   return m ? `${m[1]}/${m[2]}` : null;
 }
 export const spotifyPlayer = (id, alto = false) => /^(track|album|playlist|episode)\/[A-Za-z0-9]{22}$/.test(id || '')
-  ? `<iframe class="spotify" src="https://open.spotify.com/embed/${id}?utm_source=controlcritic" height="${alto ? 352 : 80}" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" title="Música no Spotify"></iframe>` : '';
+  ? `<iframe class="spotify" title="Música no Spotify" src="https://open.spotify.com/embed/${id}?utm_source=controlcritic" height="${alto ? 352 : 80}" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" title="Música no Spotify"></iframe>` : '';
 // Nota (status de até 60 caracteres) vale por 24 horas
 export const notaAtiva = (p) => p?.nota && p.nota_at && Date.now() - new Date(p.nota_at) < 864e5 ? p.nota : null;
 
@@ -683,6 +701,7 @@ export async function playerSpotify(el, tocar = false, ainda = () => true) {
   const api = await carregarApiSpotify();
   if (!api) { el.outerHTML = spotifyPlayer(id); return null; }
   return new Promise((ok) => api.createController(el, { uri: `spotify:${id.replace('/', ':')}`, height: 80, width: '100%' }, (c) => {
+    document.querySelectorAll('iframe[src*="open.spotify.com"]:not([title])').forEach((f) => f.setAttribute('title', 'Música no Spotify'));
     c.addListener('ready', () => { if (tocar && somLigado() && ainda()) tocarSo(c); });
     ok(c);
   }));

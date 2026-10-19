@@ -9,7 +9,7 @@ main.insertAdjacentHTML('beforeend', `<h1>Promoções</h1>
   <p class="muted">Preços da Steam de todo o catálogo atualizados automaticamente várias vezes ao dia. Ofertas de outras lojas são cadastradas pela equipe.</p>
   <div class="form-linha" style="margin:14px 0">
     <input id="q" type="search" placeholder="Buscar jogo em promoção...">
-    <select id="ordem">
+    <label for="ordem" class="sr-only">Ordenar promoções</label><select id="ordem">
       <option value="desconto">Maior desconto</option>
       <option value="populares">Mais populares</option>
       <option value="menor">Menor preço</option>
@@ -52,7 +52,7 @@ async function carregar(continuar = false) {
   if (error) { $('#lista').innerHTML = '<p class="vazio">Erro ao carregar promoções.</p>'; return; }
   const html = deals.map((d) => `
     <div class="jogo-card">
-      <a href="jogo.html?slug=${encodeURIComponent(d.games.slug)}"><img ${srcCapa(d.games.cover_url, 480)} alt="" loading="lazy"></a>
+      <a href="jogo.html?slug=${encodeURIComponent(d.games.slug)}" tabindex="-1" aria-hidden="true"><img ${srcCapa(d.games.cover_url, 480)} alt="" loading="lazy"></a>
       <div class="info">
         <a class="titulo" href="jogo.html?slug=${encodeURIComponent(d.games.slug)}" style="color:var(--texto)">${esc(d.games.title)}</a>
         <span><span class="tag amarela">-${d.discount_pct}%</span> <span class="tag">${esc(d.store)}</span></span>

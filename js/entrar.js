@@ -1,4 +1,4 @@
-import { sb, $, montarLayout, configurado, param, toast, usuario } from './app.js';
+import { sb, $, montarLayout, configurado, param, toast, usuario, contarEvento } from './app.js';
 
 await montarLayout();
 // Retorno seguro: só páginas do próprio site (com ?parâmetros e #âncora opcionais)
@@ -11,10 +11,10 @@ $('#conteudo').insertAdjacentHTML('beforeend', `
   <div class="cartao entrar" style="max-width:460px;margin:24px auto">
     <h1 class="sr-only" id="titulo-entrar">Entrar no Control Critic</h1>
     <div class="abas" role="tablist" aria-label="Entrar ou criar conta" id="abas-entrar">
-      <button class="aba" role="tab" id="aba-entrar" data-m="entrar" aria-controls="form" aria-selected="false">Entrar</button>
-      <button class="aba" role="tab" id="aba-criar" data-m="criar" aria-controls="form" aria-selected="false">Criar conta</button>
+      <button class="aba" role="tab" id="aba-entrar" data-m="entrar" aria-controls="painel-entrar" aria-selected="false">Entrar</button>
+      <button class="aba" role="tab" id="aba-criar" data-m="criar" aria-controls="painel-entrar" aria-selected="false">Criar conta</button>
     </div>
-    <form id="form" role="tabpanel" aria-labelledby="aba-entrar" novalidate>
+    <div role="tabpanel" id="painel-entrar" aria-labelledby="aba-entrar"><form id="form" novalidate>
       <h2 id="titulo-modo" class="titulo-modo hidden"></h2>
       <p id="dica-modo" class="muted hidden"></p>
       <div id="campo-user" class="campo hidden">
@@ -50,7 +50,7 @@ $('#conteudo').insertAdjacentHTML('beforeend', `
       </div>
       <button class="btn" style="width:100%;margin-top:16px" id="enviar">Entrar</button>
       <p id="status" class="status-entrar" role="status" aria-live="polite"></p>
-    </form>
+    </form></div>
     <div id="links-extra" class="links-entrar">
       <button type="button" class="link" id="ir-recuperar">Esqueci minha senha</button>
       <button type="button" class="link" id="ir-link">Entrar com um link no e-mail</button>
@@ -71,14 +71,16 @@ let modo = 'entrar';
 const mostrar = (id, sim) => $(id).classList.toggle('hidden', !sim);
 const status = (t, erro = false) => { $('#status').textContent = t; $('#status').classList.toggle('erro', erro); };
 
+let contouCadastro = false;
 function trocarModo(m, focar = true) {
   modo = m;
+  if (m === 'criar' && !contouCadastro) { contouCadastro = true; contarEvento('cadastro_inicio'); }
   const cfg = MODOS[m];
   document.querySelectorAll('#abas-entrar .aba').forEach((x) => {
     const ativo = x.dataset.m === cfg.aba;
     x.classList.toggle('ativo', ativo); x.setAttribute('aria-selected', String(ativo)); x.tabIndex = ativo || (!cfg.aba && x.dataset.m === 'entrar') ? 0 : -1;
   });
-  if (cfg.aba) $('#form').setAttribute('aria-labelledby', `aba-${cfg.aba}`);
+  if (cfg.aba) $('#painel-entrar').setAttribute('aria-labelledby', `aba-${cfg.aba}`);
   mostrar('#abas-entrar', !!cfg.aba);
   mostrar('#titulo-modo', !!cfg.titulo); $('#titulo-modo').textContent = cfg.titulo || '';
   mostrar('#dica-modo', !!cfg.dica); $('#dica-modo').textContent = cfg.dica || '';
@@ -175,6 +177,7 @@ $('#form').onsubmit = async (e) => {
       bt.textContent = 'Criando sua conta...';
       const { data, error } = await sb.auth.signUp({ email, password, options: { data: { username: $('#user').value.trim(), accepted_terms: $('#termos').checked }, emailRedirectTo: pasta + 'perfil.html' } });
       if (error) throw error;
+      contarEvento('cadastro_enviado');
       // Mesma mensagem com ou sem conta já existente (não revela quem está cadastrado)
       if (!data.session) { status(`Pronto! Se ${email} ainda não tinha conta, enviamos um link de confirmação. Abra o e-mail para ativar (confira o spam).`); liberarReenvio(email); return; }
     } else if (modo === 'entrar') {

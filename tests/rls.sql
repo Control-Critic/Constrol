@@ -258,11 +258,50 @@ do $$ begin
 end $$;
 reset role;
 
+-- ---------- Contador de membros (fase 9) ----------
+do $$ begin
+  assert (select members_count from public.communities where id = 900002) = (select count(*) from public.community_members where community_id = 900002),
+    'contador de membros não acompanha quem entra';
+  assert (select count(*) from public.community_members where community_id = 900002) >= 1, 'teste sem membros';
+end $$;
+
+-- ---------- Observabilidade (fase 15) ----------
+select teste.como(null);
+do $$ begin
+  perform public.registrar_erro('js', '/x.html?token=abc', 'falhou para fulano@email.com');
+  assert teste.ve('select 1 from public.client_errors') <= 0, 'visitante leu os erros registrados';
+  assert teste.ve('select 1 from public.robot_runs') <= 0, 'visitante leu o status dos robôs';
+  assert teste.faz($q$insert into public.client_errors (assinatura, categoria, pagina, mensagem) values ('x', 'js', '/', 'x')$q$) <= 0, 'visitante gravou erro direto na tabela';
+end $$;
+reset role;
+do $$ begin
+  assert exists (select 1 from public.client_errors where pagina = '/x.html' and mensagem like '%***@***%'), 'erro não foi registrado limpo';
+  assert not exists (select 1 from public.client_errors where mensagem like '%fulano%' or pagina like '%token%'), 'dado pessoal ficou no registro de erro';
+end $$;
+
+-- ---------- Métricas (fase 17) ----------
+select teste.como(null);
+do $$ begin
+  perform public.contar_evento('visita');
+  perform public.contar_evento('evento_inventado');
+  assert teste.ve('select 1 from public.metric_daily') <= 0, 'visitante leu as métricas';
+  assert teste.faz('select public.metricas_produto(28)') = -1, 'visitante viu os indicadores';
+end $$;
+reset role;
+select teste.como('aaaaaaaa-0000-0000-0000-00000000000a');
+do $$ begin assert teste.faz('select public.metricas_produto(28)') = -1, 'usuária comum viu os indicadores'; end $$;
+reset role;
+do $$ begin
+  assert (select total from public.metric_daily where evento = 'visita' and dia = current_date) >= 1, 'evento não contado';
+  assert not exists (select 1 from public.metric_daily where evento = 'evento_inventado'), 'evento desconhecido gravado';
+end $$;
+
 -- ---------- Admin ----------
 select teste.como('cccccccc-0000-0000-0000-00000000000c');
 do $$ begin
   assert teste.ve('select 1 from public.posts where community_id = 900001') = 1, 'admin deveria moderar comunidade privada';
   assert teste.ve('select 1 from public.direct_messages') = 0, 'admin não deve ler DMs alheias';
+  assert (select (public.metricas_produto(28) ->> 'novos_cadastros')::int) >= 0, 'admin deveria ver os indicadores';
 end $$;
 reset role;
 

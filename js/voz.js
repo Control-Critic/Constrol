@@ -104,6 +104,14 @@ export class SalaVoz {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') erro(new Error('Não foi possível conectar à sala.'));
     }));
     this.vigia = setInterval(() => this.#vigiar(), 4000);
+    // Fone desconectado ou microfone trocado no sistema: volta para o microfone padrão sem sair da call
+    this.aoTrocarAparelho = async () => {
+      const t = this.local?.getAudioTracks()[0];
+      if (t && t.readyState === 'ended') {
+        try { await this.configurarAudio({ ...prefsAudio(), mic: '' }); this.aoAviso('mic-trocado'); } catch { this.aoAviso('sem-mic'); }
+      }
+    };
+    navigator.mediaDevices?.addEventListener?.('devicechange', this.aoTrocarAparelho);
     this.aoMudar();
   }
 
@@ -112,7 +120,10 @@ export class SalaVoz {
   async #vigiar() {
     for (const [id, p] of this.peers) {
       const { pc } = p;
-      if (pc.connectionState === 'connected' || Date.now() - p.criado < 5000) continue;
+      if (pc.connectionState === 'connected') { this.#medirQualidade(p); continue; }
+      if (Date.now() - p.criado < 5000) continue;
+      // Reconexão limitada: depois de 3 tentativas sem sucesso, avisa uma vez com o que fazer
+      if ((p.tentativas || 0) >= 3) { if (!p.desistiu) { p.desistiu = true; this.aoAviso('falhou', p.nome); } continue; }
       // Não conectou só com os servidores próprios: acrescenta a reserva (Cloudflare) e refaz a busca de caminho
       if (!p.comReserva && this.ice.completa.length > this.ice.lista.length) {
         p.comReserva = true;
@@ -128,15 +139,48 @@ export class SalaVoz {
           this.#enviar(id, { desc: pc.localDescription });
           p.makingOffer = false;
         } else if (pc.signalingState === 'stable' && pc.remoteDescription && ['new', 'failed', 'disconnected'].includes(pc.iceConnectionState) && !p.polite) {
-          pc.restartIce();                                               // negociou mas não achou caminho
+          pc.restartIce(); p.tentativas = (p.tentativas || 0) + 1;      // negociou mas não achou caminho
         }
       } catch (e) { p.makingOffer = false; console.warn(e); }
     }
   }
 
+  // Qualidade da conexão com cada pessoa (tempo de ida e volta e perda de pacotes de áudio)
+  async #medirQualidade(p) {
+    try {
+      const st = await p.pc.getStats();
+      let rtt = null, perdidos = 0, recebidos = 0, relay = false;
+      st.forEach((r) => {
+        if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') {
+          rtt = r.currentRoundTripTime ?? rtt;
+          const local = st.get(r.localCandidateId);
+          relay = local?.candidateType === 'relay';
+        }
+        if (r.type === 'inbound-rtp' && r.kind === 'audio') { perdidos += r.packetsLost || 0; recebidos += r.packetsReceived || 0; }
+      });
+      const perda = recebidos + perdidos ? perdidos / (recebidos + perdidos) : 0;
+      const nivel = rtt == null ? '' : rtt > 0.4 || perda > 0.08 ? 'ruim' : rtt > 0.2 || perda > 0.03 ? 'media' : 'boa';
+      p.qualidade = { rtt: rtt == null ? null : Math.round(rtt * 1000), perda: Math.round(perda * 1000) / 10, relay, nivel };
+      const b = p.el.querySelector('.qualidade');
+      if (b) { b.dataset.nivel = nivel; b.title = `Conexão ${nivel === 'boa' ? 'boa' : nivel === 'media' ? 'instável' : 'ruim'}: ${p.qualidade.rtt ?? '?'} ms, ${p.qualidade.perda}% de perda${relay ? ' (via servidor de retransmissão)' : ''}`; b.setAttribute('aria-label', b.title); }
+    } catch { /* estatísticas indisponíveis */ }
+  }
+
+  // Diagnóstico para copiar e mandar ao suporte: sem SDP, candidatos ICE, IPs ou nomes de aparelhos
+  diagnostico() {
+    const sup = { tela: !!navigator.mediaDevices?.getDisplayMedia, saida: 'setSinkId' in HTMLMediaElement.prototype };
+    return {
+      quando: new Date().toISOString(), navegador: navigator.userAgent.replace(/\([^)]*\)/g, '').trim().slice(0, 120),
+      turn: !!this.ice?.turn, reservaDisponivel: (this.ice?.completa?.length || 0) > (this.ice?.lista?.length || 0), suporte: sup,
+      microfone: this.local?.getAudioTracks()[0]?.readyState || 'sem', mudo: !!this.mudo,
+      pessoas: [...this.peers.values()].map((p, i) => ({ n: i + 1, estado: p.pc.connectionState, ice: p.pc.iceConnectionState, tentativas: p.tentativas || 0, ...(p.qualidade || {}) })),
+    };
+  }
+
   async sair() {
     miniPlayer.fecharTudo();
     clearInterval(this.vigia);
+    navigator.mediaDevices?.removeEventListener?.('devicechange', this.aoTrocarAparelho);
     for (const id of [...this.peers.keys()]) this.#remover(id);
     this.proc?.fechar(); this.proc = null;
     this.local?.getTracks().forEach((t) => t.stop());
@@ -399,6 +443,8 @@ export class SalaVoz {
         this.#detectarFala(remoto, p.el);
         const voz = p.el.querySelector('audio');
         voz.srcObject = new MediaStream([track]);           // só a voz (o som da tela toca em outro elemento)
+        const saida = prefsAudio().saida;
+        if (saida && voz.setSinkId) voz.setSinkId(saida).catch(() => {}); // saída escolhida antes de entrar
         voz.play().catch(() => this.aoAviso('som-bloqueado'));
       } else {
         // o vídeo aparece quando os quadros começam a chegar (tela ou câmera ligada)
@@ -424,8 +470,9 @@ export class SalaVoz {
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === 'connected') { this.#qualidadeAudio(p.micSender, 64000); this.#qualidadeAudio(p.audioTelaSender, 128000); }
       this.#atualizarNome(p);
+      if (pc.connectionState === 'connected') { p.tentativas = 0; p.desistiu = false; }
       if (pc.connectionState === 'failed') {
-        pc.restartIce();
+        pc.restartIce(); p.tentativas = (p.tentativas || 0) + 1;
         if (!this.ice.turn) this.aoAviso('sem-turn');
       }
       this.aoMudar();
@@ -486,7 +533,7 @@ export class SalaVoz {
     el.innerHTML = `<span class="sem-video">${esc(nome.trim()[0]?.toUpperCase() || '?')}</span>
       <video class="v" autoplay playsinline muted style="display:none"></video>
       ${local ? '' : '<audio autoplay playsinline></audio>'}
-      <span class="nome">${esc(nome)}${local ? '' : ' · conectando…'}</span>
+      ${local ? '' : '<span class="qualidade" role="img" aria-label="Medindo conexão"></span>'}<span class="nome">${esc(nome)}${local ? '' : ' · conectando…'}</span>
       <span class="acoes-video">
         <button class="pip" title="Mini player: põe este vídeo numa janela flutuante por cima do jogo (no Chrome dá para pôr vários)" aria-label="Janela flutuante">⧉</button>
         <button class="tela-cheia" title="Tela cheia" aria-label="Tela cheia">⛶</button>
