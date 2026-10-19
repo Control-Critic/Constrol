@@ -258,6 +258,13 @@ do $$ begin
 end $$;
 reset role;
 
+-- ---------- Contador de membros (fase 9) ----------
+do $$ begin
+  assert (select members_count from public.communities where id = 900002) = (select count(*) from public.community_members where community_id = 900002),
+    'contador de membros não acompanha quem entra';
+  assert (select count(*) from public.community_members where community_id = 900002) >= 1, 'teste sem membros';
+end $$;
+
 -- ---------- Admin ----------
 select teste.como('cccccccc-0000-0000-0000-00000000000c');
 do $$ begin

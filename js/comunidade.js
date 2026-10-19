@@ -28,10 +28,10 @@ async function carregar() {
     <div class="cartao" style="margin-bottom:18px">
       <div class="com-capa" ${cssUrl(c.banner_url) ? `style="background-image:url('${esc(cssUrl(c.banner_url))}')"` : ''}></div>
       <div class="controles" style="align-items:flex-end;gap:14px"><img class="com-icone" src="${urlSegura(c.icon_url) || 'img/Control.png'}" alt="">
-      <h1 style="margin:8px 0 0">${c.is_private ? '🔒 ' : ''}${esc(c.name)}</h1></div>
+      <h1 style="margin:8px 0 0">${c.is_private ? '🔒 ' : ''}${esc(c.name)}${c.oficial ? ' <span class="tag amarela" title="Comunidade oficial do Control Critic">✔ Oficial</span>' : ''}</h1></div>
       <p class="muted">${esc(c.description || '')}</p>
       <p style="margin:10px 0">${c.games ? `<a class="tag" href="jogo.html?slug=${encodeURIComponent(c.games.slug)}">${esc(c.games.title)}</a> ` : ''}
-        <span class="tag">${c.members_count} membros</span> <span class="tag">${c.is_private ? '🔒 Privada' : '🌐 Pública'}</span>
+        <span class="tag">${Number(c.members_count) === 1 ? '1 membro' : `${Number(c.members_count).toLocaleString('pt-BR')} membros`}</span> <span class="tag">${c.is_private ? '🔒 Privada' : '🌐 Pública'}</span>
         <span class="muted">· criada por ${esc(c.profiles?.username || '—')}</span></p>
       <div class="controles">
         ${!u ? `<a class="btn" href="entrar.html?volta=${encodeURIComponent('comunidade.html' + location.search)}">Entrar para participar</a>`
@@ -44,6 +44,8 @@ async function carregar() {
       </div>
     </div>
 
+    ${c.regras && !bloqueada ? `<details class="cartao regras-com" style="margin-bottom:14px" ${membro ? '' : 'open'}><summary><strong>📜 Regras da comunidade</strong></summary><p class="quebra" style="margin-top:8px">${esc(c.regras)}</p>
+      <p class="muted" style="font-size:.82rem">Valem também as <a href="diretrizes.html">diretrizes do Control Critic</a>.</p></details>` : ''}
     ${bloqueada ? `<div class="cartao vazio">🔒 Esta comunidade é privada. O mural, as partidas e a call aparecem só para membros.
       ${u ? (meuPedido ? '<br>Seu pedido está aguardando o dono aprovar.' : '<br>Peça para entrar ou use um link de convite.') : ''}</div>` : ''}
     <div class="abas ${bloqueada ? 'hidden' : ''}"><button class="aba ativo" data-a="posts">Mural</button>${dono && c.is_private ? `<button class="aba" data-a="pedidos">Pedidos${pedidos.length ? ` (${pedidos.length})` : ''}</button>` : ''}<button class="aba" data-a="partidas">Partidas 📅</button>${dono ? '<button class="aba" data-a="membros">Membros e cargos</button>' : ''}<button class="aba" data-a="call">Call 🔊</button><button class="aba" data-a="discord">Discord / PS5</button></div>
@@ -107,6 +109,7 @@ async function carregar() {
       <h2 style="margin-top:0">Configurar comunidade</h2>
       <label for="c-nome">Nome</label><input id="c-nome" required minlength="3" maxlength="60" value="${esc(c.name)}">
       <label for="c-desc">Descrição</label><textarea id="c-desc" rows="3" maxlength="500">${esc(c.description || '')}</textarea>
+      <label for="c-regras">Regras (aparecem no topo para quem entra)</label><textarea id="c-regras" rows="4" maxlength="2000" placeholder="Ex.: 1. Sem spoiler sem aviso. 2. Respeito na call.">${esc(c.regras || '')}</textarea>
       <div class="form-linha">
         <div><label for="c-banner">Banner (1500×400, até 3 MB)</label><input id="c-banner" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
           ${c.banner_url ? '<label style="display:flex;gap:8px;font-weight:400"><input type="checkbox" id="c-sem-banner" style="width:auto"> Remover banner</label>' : ''}</div>
@@ -187,6 +190,7 @@ async function carregar() {
     toast(aceitar ? 'Membro aceito!' : 'Pedido recusado.'); carregar();
   });
   $('#sair')?.addEventListener('click', async () => {
+    if (!confirm(`Sair de ${c.name}?${c.is_private ? ' Por ser privada, para voltar você vai precisar de um novo convite ou aprovação.' : ''}`)) return;
     await call?.sair();
     const { error } = await sb.from('community_members').delete().eq('community_id', id).eq('user_id', u.id);
     if (error) return falha(error);
@@ -198,7 +202,7 @@ async function carregar() {
   $('#dlg')?.addEventListener('close', async () => {
     if ($('#dlg').returnValue !== 'ok') return;
     const dados = {
-      name: $('#c-nome').value.trim(), description: $('#c-desc').value.trim() || null, is_private: $('#c-priv').checked,
+      name: $('#c-nome').value.trim(), description: $('#c-desc').value.trim() || null, regras: $('#c-regras').value.trim() || null, is_private: $('#c-priv').checked,
       discord_invite: $('#c-inv').value.trim() || null, discord_guild_id: $('#c-guild').value.trim() || null,
     };
     try {

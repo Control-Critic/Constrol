@@ -634,3 +634,4 @@ label.check { display: inline-flex; align-items: center; gap: 6px; margin: 0; cu
 button.link { background: none; border: 0; color: var(--amarelo); cursor: pointer; padding: 4px; font: inherit; text-decoration: underline; }
 #aviso-versao { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 100; }
 .offline-caixa { padding: 48px 16px; text-align: center; } .offline-caixa img { max-width: 160px; height: auto; }
+.regras-com summary { cursor: pointer; }

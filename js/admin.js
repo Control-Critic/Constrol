@@ -489,8 +489,9 @@ async function comunidades() {
   painel().innerHTML = tabela(['Comunidade', 'Dono', 'Membros', 'Discord', 'Criada', ''], cs.map((c) => `<tr>
     <td><a href="comunidade.html?id=${c.id}" target="_blank">${esc(c.name)}</a></td><td>${esc(c.profiles?.username || '—')}</td>
     <td>${c.members_count}</td><td>${c.discord_invite ? '✔' : ''}</td><td>${data(c.created_at)}</td>
-    <td><button class="btn perigo pequeno" data-acao="excluir" data-id="${c.id}">Excluir</button></td></tr>`));
-  acoes({ excluir: async (id) => { if (!confirm('Excluir comunidade e posts?')) return; const { error } = await sb.from('communities').delete().eq('id', id); if (error) throw error; comunidades(); } });
+    <td class="controles"><button class="btn sec pequeno" data-acao="oficial" data-id="${c.id}">${c.oficial ? '✔ Oficial · tirar' : 'Marcar oficial'}</button><button class="btn perigo pequeno" data-acao="excluir" data-id="${c.id}">Excluir</button></td></tr>`));
+  acoes({ oficial: async (id) => { const c = cs.find((x) => x.id == id); const { error } = await sb.from('communities').update({ oficial: !c.oficial }).eq('id', id); if (error) throw error; comunidades(); },
+    excluir: async (id) => { if (!confirm('Excluir comunidade e posts?')) return; const { error } = await sb.from('communities').delete().eq('id', id); if (error) throw error; comunidades(); } });
 }
 
 async function mensagens() {
