@@ -1,13 +1,16 @@
 import { $, montarLayout } from './app.js';
 
 await montarLayout();
-const ATUALIZADO = '15/10/2026';
+const ATUALIZADO = '19/10/2026';
+// ⚠️ Textos jurídicos: ajustes técnicos e factuais feitos pela equipe. PRECISAM DE REVISÃO DE UM ADVOGADO antes de valerem como documento definitivo.
+const AVISO_REVISAO = '<p class="aviso" role="note">Versão em revisão jurídica. O texto descreve como o site funciona hoje; a redação final pode mudar após a revisão.</p>';
 const pagina = location.pathname.split('/').pop();
 
 // MODELO: revisar com a equipe/orientador (e, se o projeto crescer, com um advogado) antes de considerar definitivo.
 const PRIVACIDADE = `
   <h1>Política de Privacidade</h1>
   <p class="muted">Última atualização: ${ATUALIZADO}</p>
+  ${AVISO_REVISAO}
   <p>Esta política explica como o Control Critic coleta, usa e protege seus dados pessoais, conforme a
   Lei Geral de Proteção de Dados (LGPD, Lei nº 13.709/2018).</p>
 
@@ -21,10 +24,19 @@ const PRIVACIDADE = `
     <li><strong>Perfil:</strong> nome de usuário, foto, banner, bio, categorias favoritas e, se você quiser, IDs de PSN, Xbox, Discord e Steam.</li>
     <li><strong>Atividade:</strong> avaliações, posts, comunidades, partidas, biblioteca, lista de desejos e quem você segue.</li>
     <li><strong>Fale Conosco:</strong> nome, e-mail, idade (opcional) e a mensagem.</li>
-    <li><strong>Importação da Steam:</strong> se você usar, lemos a lista de jogos e horas jogadas do seu perfil público da Steam.</li>
+    <li><strong>Importação da Steam:</strong> se você usar, lemos do seu perfil público da Steam a lista de jogos, horas jogadas, conquistas e o jogo que você está jogando agora.</li>
+    <li><strong>Stories, notas e música do perfil:</strong> fotos e vídeos de stories (somem em 24 h, exceto os destaques que você salvar), quem viu, reações, votos de enquete e respostas.</li>
+    <li><strong>Mensagens diretas:</strong> o texto das conversas entre amigos. A equipe só consegue ler uma mensagem se ela for <strong>denunciada</strong> por quem a recebeu.</li>
+    <li><strong>Presença:</strong> enquanto o site está aberto, seus amigos podem ver que você está online ou em uma call. Isso não é guardado em histórico.</li>
+    <li><strong>Notificações no celular:</strong> se você ativar, guardamos o endereço técnico do seu aparelho fornecido pelo navegador (não é o número de telefone).</li>
+    <li><strong>Diagnóstico:</strong> erros técnicos do site, agrupados e sem dados pessoais (sem e-mail, sem endereços completos de página), guardados por 30 dias.</li>
+    <li><strong>Bloqueios e denúncias:</strong> quem você bloqueou (só você vê) e as denúncias que você enviou.</li>
   </ul>
-  <p>Não coletamos dados de pagamento. As chamadas de voz e vídeo acontecem direto entre os navegadores dos participantes
-  e <strong>não são gravadas</strong> nem passam pelos nossos servidores.</p>
+  <p>Não coletamos dados de pagamento.</p>
+  <p><strong>Voz e vídeo:</strong> as chamadas <strong>não são gravadas</strong> e são criptografadas de ponta a ponta entre os navegadores (padrão WebRTC).
+  Quando a conexão direta não é possível (por exemplo, em algumas redes de celular), o áudio e o vídeo passam por um
+  <strong>servidor de retransmissão (TURN)</strong> do projeto ou da Cloudflare: o tráfego segue criptografado e o servidor não consegue ouvir nem gravar a conversa.
+  Se a comunidade usar a ponte com o Discord, o áudio da call também é enviado ao canal de voz do Discord configurado pela comunidade.</p>
 
   <h2>3. Para que usamos</h2>
   <ul>
@@ -41,15 +53,25 @@ const PRIVACIDADE = `
 
   <h2>5. Com quem compartilhamos</h2>
   <ul>
-    <li><strong>Supabase</strong> (banco de dados, login e arquivos) e <strong>Netlify</strong> (hospedagem), que processam dados em nosso nome.</li>
-    <li><strong>Discord:</strong> só se você clicar em um convite ou se a comunidade exibir o widget do servidor.</li>
-    <li><strong>Steam:</strong> só se você usar a importação da biblioteca.</li>
+    <li><strong>Supabase</strong> (banco de dados, login, arquivos e tempo real) e <strong>Netlify</strong> (hospedagem e funções), que processam dados em nosso nome.</li>
+    <li><strong>Brevo:</strong> envio dos e-mails de confirmação e recuperação de senha.</li>
+    <li><strong>Cloudflare</strong> e servidor próprio na <strong>Oracle Cloud</strong>: retransmissão de chamadas quando necessário (ver acima).</li>
+    <li><strong>Discord:</strong> se você clicar em um convite, se a comunidade exibir o widget do servidor ou usar a ponte de voz.</li>
+    <li><strong>Steam e IsThereAnyDeal:</strong> só se você usar a importação da biblioteca; preços de jogos são consultados sem dados seus.</li>
+    <li><strong>Spotify e YouTube:</strong> quando você abre um player de música ou trailer, o próprio serviço é carregado na página.</li>
+    <li><strong>Instagram:</strong> o perfil oficial do Control Critic publica notícias, promoções e enquetes. Memes da comunidade só são publicados se o autor marcar "É meme" e a equipe aprovar, com crédito ao nome de usuário.</li>
+    <li><strong>Google, Mozilla, Apple e outros:</strong> os navegadores entregam as notificações no celular pelos seus próprios serviços.</li>
   </ul>
-  <p>Esses serviços podem armazenar dados fora do Brasil, com as garantias previstas em seus próprios termos.</p>
+  <p>Vários desses serviços armazenam dados fora do Brasil (transferência internacional), com as garantias previstas em seus próprios termos e na LGPD.</p>
 
   <h2>6. Por quanto tempo guardamos</h2>
-  <p>Enquanto sua conta existir. Ao excluir a conta, apagamos seu perfil, avaliações, posts, biblioteca, notificações e imagens enviadas.
-  Mensagens do Fale Conosco são apagadas pela equipe depois de respondidas, em até 12 meses.</p>
+  <ul>
+    <li>Conta e conteúdo: enquanto sua conta existir. Ao excluir a conta, apagamos seu perfil, avaliações, posts, comentários, biblioteca, mensagens, notificações e imagens enviadas.</li>
+    <li>Stories: 24 horas (os arquivos são apagados pela limpeza semanal), exceto os que você salvar como destaque.</li>
+    <li>Erros técnicos: 30 dias. Registros de rate limit (sem IP em texto): 1 dia.</li>
+    <li>Mensagens do Fale Conosco: apagadas pela equipe depois de respondidas, em até 12 meses.</li>
+    <li><strong>Backups:</strong> cópias semanais <strong>cifradas</strong> do banco, guardadas por até 90 dias para recuperação em caso de falha. Dados excluídos podem permanecer nessas cópias até elas expirarem.</li>
+  </ul>
 
   <h2>7. Seus direitos</h2>
   <p>Você pode, a qualquer momento:</p>
@@ -76,6 +98,7 @@ const PRIVACIDADE = `
 const TERMOS = `
   <h1>Termos de Uso</h1>
   <p class="muted">Última atualização: ${ATUALIZADO}</p>
+  ${AVISO_REVISAO}
   <p>Ao criar uma conta ou usar o Control Critic, você concorda com estes termos.</p>
 
   <h2>1. O serviço</h2>
@@ -120,6 +143,7 @@ const TERMOS = `
 const DIRETRIZES = `
   <h1>Diretrizes da comunidade</h1>
   <p class="muted">Última atualização: 19/10/2026</p>
+  ${AVISO_REVISAO}
   <p>O Control Critic é para jogar, avaliar e trocar ideia. Para continuar bom para todo mundo, siga estas regras.
   Elas valem para posts, comentários, avaliações, stories, mensagens, grupos, comunidades e calls.</p>
 

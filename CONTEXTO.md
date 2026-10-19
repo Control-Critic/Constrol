@@ -4,9 +4,9 @@ Este é o documento de passagem do projeto: o que é, como está montado, o que 
 **Não há senhas nem chaves neste arquivo.** Elas ficam só no Netlify, nos segredos do GitHub e no Supabase.
 
 - Site: https://control-critic.netlify.app
-- Repositório: https://github.com/Control-Critic/Constrol
+- Repositório: https://github.com/Control-Critic/Constrol (o nome "Constrol" é o do repositório no GitHub; renomear é uma ação manual em Settings → Rename e exige atualizar Netlify e links)
 - Instagram: @control.critic
-- Situação em: 17/10/2026
+- Situação em: 19/10/2026 (ver também `PLANO-MELHORIAS.md`, `CHANGELOG-MELHORIAS.md` e `docs/`)
 
 ---
 
@@ -68,7 +68,7 @@ O **`supabase/schema.sql`** é idempotente: pode ser rodado de novo quantas veze
   - desafios semanais com prêmio múltiplo e ranking mensal.
 - **Jogos:**
   - catálogo do IGDB com nota inicial;
-  - importação da Steam: biblioteca, horas e conquistas dos 12 jogos mais jogados, com as mais raras em destaque;
+  - importação da Steam: biblioteca, horas e conquistas de todos os jogos (lidas em lotes), com as mais raras em destaque;
   - desfazer importação;
   - lista de desejos com aviso de promoção (no site e no celular).
 - **Calls:**
@@ -146,7 +146,6 @@ Guias detalhados: `scripts/instagram/LEIA-ME.md`, `ponte-discord/LEIA-ME`, `turn
 
 **Ideias futuras:**
 - Domínio próprio, por exemplo `controlcritic.com.br`. Ajuda na entrega de e-mails e no SEO.
-- Limpeza das imagens de stories vencidos no armazenamento.
 - "Onde jogar": assinaturas como Game Pass e PS Plus.
 - Tempo para zerar (IGDB).
 - Calendário de lançamentos.
@@ -155,6 +154,22 @@ Guias detalhados: `scripts/instagram/LEIA-ME.md`, `ponte-discord/LEIA-ME`, `turn
 ## 9. Limites conhecidos
 
 - O navegador não separa o som de aplicativos no compartilhamento de tela: "Tela inteira" leva o som de tudo, inclusive do Discord. A saída é usar "Janela" (Chrome atualizado) ou o botão 🎵 com o Spotify Web.
-- A Steam não informa jogos zerados. As conquistas são buscadas só nos 12 jogos mais jogados.
+- A Steam não informa jogos zerados. As conquistas dependem do perfil e dos "detalhes de jogos" estarem públicos na Steam.
 - Pela API do Instagram não dá para usar as músicas em alta, figurinhas interativas, Lives nem Notas. Isso é feito à mão no app.
 - Jogos em tela cheia exclusiva (ex.: Project Zomboid) precisam estar em janela ou sem bordas para serem compartilhados sozinhos.
+
+## 10. Melhorias de outubro de 2026 (fases 1 a 17)
+Resumo em `CHANGELOG-MELHORIAS.md`. Documentos técnicos em `docs/`:
+- `seguranca-functions.md`: proteções das Netlify Functions;
+- `banco-seguranca.md`: RLS, Storage e privilégios;
+- `play-store.md`: publicação na Play Store;
+- `seo.md`;
+- `desempenho.md`;
+- `calls.md`;
+- `observabilidade-backup.md`;
+- `metricas.md`;
+- `configuracoes-github.md`: ações manuais no GitHub.
+
+**Segredos novos:**
+- `BACKUP_SENHA` no GitHub (obrigatório para o backup);
+- `RATE_SAL` e `SITE_ORIGENS` no Netlify (opcionais).

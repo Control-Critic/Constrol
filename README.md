@@ -1,8 +1,12 @@
 # Control Critic
 
-Portal de jogos feito pela comunidade: **avaliações**, **notícias oficiais automáticas**, **promoções**,
-**recomendações personalizadas**, **comunidades com mural, call de voz/vídeo e compartilhamento de tela**,
-integração com o **Discord** (para quem joga no PS5/Xbox) e um **painel de administração**.
+**Rede social brasileira de games**: encontre grupo para jogar, avalie jogos, monte sua biblioteca,
+entre em comunidades com call de voz e vídeo, acompanhe promoções e notícias. Site em HTML, CSS e JavaScript puro,
+com Supabase, Netlify e GitHub Actions.
+
+- Site: https://control-critic.netlify.app
+- Documentação técnica: [`docs/`](docs/) · Plano de melhorias: [`PLANO-MELHORIAS.md`](PLANO-MELHORIAS.md) · Mudanças: [`CHANGELOG-MELHORIAS.md`](CHANGELOG-MELHORIAS.md)
+- Segurança: [`SECURITY.md`](SECURITY.md) · Como contribuir: [`CONTRIBUTING.md`](CONTRIBUTING.md) · Variáveis: [`.env.example`](.env.example)
 
 > Projeto da equipe Gustavo Barros Tenório, Giovanni Henrique de Lima Franco Matos, Adler Pereira de Lima e Danilo Silva Bernardino.
 
@@ -30,7 +34,7 @@ integração com o **Discord** (para quem joga no PS5/Xbox) e um **painel de adm
 | Críticas | Votos de "útil" (as melhores sobem), comentários, selos de crítico útil e XP para quem ajuda |
 | Listas | Listas pessoais ordenáveis e compartilháveis ("Meus RPGs favoritos"), públicas ou privadas |
 | Preços | Histórico automático e "menor preço já visto" em cada jogo |
-| Procurando grupo | "Quero jogar agora" com jogo, plataforma e vagas; avisa os amigos e expira sozinho |
+| Procurando grupo | "Criar grupo agora": jogo, plataforma, crossplay, início agendado, duração, vagas, microfone, só amigos e aviso aos amigos; entrar no grupo com vagas controladas |
 | Mensagens | Conversa privada entre amigos em tempo real |
 | Ao vivo | Membros e amigos transmitindo na Twitch aparecem com 🔴 AO VIVO |
 | Trailers | Trailers dos jogos (YouTube, carregados só ao clicar) |
@@ -204,6 +208,17 @@ O site já é um app instalável (PWA). Para aparecer na Play Store sem reescrev
    (modelo na documentação do Bubblewrap) para o app abrir sem a barra do navegador.
 
 No iPhone, a App Store não aceita PWAs empacotados com facilidade: lá o caminho é "Adicionar à Tela de Início" pelo Safari.
+
+## Testes
+
+```bash
+npm ci
+npm run check          # sintaxe, testes (node --test) e links
+npm run check:html     # validação dos HTML
+npm run check:a11y     # acessibilidade (precisa de Chromium: npx playwright-core install chromium)
+```
+O banco é testado com um Postgres 16 e um stub do Supabase. É o que o CI faz:
+`tests/supabase-stub.sql`, depois `supabase/schema.sql` 2 vezes, depois `supabase/migrations/*.sql` 2 vezes, depois `tests/rls.sql`.
 
 ## Rodar localmente
 Os módulos JS precisam de um servidor (abrir o arquivo direto não funciona):
