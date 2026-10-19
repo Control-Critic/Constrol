@@ -1,3 +1,4 @@
+import { urlCdn } from './app.js';
 import { sb, $, esc, montarLayout, cardJogo, plural, configurado, usuario, perfil, data, urlSegura, COLUNAS_CARD, avatarHtml, toast, falha, carrossel, esqueletoCards, esqueletoLista, param, srcCapa, steamAgora } from './app.js';
 import { barraStories } from './stories.js';
 import { COLUNAS_POST_DESAFIO as COLUNAS_POST, postHtml, ligarPosts, compositorHtml, ligarCompositor } from './posts.js';
@@ -13,7 +14,8 @@ main.insertAdjacentHTML('beforeend', `
   <section id="stories" aria-label="Stories"></section>
   <section class="hero" id="b-hero">
     <div>
-      <h1>Sua rede social para jogar, avaliar e encontrar sua comunidade.</h1>
+      <span class="selo-br">🇧🇷 Rede social brasileira de games</span>
+      <h1>Sua rede social para <em>jogar</em>, <em>avaliar</em> e encontrar sua <em>comunidade</em>.</h1>
       <p>Descubra jogos, acompanhe promoções, encontre companhia para jogar e compartilhe suas experiências com outros jogadores.</p>
       <div class="controles" id="hero-acoes">
         <a class="btn" href="entrar.html?modo=cadastro">Criar conta grátis</a>
@@ -21,14 +23,17 @@ main.insertAdjacentHTML('beforeend', `
         <a class="btn sec" href="comunidades.html">Ver comunidades</a>
       </div>
     </div>
-    <img src="img/Adelino.png" alt="Adelino, o mascote do Control Critic" width="260" height="260" fetchpriority="high">
+    <div class="adelino-hero">
+      <span class="balao" id="balao-adelino" aria-live="off">Bora uma partida? 🎮</span>
+      <img src="img/Adelino.png" alt="Adelino, o tucano mascote do Control Critic" width="260" height="260" fetchpriority="high">
+    </div>
   </section>
   <section id="b-como" class="hidden" aria-labelledby="como-t">
     <h2 id="como-t">Como funciona</h2>
     <ol class="passos-home">
-      <li><strong>Monte sua biblioteca</strong><span>Marque o que está jogando, zerou ou quer jogar. Dá para importar da Steam.</span></li>
-      <li><strong>Avalie e descubra</strong><span>Dê sua nota, leia a opinião de outros jogadores e receba recomendações.</span></li>
-      <li><strong>Encontre seu grupo</strong><span>Crie ou entre num grupo, converse nas comunidades e jogue junto em calls.</span></li>
+      <li><img src="${urlCdn('img/adelino/rpg.png', 240)}" alt="" width="120" height="116" loading="lazy"><strong>Monte sua biblioteca</strong><span>Marque o que está jogando, zerou ou ainda vai começar. Tem Steam? Importa tudo num clique.</span></li>
+      <li><img src="${urlCdn('img/adelino/enquete.png', 240)}" alt="" width="120" height="105" loading="lazy"><strong>Dê sua nota</strong><span>Avalie, discorde da crítica e descubra jogos pela opinião de quem joga de verdade.</span></li>
+      <li><img src="${urlCdn('img/adelino/fps.png', 240)}" alt="" width="120" height="108" loading="lazy"><strong>Ache seu squad</strong><span>Crie um grupo, entre numa comunidade e chame a galera pra call. Sem jogar sozinho.</span></li>
     </ol>
     <ul class="diferenciais" id="diferenciais"></ul>
   </section>
@@ -54,13 +59,14 @@ main.insertAdjacentHTML('beforeend', `
       <button class="btn sec hidden" id="mais-feed" style="margin-top:12px;width:100%">Carregar mais</button></section>
     <aside><div id="jogando-agora"></div><h2>👥 Atividade dos amigos</h2><div class="lista" id="atividade"><p class="muted">Siga pessoas para ver o que elas estão jogando e avaliando.</p></div></aside>
   </section>
-  <section id="b-rec" class="hidden">${ver('Recomendados para você')}<div id="rec"></div></section>
+  <section id="b-rec" class="hidden">${ver('🎯 Recomendados para você')}<div id="rec"></div></section>
   <section id="b-desejos" class="hidden">${ver('💸 Promoções da sua lista de desejos', 'promocoes.html')}<div id="desejos"></div></section>
-  <section id="b-destaques">${ver('Jogos em destaque')}<div id="destaques">${carrossel(esqueletoCards(5))}</div></section>
+  <section id="b-destaques">${ver('⭐ Jogos em destaque')}<div id="destaques">${carrossel(esqueletoCards(5))}</div></section>
   <section id="b-promos">${ver('🔥 Em promoção', 'promocoes.html')}<div id="promos">${carrossel(esqueletoCards(5))}</div></section>
   <section id="b-avaliacoes" class="hidden">${ver('⭐ Avaliações da comunidade')}<div class="lista" id="avaliacoes"></div></section>
-  <section id="b-cadastro" class="hidden"><div class="cartao cta-cadastro"><h2 style="margin-top:0">Entre para a comunidade</h2>
-    <p>Crie sua conta grátis para montar sua biblioteca, avaliar jogos, receber alertas de promoção e encontrar gente para jogar.</p>
+  <section id="b-cadastro" class="hidden"><div class="cartao cta-cadastro"><img class="cta-adelino" src="${urlCdn('img/adelino/meme.png', 240)}" alt="" width="110" height="105" loading="lazy">
+    <h2 style="margin-top:0">Partiu? O Adelino guardou um lugar pra você</h2>
+    <p>Conta grátis: biblioteca, notas, alerta de promoção e gente pra jogar junto.</p>
     <div class="controles"><a class="btn" href="entrar.html?modo=cadastro">Criar conta grátis</a><a class="btn sec" href="entrar.html">Já tenho conta</a></div></div></section>
   <section id="b-noticias">${ver('📰 Últimas notícias', 'novidades.html')}<div id="noticias">${carrossel(esqueletoCards(4))}</div></section>
   <section id="b-lancamentos">${ver('🆕 Lançamentos')}<div id="lancamentos">${carrossel(esqueletoCards(5))}</div></section>`);
@@ -164,6 +170,13 @@ if (configurado) {
     carregarFeed(true);
     carregarDesafio();
   }
+}
+
+// ---------- Balão do Adelino (frases curtas; para quem prefere menos movimento, fica parado) ----------
+const FRASES = ['Bora uma partida? 🎮', 'Já zerou esse? 👀', 'GG, bem jogado! 🏆', 'Promoção boa hoje 💸', 'Chama o squad! 🎧', 'Qual sua nota? ⭐'];
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  let i = 0;
+  setInterval(() => { const b = $('#balao-adelino'); if (b && document.visibilityState === 'visible') b.textContent = FRASES[++i % FRASES.length]; }, 4000);
 }
 
 // ---------- Diferenciais (números reais do banco; sem dado, o item não mostra número) ----------
@@ -294,7 +307,7 @@ async function carregarLfg() {
       ${meu ? `<button class="btn sec pequeno" data-lfg-fim="${x.id}">Encerrar</button>`
         : u ? `<button class="btn pequeno ${foi ? 'sec' : ''}" data-lfg-quero="${x.id}" ${foi ? 'disabled' : ''}>${foi ? '✓ Avisado' : '🙋 Quero jogar'}</button>` : ''}
     </div>`;
-  }).join('') || '<p class="muted">Ninguém procurando grupo agora. Seja o primeiro!</p>';
+  }).join('') || `<div class="vazio-adelino"><img src="${urlCdn('img/adelino/luta.png', 160)}" alt="" width="72" height="66" loading="lazy"><p class="muted">Ninguém procurando grupo agora. Crie o primeiro e avise seus amigos.</p></div>`;
 
   $('#lfg-lista').querySelectorAll('[data-lfg-quero]').forEach((b) => b.onclick = async () => {
     const { error } = await sb.from('lfg_interest').insert({ lfg_id: Number(b.dataset.lfgQuero), user_id: u.id });
