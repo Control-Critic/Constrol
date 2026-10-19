@@ -3,10 +3,11 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../js/config.js';
 
 const PAGINAS = ['index.html', 'jogos.html', 'novidades.html', 'promocoes.html', 'comunidades.html', 'conquistas.html', 'sobre.html', 'contato.html', 'privacidade.html', 'termos.html'];
-const rest = async (c) => { const r = await fetch(`${SUPABASE_URL}/rest/v1/${c}`, { headers: { apikey: SUPABASE_ANON_KEY } }); return r.ok ? r.json() : []; };
+const rest = async (c) => { try { const r = await fetch(`${SUPABASE_URL}/rest/v1/${c}`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(15000) }); return r.ok ? r.json() : []; } catch { return []; } };
 const xml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
 export default async (req) => {
+  if (!['GET', 'HEAD'].includes(req.method)) return new Response('Método não permitido.', { status: 405, headers: { Allow: 'GET, HEAD' } });
   const base = new URL(req.url).origin;
   const [jogos, comms] = await Promise.all([
     rest('games?select=slug&order=igdb_rating_count.desc.nullslast&limit=5000'),

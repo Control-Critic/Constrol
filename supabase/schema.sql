@@ -3397,6 +3397,32 @@ do $$ declare r record; begin
 end $$;
 
 -- =====================================================================
+-- RATE LIMIT DAS FUNCTIONS (migração supabase/migrations/20261018_01_rate_limit.sql)
+-- =====================================================================
+create table if not exists public.rate_limits (
+  chave  text not null check (char_length(chave) <= 80),
+  janela timestamptz not null,
+  n      integer not null default 0,
+  primary key (chave, janela)
+);
+alter table public.rate_limits enable row level security;   -- sem políticas: ninguém lê pela API pública
+revoke all on public.rate_limits from anon, authenticated;
+
+create or replace function public.rate_hit(chave text, maximo integer, segundos integer) returns boolean
+language plpgsql security definer set search_path = public as $$
+#variable_conflict use_column
+declare j timestamptz; total integer;
+begin
+  if maximo < 1 or segundos < 1 or segundos > 86400 then return false; end if;
+  j := to_timestamp(floor(extract(epoch from now()) / segundos) * segundos);
+  insert into rate_limits as r (chave, janela, n) values (rate_hit.chave, j, 1)
+    on conflict (chave, janela) do update set n = r.n + 1
+    returning n into total;
+  if random() < 0.01 then delete from rate_limits where janela < now() - interval '1 day'; end if;
+  return total <= maximo;
+end $$;
+revoke execute on function public.rate_hit(text, integer, integer) from public, anon, authenticated;
+grant execute on function public.rate_hit(text, integer, integer) to service_role;
 -- CORREÇÕES DE RLS E PRIVILÉGIOS (fase 3) — mesmo conteúdo de supabase/migrations/20261018_02_rls_correcoes.sql
 -- =====================================================================
 -- Fase 3: correções de RLS e privilégios encontradas pelos testes em tests/rls.sql. Idempotente.

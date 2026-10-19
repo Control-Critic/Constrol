@@ -1,6 +1,6 @@
 import { SUPABASE_ANON_KEY } from './config.js';
 import { avatarHtml, cssDoItem, cssMolduraImagem, aoMudarOnline, estadoOnline } from './app.js';
-import { sb, $, esc, montarLayout, configurado, exigirLogin, perfil, data, toast, falha, urlSegura } from './app.js';
+import { sb, $, esc, montarLayout, configurado, exigirLogin, perfil, data, toast, falha, urlSegura, plural, paginaInterna, corSegura, cabecalhosLogin } from './app.js';
 
 await montarLayout();
 const main = $('#conteudo');
@@ -131,7 +131,7 @@ async function stories() {
   painel().innerHTML = `<p class="muted">Stories publicados (os vencidos que não viraram destaque são apagados na limpeza semanal). Stories "💚 amigos" só aparecem aqui se você for melhor amigo da pessoa.</p>
     ${ss.length ? tabela(['Mídia', 'Autor', 'Conteúdo', 'Quando', 'Situação', ''], ss.map((x) => `<tr>
       <td>${x.video_url ? `<video src="${urlSegura(x.video_url)}#t=0.5" muted preload="metadata" style="width:80px;height:80px;object-fit:cover;border-radius:8px"></video>`
-        : `<a href="${urlSegura(x.image_url)}" target="_blank" rel="noopener"><img src="${urlSegura(x.image_url)}" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:8px"></a>`}</td>
+        : `<a href="${urlSegura(x.image_url)}" target="_blank" rel="noopener noreferrer"><img src="${urlSegura(x.image_url)}" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:8px"></a>`}</td>
       <td>@${esc(x.profiles?.username)}</td>
       <td>${corta(x.caption || '', 80)}${x.poll ? `<br><span class="tag">📊 ${esc(x.poll.pergunta)}</span>` : ''}${x.question ? `<br><span class="tag">💬 ${esc(x.question)}</span>` : ''}</td>
       <td>${data(x.created_at)}</td>
@@ -169,7 +169,7 @@ async function usoDoBanco() {
   const barra = (v, lim) => { const pct = Math.min(100, Math.round((v / lim) * 100)); return `<div class="barra-xp" style="max-width:420px;margin:6px 0"><div style="width:${pct}%;${pct > 80 ? 'background:#ff5c5c' : ''}"></div></div><span class="muted">${mb(v)} de ${mb(lim)} (${pct}%)</span>`; };
   $('#uso').innerHTML = `<h2>Uso do Supabase (plano gratuito)</h2>
     <div class="cartao"><strong>Banco de dados</strong>${barra(u.banco_bytes, 500 * 1048576)}
-      <p style="margin-top:12px"><strong>Arquivos (imagens)</strong> · ${u.arquivos} arquivo(s)</p>${barra(u.arquivos_bytes, 1024 * 1048576)}
+      <p style="margin-top:12px"><strong>Arquivos (imagens)</strong> · ${plural(u.arquivos, 'arquivo')}</p>${barra(u.arquivos_bytes, 1024 * 1048576)}
       <p class="muted" style="font-size:.85rem;margin-top:8px">Acima de 80% fica vermelho. Tráfego e conexões em tempo real não aparecem aqui: veja em Supabase → Usage.</p></div>
     <h3 style="margin-top:14px">Maiores tabelas</h3>
     ${tabela(['Tabela', 'Tamanho', 'Linhas (aprox.)'], (u.tabelas || []).map((t) => `<tr><td>${esc(t.nome)}</td><td>${mb(t.bytes)}</td><td>${Number(t.linhas).toLocaleString('pt-BR')}</td></tr>`))}`;
@@ -188,7 +188,7 @@ async function problemas() {
     ${tabela(['Quando', 'Quem', 'Mensagem', 'Página / aparelho', ''], fs.map((x) => `<tr>
       <td>${new Date(x.created_at).toLocaleString('pt-BR')}</td><td>${esc(x.profiles?.username || 'visitante')}</td>
       <td class="quebra" style="max-width:420px">${esc(x.message)}${x.details ? `<br><span class="muted" style="font-size:.78rem">${esc(JSON.stringify(x.details).slice(0, 300))}</span>` : ''}</td>
-      <td><a href="${esc(x.page || '#')}" target="_blank">${esc(x.page || '—')}</a><br><span class="muted" style="font-size:.75rem">${esc((x.agent || '').replace(/Mozilla\/5.0 /, '').slice(0, 90))}</span></td>
+      <td><a href="${paginaInterna(x.page)}" target="_blank" rel="noopener noreferrer">${esc(x.page || '—')}</a><br><span class="muted" style="font-size:.75rem">${esc((x.agent || '').replace(/Mozilla\/5.0 /, '').slice(0, 90))}</span></td>
       <td class="controles">${x.status === 'aberto' ? `<button class="btn sec pequeno" data-acao="resolver" data-id="${x.id}">✓ Resolvido</button>` : ''}
         <button class="btn perigo pequeno" data-acao="apagar" data-id="${x.id}">Apagar</button></td></tr>`))}`;
   painel().querySelectorAll('[data-fb]').forEach((b) => b.onclick = () => { painel().dataset.fb = b.dataset.fb; problemas(); });
@@ -217,7 +217,7 @@ async function jogos() {
   painel().innerHTML = `<div class="controles" style="margin-bottom:12px"><button class="btn" data-acao="novo">+ Novo jogo</button>
       <input id="j-q" type="search" placeholder="Buscar jogo..." value="${esc(f.q)}" style="max-width:300px">
       <label style="display:flex;gap:6px;align-items:center;margin:0;font-weight:400"><input type="checkbox" id="j-dest" style="width:auto" ${f.destaque ? 'checked' : ''}> Só destaques</label>
-      <span class="muted">${(count ?? 0).toLocaleString('pt-BR')} jogo(s)</span></div>
+      <span class="muted">${plural((count ?? 0).toLocaleString('pt-BR'), 'jogo')}</span></div>
     ${tabela(['Jogo', 'Categoria', 'Nota', 'Destaque', ''], gs.map((g) => `<tr>
       <td><a href="jogo.html?slug=${encodeURIComponent(g.slug)}" target="_blank">${esc(g.title)}</a></td><td>${esc(g.categories?.name || '—')}</td>
       <td>${Number(g.avg_rating).toFixed(1)} (${g.reviews_count})</td><td>${g.featured ? '⭐' : ''}</td>
@@ -261,16 +261,16 @@ async function noticias() {
     ['published', 'Publicada', 'checkbox']];
   const { data: igUltimo } = await sb.from('settings').select('value').eq('key', 'instagram_ultimo').maybeSingle();
   const ultimo = igUltimo?.value;
-  const igStatus = (n) => n.instagram_at ? `<a class="tag" href="${urlSegura(n.instagram_url || 'https://www.instagram.com/control.critic/')}" target="_blank" rel="noopener">📸 no Instagram</a>`
+  const igStatus = (n) => n.instagram_at ? `<a class="tag" href="${urlSegura(n.instagram_url || 'https://www.instagram.com/control.critic/')}" target="_blank" rel="noopener noreferrer">📸 no Instagram</a>`
     : n.instagram_status === 'urgente' ? '<span class="tag amarela">📸 publicando…</span>' : n.instagram_status === 'erro' ? '<span class="tag" style="background:#e5484d;color:#fff">📸 falhou</span>' : '';
   painel().innerHTML = `<div class="cartao" style="margin-bottom:12px"><strong>📸 Instagram</strong>
       <p class="muted" style="font-size:.88rem;margin-top:4px">Todo dia às 12h50 sai um <strong>meme</strong> aprovado (aba Memes) ou uma enquete, e às 18h50 o <strong>resumo do dia</strong> (ou a notícia do dia; sem notícia, a promoção do dia).
         Para algo urgente, use <strong>📸 Postar agora</strong> na notícia: sai em 1 a 2 minutos com a etiqueta "URGENTE".</p>
       ${ultimo ? `<p style="font-size:.88rem;margin-top:6px">Último post: ${esc({ resumo: 'resumo do dia', noticia: 'notícia do dia', promocao: 'promoção do dia', urgente: 'notícia urgente', meme: 'meme', versus: 'enquete' }[ultimo.tipo] || ultimo.tipo)} em ${new Date(ultimo.em).toLocaleString('pt-BR')}
-        ${ultimo.url ? ` · <a href="${urlSegura(ultimo.url)}" target="_blank" rel="noopener">ver post</a>` : ''}</p>` : '<p class="muted" style="font-size:.85rem;margin-top:6px">Ainda nenhum post (configure o robô: scripts/instagram/LEIA-ME.md).</p>'}</div>
+        ${ultimo.url ? ` · <a href="${urlSegura(ultimo.url)}" target="_blank" rel="noopener noreferrer">ver post</a>` : ''}</p>` : '<p class="muted" style="font-size:.85rem;margin-top:6px">Ainda nenhum post (configure o robô: scripts/instagram/LEIA-ME.md).</p>'}</div>
     <div class="controles" style="margin-bottom:12px"><button class="btn" data-acao="novo">+ Escrever notícia</button></div>
     ${tabela(['Título', 'Fonte', 'Data', 'Status', ''], ns.map((n) => `<tr>
-      <td>${n.source_url ? `<a href="${urlSegura(n.source_url)}" target="_blank" rel="noopener">${corta(n.title)}</a>` : corta(n.title)}</td>
+      <td>${n.source_url ? `<a href="${urlSegura(n.source_url)}" target="_blank" rel="noopener noreferrer">${corta(n.title)}</a>` : corta(n.title)}</td>
       <td>${esc(n.source || 'Equipe')}</td><td>${data(n.created_at)}</td>
       <td>${n.published ? '<span class="tag amarela">publicada</span>' : '<span class="tag">pendente</span>'} ${igStatus(n)}</td>
       <td class="controles"><button class="btn sec pequeno" data-acao="alternar" data-id="${n.id}">${n.published ? 'Despublicar' : 'Publicar'}</button>
@@ -309,13 +309,13 @@ async function memes() {
     .eq('ig_ok', true).eq('status', 'published').order('created_at', { ascending: false }).limit(100);
   if (error) throw /ig_ok/.test(error.message) ? new Error('Rode o supabase/schema.sql de novo para ativar os memes.') : error;
   const fila = ms.filter((m) => m.ig_aprovado && !m.instagram_at).length;
-  const situacao = (m) => m.instagram_at ? `<a class="tag amarela" href="${urlSegura(m.instagram_url || 'https://www.instagram.com/control.critic/')}" target="_blank" rel="noopener">📸 publicado</a>`
+  const situacao = (m) => m.instagram_at ? `<a class="tag amarela" href="${urlSegura(m.instagram_url || 'https://www.instagram.com/control.critic/')}" target="_blank" rel="noopener noreferrer">📸 publicado</a>`
     : m.ig_aprovado ? '<span class="tag amarela">na fila</span>' : m.ig_recusado ? '<span class="tag">recusado</span>' : '<span class="tag">aguardando</span>';
   painel().innerHTML = `<div class="cartao" style="margin-bottom:12px"><strong>😂 Memes da comunidade</strong>
       <p class="muted" style="font-size:.88rem;margin-top:4px">Todo dia às 12h50 o robô publica o meme aprovado mais antigo, com crédito ao autor. Na fila: <strong>${fila}</strong>.
       Sem meme aprovado, ele posta uma enquete "Qual você prefere?" com dois jogos.<br>Aprove só o que é original ou de uso livre, sem ofensas e sem dados pessoais.</p></div>
     ${ms.length ? tabela(['Meme', 'Autor', 'Legenda', 'Data', 'Situação', ''], ms.map((m) => `<tr>
-      <td><a href="${urlSegura(m.image_url)}" target="_blank" rel="noopener"><img src="${urlSegura(m.image_url)}" alt="" style="width:90px;height:90px;object-fit:cover;border-radius:8px"></a></td>
+      <td><a href="${urlSegura(m.image_url)}" target="_blank" rel="noopener noreferrer"><img src="${urlSegura(m.image_url)}" alt="" style="width:90px;height:90px;object-fit:cover;border-radius:8px"></a></td>
       <td>@${esc(m.profiles?.username)}</td><td>${corta(m.body, 100)}</td><td>${data(m.created_at)}</td><td>${situacao(m)}</td>
       <td class="controles">${m.instagram_at ? '' : `${m.ig_aprovado ? '' : `<button class="btn pequeno" data-acao="aprovar" data-id="${m.id}">✔ Aprovar</button>`}
         ${m.ig_recusado ? '' : `<button class="btn sec pequeno" data-acao="recusar" data-id="${m.id}">✕ Recusar</button>`}`}</td></tr>`))
@@ -451,7 +451,7 @@ async function posts() {
   painel().innerHTML = tabela(['Usuário', 'Comunidade', 'Post', 'Mídia', 'Data', ''], ps.map((p) => `<tr>
     <td>${esc(p.profiles?.username)}</td><td>${p.community_id ? `<a href="comunidade.html?id=${p.community_id}" target="_blank">${esc(p.communities?.name)}</a>` : '<span class="muted">feed</span>'}</td>
     <td>${corta(p.body, 140)}</td>
-    <td>${p.video_url ? `<a href="${urlSegura(p.video_url)}" target="_blank" rel="noopener">🎬 vídeo</a>` : p.image_url ? `<a href="${urlSegura(p.image_url)}" target="_blank" rel="noopener"><img src="${urlSegura(p.image_url)}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:6px"></a>` : ''}${p.musica ? ' 🎵' : ''}</td><td>${data(p.created_at)}</td>
+    <td>${p.video_url ? `<a href="${urlSegura(p.video_url)}" target="_blank" rel="noopener noreferrer">🎬 vídeo</a>` : p.image_url ? `<a href="${urlSegura(p.image_url)}" target="_blank" rel="noopener noreferrer"><img src="${urlSegura(p.image_url)}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:6px"></a>` : ''}${p.musica ? ' 🎵' : ''}</td><td>${data(p.created_at)}</td>
     <td class="controles"><button class="btn sec pequeno" data-acao="alternar" data-id="${p.id}">${p.status === 'published' ? 'Ocultar' : 'Mostrar'}</button>
     <button class="btn perigo pequeno" data-acao="excluir" data-id="${p.id}">Excluir</button></td></tr>`));
   acoes({
@@ -505,17 +505,17 @@ async function usuarios() {
       <select id="u-papel"><option value="">Todas as permissões</option>${Object.entries(PERMISSAO).map(([v, t]) => `<option value="${v}" ${f.papel === v ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <select id="u-sit"><option value="">Todas as situações</option><option value="suspensos" ${f.situacao ? 'selected' : ''}>Suspensos</option></select>
     </div>
-    <p class="muted" style="margin-bottom:8px">${(count ?? 0).toLocaleString('pt-BR')} usuário(s). Clique em um usuário para gerenciar, ou marque vários para agir em lote.</p>
+    <p class="muted" style="margin-bottom:8px">${plural((count ?? 0).toLocaleString('pt-BR'), 'usuário')}. Clique em um usuário para gerenciar, ou marque vários para agir em lote.</p>
     ${P.role === 'admin' ? `<div class="cartao controles lote-barra" style="margin-bottom:10px;align-items:center;gap:8px">
       <label style="display:flex;gap:6px;align-items:center;font-weight:400;margin:0"><input type="checkbox" id="u-todos" style="width:auto"> Marcar todos da página</label>
-      <span class="muted" id="u-sel">0 selecionado(s)</span>
+      <span class="muted" id="u-sel">0 selecionados</span>
       <button class="btn pequeno" id="u-lote-itens" disabled>🎁 Dar/tirar itens</button><button class="btn sec pequeno" id="u-lote-xp" disabled>⭐ Dar XP</button>
       <button class="btn sec pequeno" id="u-lote-geral" title="Dar itens para todos os usuários do site">🌍 Itens para todos</button></div>` : ''}
     ${tabela(['', 'Usuário', 'Permissão', 'Cargos', 'XP', 'Situação', 'Desde'], us.map((u) => `<tr class="linha-usuario" data-id="${u.id}" style="cursor:pointer">
       <td>${P.role === 'admin' ? `<input type="checkbox" class="u-marca" value="${u.id}" style="width:18px;height:18px" aria-label="Selecionar ${esc(u.username)}">` : ''}</td>
       <td><span class="controles" style="align-items:center;flex-wrap:nowrap">${avatarHtml(u)} <strong>${esc(u.username)}</strong>${u.id === P.id ? ' <span class="muted">(você)</span>' : ''}</span></td>
       <td>${PERMISSAO[u.role]}</td>
-      <td>${(u.titles || []).map((t) => T.get(t)).filter(Boolean).map((t) => `<span class="tag" style="background:${esc(t.color)};color:#000">${esc(t.icon || '')} ${esc(t.name)}</span>`).join(' ')}</td>
+      <td>${(u.titles || []).map((t) => T.get(t)).filter(Boolean).map((t) => `<span class="tag" style="background:${corSegura(t.color)};color:#000">${esc(t.icon || '')} ${esc(t.name)}</span>`).join(' ')}</td>
       <td>${u.xp}</td>
       <td>${suspenso(u) ? `<span class="tag" style="background:var(--perigo);color:#fff">suspenso${u.banned_until ? ' até ' + new Date(u.banned_until).toLocaleDateString('pt-BR') : ''}</span>` : 'ativo'}</td>
       <td>${data(u.created_at)}</td></tr>`))}
@@ -532,18 +532,18 @@ async function usuarios() {
   painel().querySelectorAll('.linha-usuario').forEach((tr) => tr.onclick = (e) => { if (!e.target.closest('.u-marca')) fichaUsuario(tr.dataset.id, T); });
   // Ações em lote
   const marcados = () => [...painel().querySelectorAll('.u-marca:checked')].map((c) => c.value);
-  const contar = () => { const n = marcados().length; $('#u-sel') && ($('#u-sel').textContent = `${n} selecionado(s)`); ['u-lote-itens', 'u-lote-xp'].forEach((k) => { if ($('#' + k)) $('#' + k).disabled = !n; }); };
+  const contar = () => { const n = marcados().length; $('#u-sel') && ($('#u-sel').textContent = `${plural(n, 'selecionado')}`); ['u-lote-itens', 'u-lote-xp'].forEach((k) => { if ($('#' + k)) $('#' + k).disabled = !n; }); };
   painel().querySelectorAll('.u-marca').forEach((c) => c.onchange = contar);
   $('#u-todos')?.addEventListener('change', (e) => { painel().querySelectorAll('.u-marca').forEach((c) => { c.checked = e.target.checked; }); contar(); });
   $('#u-lote-itens')?.addEventListener('click', () => darEmLote({ uids: marcados() }));
   $('#u-lote-geral')?.addEventListener('click', () => darEmLote({ todos: true }));
   $('#u-lote-xp')?.addEventListener('click', async () => {
-    const uids = marcados(), q = Number(prompt(`Quanto de XP dar para ${uids.length} pessoa(s)? (negativo para tirar)`, '100'));
+    const uids = marcados(), q = Number(prompt(`Quanto de XP dar para ${plural(uids.length, 'pessoa')}? (negativo para tirar)`, '100'));
     if (!q) return;
     const motivo = prompt('Motivo (aparece no histórico):', 'Evento da comunidade') || null;
     const { error: e } = await sb.rpc('admin_xp_lote', { uids, quantidade: q, motivo });
     if (e) return falha(e);
-    toast(`⭐ ${q} XP para ${uids.length} pessoa(s).`); usuarios();
+    toast(`⭐ ${q} XP para ${plural(uids.length, 'pessoa')}.`); usuarios();
   });
 }
 
@@ -554,7 +554,7 @@ async function darEmLote({ uids = [], todos = false, itensIniciais = [] } = {}) 
   let alvos = [...uids];
   dlg.innerHTML = `<h2 style="margin-top:0">🎁 Itens em lote</h2>
     ${todos ? '<p class="aviso">Vai valer para <strong>todos os usuários</strong> do site (menos os suspensos).</p>' : `
-      <p class="muted">Para: <strong id="l-alvos">${alvos.length}</strong> pessoa(s). ${uids.length ? '' : 'Busque e adicione abaixo.'}</p>
+      <p class="muted">Para: <strong id="l-alvos">${alvos.length}</strong> <span id="l-alvos-txt">${alvos.length === 1 ? 'pessoa' : 'pessoas'}</span>. ${uids.length ? '' : 'Busque e adicione abaixo.'}</p>
       <div class="busca-jogo"><input id="l-busca" type="search" placeholder="Adicionar pessoa pelo nome..." autocomplete="off"><span class="sugestoes hidden" id="l-sug"></span></div>
       <div class="controles" id="l-chips" style="margin:6px 0;gap:4px"></div>`}
     <p class="muted" style="font-size:.82rem">Marque os itens. Escolha se é para <strong>dar</strong> ou <strong>tirar</strong>.</p>
@@ -567,6 +567,7 @@ async function darEmLote({ uids = [], todos = false, itensIniciais = [] } = {}) 
   const desenharAlvos = async () => {
     if (todos || !$('#l-chips')) return;
     $('#l-alvos').textContent = alvos.length;
+    $('#l-alvos-txt') && ($('#l-alvos-txt').textContent = alvos.length === 1 ? 'pessoa' : 'pessoas');
     const { data: ps } = alvos.length ? await sb.from('profiles').select('id,username').in('id', alvos) : { data: [] };
     $('#l-chips').innerHTML = (ps || []).map((p) => `<span class="tag">@${esc(p.username)} <button type="button" data-tirar-alvo="${p.id}" style="background:none;border:0;color:inherit;cursor:pointer">✕</button></span>`).join('');
     $('#l-chips').querySelectorAll('[data-tirar-alvo]').forEach((b) => b.onclick = () => { alvos = alvos.filter((x) => x !== b.dataset.tirarAlvo); desenharAlvos(); });
@@ -588,11 +589,11 @@ async function darEmLote({ uids = [], todos = false, itensIniciais = [] } = {}) 
     const ids = sel.marcados();
     if (!ids.length) return toast('Marque pelo menos um item.', true);
     if (!todos && !alvos.length) return toast('Adicione pelo menos uma pessoa.', true);
-    if (!confirm(`${dar ? 'Dar' : 'Tirar'} ${ids.length} item(ns) ${todos ? 'de TODOS os usuários' : `de ${alvos.length} pessoa(s)`}?`)) return;
+    if (!confirm(`${dar ? 'Dar' : 'Tirar'} ${plural(ids.length, 'item', 'itens')} ${todos ? 'de TODOS os usuários' : `de ${plural(alvos.length, 'pessoa')}`}?`)) return;
     const { data: n, error: e } = await sb.rpc('admin_cosmetics_lote', { uids: todos ? [] : alvos, dar: dar ? ids : [], tirar: dar ? [] : ids, todos });
     if (e) return falha(e);
     try { sessionStorage.removeItem('cc_itens'); } catch { /* ignora */ }
-    dlg.close(); toast(`${dar ? '🎁 Entregue' : 'Removido'} para ${n} pessoa(s).`);
+    dlg.close(); toast(`${dar ? '🎁 Entregue' : 'Removido'} para ${plural(n, 'pessoa')}.`);
   };
   $('#l-dar').onclick = () => enviar(true);
   $('#l-tirar').onclick = () => enviar(false);
@@ -657,7 +658,7 @@ async function fichaUsuario(uid, T) {
   $('#f-banir')?.addEventListener('click', () => {
     const dias = $('#f-dias').value ? Number($('#f-dias').value) : null, motivo = $('#f-motivo').value.trim();
     if (!motivo) return toast('Informe o motivo da suspensão.', true);
-    if (confirm(`Suspender ${u.username} ${dias ? `por ${dias} dia(s)` : 'permanentemente'}?`)) rpc('admin_ban', { uid, dias, motivo }, 'Usuário suspenso.');
+    if (confirm(`Suspender ${u.username} ${dias ? `por ${plural(dias, 'dia')}` : 'permanentemente'}?`)) rpc('admin_ban', { uid, dias, motivo }, 'Usuário suspenso.');
   });
   $('#f-salvar-papel')?.addEventListener('click', () => {
     const novo = $('#f-papel').value;
@@ -689,7 +690,7 @@ async function cargos() {
     para isso use Moderador/Administrador na ficha do usuário.</p>
     <div class="controles" style="margin:12px 0"><button class="btn" data-acao="novo">+ Novo cargo</button></div>
     ${tabela(['Cargo', 'Identificador', 'Pessoas', ''], (ts || []).map((t) => `<tr>
-      <td><span class="tag" style="background:${esc(t.color)};color:#000">${esc(t.icon || '')} ${esc(t.name)}</span></td><td><code>${esc(t.id)}</code></td><td>${uso(t.id)}</td>
+      <td><span class="tag" style="background:${corSegura(t.color)};color:#000">${esc(t.icon || '')} ${esc(t.name)}</span></td><td><code>${esc(t.id)}</code></td><td>${uso(t.id)}</td>
       <td class="controles"><button class="btn sec pequeno" data-acao="editar" data-id="${esc(t.id)}">Editar</button>
       <button class="btn perigo pequeno" data-acao="excluir" data-id="${esc(t.id)}">Excluir</button></td></tr>`))}`;
   const campos = [['name', 'Nome'], ['icon', 'Emoji (opcional)'], ['color', 'Cor', 'color'], ['sort', 'Ordem', 'number']];
@@ -783,7 +784,7 @@ async function itens() {
           : `<button class="btn perigo pequeno" data-acao="excluir" data-id="${esc(c.id)}">Excluir</button>`}</td></tr>`))}`;
   acoes({
     destacar: async (id) => { const c = cs.find((x) => x.id === id); const { error: e } = await sb.from('cosmetics').update({ destaque: !c.destaque }).eq('id', id); if (e) throw e; toast(c.destaque ? 'Tirado do destaque.' : '⭐ Em destaque na página de Conquistas.'); itens(); },
-    metas: async () => { const { data: n, error: e } = await sb.rpc('admin_aplicar_regras'); if (e) throw e; toast(`🎮 Metas conferidas para ${n} pessoa(s).`); itens(); },
+    metas: async () => { const { data: n, error: e } = await sb.rpc('admin_aplicar_regras'); if (e) throw e; toast(`🎮 Metas conferidas para ${plural(n, 'pessoa')}.`); itens(); },
     dar: (id) => darEmLote({ itensIniciais: [id] }),
     lote: () => darEmLote({}),
     novo: (tipo) => editorItem({ kind: tipo, custom: true, rarity: 'comum', style: tipo === 'badge' ? null : { cores: ['#ffd33c', '#ff6d00'], animado: tipo === 'frame' } }),
@@ -795,7 +796,7 @@ async function itens() {
 
 // Personalizado: apaga de vez. Original do site: desativa (some da loja de conquistas e de quem estava usando).
 async function excluirItem(c, qtd) {
-  if (!confirm(`Excluir "${c.name}"? ${qtd == null ? 'Ele é removido de quem o possui' : qtd ? `Ele é removido de ${qtd} pessoa(s) que o possuem` : 'Ninguém tem este item ainda'}${c.custom ? '.' : ' (item original: fica desativado e pode ser reativado depois).'}`)) return;
+  if (!confirm(`Excluir "${c.name}"? ${qtd == null ? 'Ele é removido de quem o possui' : qtd ? `Ele é removido de ${plural(qtd, 'pessoa')} que o possuem` : 'Ninguém tem este item ainda'}${c.custom ? '.' : ' (item original: fica desativado e pode ser reativado depois).'}`)) return;
   const { error } = c.custom ? await sb.from('cosmetics').delete().eq('id', c.id) : await sb.from('cosmetics').update({ active: false }).eq('id', c.id);
   if (error) return falha(/active/.test(error.message) ? { message: 'Banco desatualizado: rode de novo o supabase/schema.sql.' } : error);
   try { sessionStorage.removeItem('cc_itens'); } catch { /* ignora */ }
@@ -939,7 +940,7 @@ async function desafios() {
     ${tabela(['Desafio', 'Período', 'Prêmio', 'Situação', ''], (chs || []).map((c) => `<tr>
       <td><strong>${esc(c.title)}</strong><br><span class="muted" style="font-size:.82rem">${esc((c.description || '').slice(0, 100))}</span></td>
       <td>${data(c.starts_at)} → ${data(c.ends_at)}</td><td>${[c.reward_cosmetic, ...(c.reward_extras || [])].filter(Boolean).map((id) => esc(nomeItem[id] || id)).join('<br>')}${c.reward_cosmetic || c.reward_extras?.length ? '<br>' : ''}+ ${c.reward_xp} XP</td>
-      <td>${estado(c)}${c.winners?.length ? `<br><span class="muted">${c.winners.length} premiado(s)</span>` : ''}</td>
+      <td>${estado(c)}${c.winners?.length ? `<br><span class="muted">${plural(c.winners.length, 'premiado')}</span>` : ''}</td>
       <td class="controles"><button class="btn sec pequeno" data-acao="ver" data-id="${c.id}">Participações</button>
         <button class="btn sec pequeno" data-acao="editar" data-id="${c.id}">Editar</button><button class="btn perigo pequeno" data-acao="excluir" data-id="${c.id}">Excluir</button></td></tr>`))}
     <div id="participacoes"></div>`;
@@ -986,7 +987,7 @@ async function desafios() {
       $('#premiar').onclick = async () => {
         const ids = [...new Set([...$('#participacoes').querySelectorAll('input:checked:not(:disabled)')].map((i) => i.value))];
         if (!ids.length) return toast('Marque quem vai ganhar.', true);
-        if (!confirm(`Premiar ${ids.length} pessoa(s)? Elas recebem o item e o XP agora.`)) return;
+        if (!confirm(`Premiar ${plural(ids.length, 'pessoa')}? Elas recebem o item e o XP agora.`)) return;
         const { error: e } = await sb.rpc('award_challenge', { chid: Number(id), vencedores: ids });
         if (e) return falha(e);
         toast('Premiado! 🏆'); desafios();
@@ -1033,7 +1034,7 @@ async function site() {
   $('#testar-turn').onclick = async () => {
     const box = $('#res-turn'); box.innerHTML = '<p class="muted">Testando (até 8 s por servidor)...</p>';
     let d;
-    try { const r = await fetch('/.netlify/functions/turn'); d = await r.json(); if (!r.ok) throw new Error(d.erro || r.status); }
+    try { const r = await fetch('/.netlify/functions/turn', { headers: await cabecalhosLogin() }); d = await r.json(); if (!r.ok) throw new Error(d.erro || r.status); }
     catch (e) { box.innerHTML = `<p class="aviso erro">A função de TURN falhou: ${esc(e.message)}. Confira as variáveis no Netlify.</p>`; return; }
     const testes = [];
     for (const [grupo, lista] of [['Próprio', d.primarios || []], ['Cloudflare (reserva)', d.reserva || (d.primarios ? [] : d.iceServers)]])
@@ -1115,7 +1116,7 @@ async function auto() {
       <p class="muted">Roda automaticamente pelo GitHub Actions a cada 6 horas (arquivo <code>.github/workflows/sync.yml</code>).
       Também pode ser disparado manualmente em GitHub → Actions → "Sincronizar notícias e promoções" → Run workflow.</p>
       <p style="margin-top:10px"><strong>Última execução:</strong> ${ultimo?.at ? `${new Date(ultimo.at).toLocaleString('pt-BR')} —
-        ${ultimo.news ?? 0} notícia(s) nova(s), ${ultimo.deals ?? 0} preço(s) atualizado(s)${ultimo.errors?.length ? `, <span style="color:var(--perigo)">${ultimo.errors.length} erro(s)</span>` : ''}` : 'ainda não executou'}</p>
+        ${plural(ultimo.news ?? 0, 'notícia nova', 'notícias novas')}, ${plural(ultimo.deals ?? 0, 'preço atualizado', 'preços atualizados')}${ultimo.errors?.length ? `, <span style="color:var(--perigo)">${plural(ultimo.errors.length, 'erro')}</span>` : ''}` : 'ainda não executou'}</p>
       ${ultimo?.errors?.length ? `<ul class="muted" style="margin:6px 0 0 18px">${ultimo.errors.map((e) => `<li>${esc(e)}</li>`).join('')}</ul>` : ''}
     </div>
     <div class="cartao" style="margin-top:14px">
@@ -1123,7 +1124,7 @@ async function auto() {
       <p class="muted">Todo dia o robô "Importar jogos (IGDB)" adiciona os próximos 2.000 jogos mais populares e os lançamentos recentes.
       Além disso, quando alguém busca um jogo que não está no site, ele é importado na hora.</p>
       <p style="margin-top:10px"><strong>Última importação:</strong> ${cfg.last_igdb?.at ? `${new Date(cfg.last_igdb.at).toLocaleString('pt-BR')} —
-        ${cfg.last_igdb.novos ?? 0} jogo(s) novo(s), ${cfg.last_igdb.completados ?? 0} atualizado(s); catálogo com ${(cfg.last_igdb.catalogo ?? 0).toLocaleString('pt-BR')} jogos` : 'ainda não executou'}</p>
+        ${plural(cfg.last_igdb.novos ?? 0, 'jogo novo', 'jogos novos')}, ${plural(cfg.last_igdb.completados ?? 0, 'atualizado')}; catálogo com ${(cfg.last_igdb.catalogo ?? 0).toLocaleString('pt-BR')} jogos` : 'ainda não executou'}</p>
     </div>
     <form class="cartao" id="form-auto" style="margin-top:14px">
       <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="autopub" style="width:auto" ${cfg.auto_publish_news ? 'checked' : ''}>

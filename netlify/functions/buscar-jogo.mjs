@@ -2,6 +2,7 @@
 // adiciona ao catálogo, na hora, os jogos que ainda não estão no site.
 //   GET /.netlify/functions/buscar-jogo?q=hollow  ->  { adicionados, jogos: [{ slug, titulo, ... }] }
 // Variáveis no Netlify: IGDB_CLIENT_ID, IGDB_CLIENT_SECRET, SUPABASE_URL, SUPABASE_SERVICE_KEY
+import { limitar, registrarErro, metodo } from '../../lib/http.mjs';
 import { igdb, CAMPOS, FILTRO_BASE, paraLinha, supabaseRest } from '../../lib/igdb.mjs';
 
 const MAX_RESULTADOS = 10;
@@ -11,7 +12,7 @@ const json = (status, corpo) => new Response(JSON.stringify(corpo), {
 });
 
 export default async (req) => {
-  if (req.method !== 'GET') return json(405, { erro: 'Método não permitido.' });
+  const m = metodo(req, ['GET']); if (m) return m;
   if (['IGDB_CLIENT_ID', 'IGDB_CLIENT_SECRET', 'SUPABASE_URL', 'SUPABASE_SERVICE_KEY'].some((k) => !env(k)))
     return json(503, { erro: 'Busca automática ainda não configurada no Netlify (variáveis de ambiente).' });
   const cred = { clientId: env('IGDB_CLIENT_ID'), secret: env('IGDB_CLIENT_SECRET') };
@@ -20,6 +21,8 @@ export default async (req) => {
   // Sem aspas/ponto e vírgula para não alterar a consulta ao IGDB
   const q = (new URL(req.url).searchParams.get('q') || '').replace(/["\\;]/g, ' ').trim().slice(0, 60);
   if (q.length < 2) return json(400, { erro: 'Digite pelo menos 2 letras.' });
+  // Cada busca pode gravar jogos novos no catálogo (com a chave de serviço): limite por IP
+  const lim = await limitar(req, { nome: 'buscar-jogo', max: 15, segundos: 300 }); if (lim) return lim;
 
   try {
     const achados = await igdb('games', `search "${q}"; ${CAMPOS} where ${FILTRO_BASE}; limit ${MAX_RESULTADOS};`, cred);
@@ -55,7 +58,7 @@ export default async (req) => {
       jogos: achados.filter((g) => slugs.has(g.id)).map((g) => ({ slug: slugs.get(g.id), titulo: g.name })),
     });
   } catch (e) {
-    console.error(e);
+    registrarErro('buscar-jogo', e);
     return json(502, { erro: 'Falha ao consultar o catálogo completo. Tente de novo em instantes.' });
   }
 };

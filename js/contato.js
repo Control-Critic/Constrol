@@ -19,7 +19,7 @@ $('#conteudo').insertAdjacentHTML('beforeend', `
   </form>
   <div class="cartao hidden" id="ok" style="max-width:720px"><h2 style="margin-top:0">Mensagem enviada! ✅</h2><p class="muted">Obrigado! A equipe vai ler e responder pelo seu e-mail.</p></div>
   <p class="muted" style="margin-top:20px">Também queremos sua opinião no
-    <a href="https://docs.google.com/forms/d/e/1FAIpQLSd6jZfNU-pgQNmZiEiiO-aKRDpo3KRY_2Ms2a_a1ceqsRBZcg/viewform" target="_blank" rel="noopener">nosso Google Forms</a>.</p>`);
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSd6jZfNU-pgQNmZiEiiO-aKRDpo3KRY_2Ms2a_a1ceqsRBZcg/viewform" target="_blank" rel="noopener noreferrer">nosso Google Forms</a>.</p>`);
 
 $('#form').onsubmit = async (e) => {
   e.preventDefault();

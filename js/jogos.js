@@ -1,4 +1,4 @@
-import { sb, $, $$, esc, montarLayout, cardJogo, configurado, param, COLUNAS_CARD } from './app.js';
+import { sb, $, $$, esc, montarLayout, cardJogo, plural, configurado, param, COLUNAS_CARD } from './app.js';
 
 await montarLayout();
 const main = $('#conteudo');
@@ -57,7 +57,7 @@ async function carregar(continuar = false) {
   const html = data.map(cardJogo).join('');
   if (continuar) $('#lista').insertAdjacentHTML('beforeend', html);
   else $('#lista').innerHTML = html || '<p class="vazio">Nenhum jogo encontrado no Control Critic.</p>';
-  $('#contagem').textContent = `${(count ?? 0).toLocaleString('pt-BR')} jogo(s)`;
+  $('#contagem').textContent = plural(count ?? 0, 'jogo');
   $('#mais').classList.toggle('hidden', (pagina + 1) * POR_PAGINA >= (count ?? 0));
 
   // Poucos resultados? Busca no catálogo completo, que adiciona os jogos sozinho, e recarrega
