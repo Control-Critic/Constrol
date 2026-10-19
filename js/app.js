@@ -362,7 +362,16 @@ async function contarNotificacoes(uid) {
 // ---------- App instalável (PWA) ----------
 let pedidoInstalacao = null;
 function configurarPwa() {
-  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    const tinha = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    // Versão nova do site ativada: oferece recarregar (sem recarregar sozinho no meio de uma call ou de um texto)
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!tinha || document.querySelector('#aviso-versao')) return;
+      document.body.insertAdjacentHTML('beforeend', '<div id="aviso-versao" class="toast" role="status" style="display:flex;gap:10px;align-items:center">✨ Versão nova do Control Critic <button class="btn pequeno" type="button">Atualizar</button></div>');
+      document.querySelector('#aviso-versao button').onclick = () => location.reload();
+    });
+  }
   const bt = $('#instalar');
   const mostrar = () => bt?.classList.remove('hidden');
   if (pedidoInstalacao) mostrar();
