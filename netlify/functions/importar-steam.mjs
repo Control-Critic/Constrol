@@ -4,6 +4,7 @@
 // Variáveis no Netlify: STEAM_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY
 import { supabaseRest, usuarioLogado } from '../../lib/igdb.mjs';
 import { steam, importarConquistas } from '../../lib/steam.mjs';
+import { metodo, limitar, lerJson, falhaSegura, registrarErro, mesmaOrigem, erro as erroHttp, segredoIgual, buscar } from '../../lib/http.mjs';
 
 const MAX_NOVOS_NO_CATALOGO = 3000;
 const env = (k) => (process.env[k] || '').trim();
@@ -22,7 +23,8 @@ async function steamId(perfil) {
 }
 
 export default async (req) => {
-  if (req.method !== 'POST') return json(405, { erro: 'Método não permitido.' });
+  const m = metodo(req, ['POST']); if (m) return m;
+  if (mesmaOrigem(req) === false) return erroHttp(req, 403, 'Origem não permitida.', 'origem');
   if (['STEAM_API_KEY', 'SUPABASE_URL', 'SUPABASE_SERVICE_KEY'].some((k) => !env(k)))
     return json(503, { erro: 'Importação da Steam ainda não configurada no servidor (variável STEAM_API_KEY no Netlify).' });
   const api = supabaseRest(env('SUPABASE_URL'), env('SUPABASE_SERVICE_KEY'));
@@ -31,12 +33,14 @@ export default async (req) => {
     // Login
     const login = await usuarioLogado(req, env('SUPABASE_URL'), env('SUPABASE_SERVICE_KEY'));
     if (!login.usuario) {
-      console.error('importar-steam:', login.erro);
-      return json(401, { erro: `Não foi possível confirmar seu login (${login.erro}). Saia e entre de novo na sua conta e tente outra vez.` });
+      registrarErro('importar-steam', new Error(`login ${login.erro}`));
+      return json(401, { erro: 'Não foi possível confirmar seu login. Saia e entre de novo na sua conta e tente outra vez.' });
     }
     const { id: uid } = login.usuario;
+    // Importação pesada (Steam + catálogo): poucas por hora por pessoa
+    const lim = await limitar(req, { nome: 'importar-steam', max: 6, segundos: 3600, quem: uid }); if (lim) return lim;
 
-    const { perfil } = await req.json().catch(() => ({}));
+    const { perfil } = await lerJson(req, 1024);
     if (!perfil || String(perfil).length > 200) return json(400, { erro: 'Informe o link do seu perfil da Steam.' });
     const sid = await steamId(String(perfil));
     if (!sid) return json(404, { erro: 'Perfil da Steam não encontrado. Confira o link.' });
@@ -85,14 +89,13 @@ export default async (req) => {
     await api(`profiles?id=eq.${uid}`, { method: 'PATCH', body: { steam_id: sid } }).catch(() => {});
     await api(`profiles?id=eq.${uid}&steam_profile=is.null`, { method: 'PATCH', body: { steam_profile: `https://steamcommunity.com/profiles/${sid}` } }).catch(() => {});
 
-    const conquistas = await importarConquistas(sid, jogos, porAppid, uid, api, { limite: 4 }).catch((e) => { console.error('conquistas:', e); return { erros: [String(e.message).slice(0, 160)] }; });
+    const conquistas = await importarConquistas(sid, jogos, porAppid, uid, api, { limite: 4 }).catch((e) => { registrarErro('importar-steam/conquistas', e); return { erros: ['Falha ao ler as conquistas.'] }; });
 
     return json(200, { importados: linhas.length, novos_no_catalogo: novos, ignorados: jogos.length - linhas.length, conquistas: conquistas?.total ?? null,
       conquistas_proximo: conquistas?.proximo ?? null, conquistas_jogos: conquistas?.jogos ?? 0,
       conquistas_info: conquistas ? { comConquistas: conquistas.comConquistas, gravados: conquistas.gravados, erros: conquistas.erros } : null });
   } catch (e) {
-    console.error(e);
-    return json(e.status || 502, { erro: e.status ? e.message : 'Falha ao falar com a Steam. Tente de novo em instantes.' });
+    return falhaSegura(req, 'importar-steam', e, 502, 'Falha ao falar com a Steam. Tente de novo em instantes.');
   }
 };
 
