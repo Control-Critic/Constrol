@@ -1,5 +1,4 @@
-import { urlCdn } from './app.js';
-import { sb, $, esc, montarLayout, cardJogo, plural, configurado, usuario, perfil, data, urlSegura, COLUNAS_CARD, avatarHtml, toast, falha, carrossel, esqueletoCards, esqueletoLista, param, srcCapa, steamAgora } from './app.js';
+import { sb, $, esc, montarLayout, cardJogo, plural, configurado, usuario, perfil, data, urlSegura, COLUNAS_CARD, avatarHtml, toast, falha, carrossel, esqueletoCards, esqueletoLista, param, srcCapa, steamAgora, urlCdn } from './app.js';
 import { barraStories } from './stories.js';
 import { COLUNAS_POST_DESAFIO as COLUNAS_POST, postHtml, ligarPosts, compositorHtml, ligarCompositor } from './posts.js';
 
@@ -38,20 +37,29 @@ main.insertAdjacentHTML('beforeend', `
     <ul class="diferenciais" id="diferenciais"></ul>
   </section>
   <section id="b-checklist" class="hidden" aria-labelledby="ck-t"></section>
-  <section id="b-grupo" style="margin-top:8px">
-    <div class="controles" style="justify-content:space-between;align-items:center"><h2 style="margin:0">🎮 Procurando grupo agora</h2>
-      <button class="btn pequeno hidden" id="lfg-abrir">+ Quero jogar agora</button></div>
-    <form class="cartao hidden" id="lfg-form" style="margin-top:10px">
+  <section id="b-grupo" style="margin-top:8px" aria-labelledby="grupo-t">
+    <div class="controles" style="justify-content:space-between;align-items:center"><h2 id="grupo-t" style="margin:0">🎮 Procurando grupo agora</h2>
+      <button class="btn pequeno" id="lfg-abrir" aria-expanded="false" aria-controls="lfg-form">+ Criar grupo agora</button></div>
+    <form class="cartao hidden" id="lfg-form" style="margin-top:10px" novalidate>
       <div class="form-linha">
-        <div class="busca-jogo"><label for="lfg-busca">Jogo</label><input id="lfg-busca" type="search" placeholder="Qual jogo?" autocomplete="off"><input type="hidden" id="lfg-jogo"><div class="sugestoes hidden" id="lfg-sug"></div></div>
-        <div><label for="lfg-plat">Plataforma</label><select id="lfg-plat"><option value="">Qualquer</option>${['PlayStation', 'Xbox', 'PC', 'Nintendo', 'Mobile', 'Crossplay'].map((x) => `<option>${x}</option>`).join('')}</select></div>
-        <div><label for="lfg-vagas">Vagas</label><input id="lfg-vagas" type="number" min="1" max="20" value="3"></div>
-        <div><label for="lfg-dur">Por quanto tempo</label><select id="lfg-dur"><option value="1">1 hora</option><option value="2">2 horas</option><option value="4">4 horas</option></select></div>
+        <div class="busca-jogo"><label for="lfg-busca">Jogo</label><input id="lfg-busca" type="search" placeholder="Qual jogo?" autocomplete="off" required aria-describedby="lfg-erro"><input type="hidden" id="lfg-jogo"><div class="sugestoes hidden" id="lfg-sug" role="listbox" aria-label="Jogos encontrados"></div></div>
+        <div><label for="lfg-plat">Plataforma</label><select id="lfg-plat"><option value="">Qualquer</option>${['PlayStation', 'Xbox', 'PC', 'Nintendo', 'Mobile'].map((x) => `<option>${x}</option>`).join('')}</select></div>
+        <div><label for="lfg-inicio">Início</label><select id="lfg-inicio"><option value="0">Agora</option><option value="30">Em 30 min</option><option value="60">Em 1 hora</option><option value="120">Em 2 horas</option><option value="hora">Escolher horário</option></select>
+          <input id="lfg-hora" type="datetime-local" class="hidden" aria-label="Horário de início"></div>
+        <div><label for="lfg-dur">Duração</label><select id="lfg-dur"><option value="1">1 hora</option><option value="2" selected>2 horas</option><option value="4">4 horas</option><option value="6">6 horas</option></select></div>
+        <div><label for="lfg-vagas">Vagas</label><input id="lfg-vagas" type="number" min="1" max="20" value="3" inputmode="numeric"></div>
+        <div><label for="lfg-mic">Microfone</label><select id="lfg-mic"><option value="opcional">Opcional</option><option value="obrigatorio">Obrigatório</option><option value="sem">Sem call</option></select></div>
+        <div><label for="lfg-vis">Quem vê</label><select id="lfg-vis"><option value="publico">Todo mundo</option><option value="amigos">Só amigos</option></select></div>
       </div>
-      <label for="lfg-nota">Recado</label><input id="lfg-nota" maxlength="200" placeholder="Ex.: Raid no difícil, com call. Nível 50+.">
-      <div class="controles" style="margin-top:10px"><button class="btn">Publicar e avisar meus amigos</button><button type="button" class="btn sec" id="lfg-cancelar">Cancelar</button></div>
+      <div class="controles" style="margin-top:8px;gap:16px">
+        <label class="check"><input type="checkbox" id="lfg-cross"> Crossplay</label>
+        <label class="check"><input type="checkbox" id="lfg-avisar" checked> Avisar meus amigos</label>
+      </div>
+      <label for="lfg-nota">Recado</label><input id="lfg-nota" maxlength="200" placeholder="Ex.: Raid no difícil, nível 50+, só diversão.">
+      <p class="erro-campo" id="lfg-erro" role="alert"></p>
+      <div class="controles" style="margin-top:10px"><button class="btn" id="lfg-enviar">Criar grupo</button><button type="button" class="btn sec" id="lfg-cancelar">Cancelar</button></div>
     </form>
-    <div class="lista" id="lfg-lista" style="margin-top:10px"></div>
+    <div class="lista" id="lfg-lista" style="margin-top:10px" aria-live="polite"></div>
   </section>
   <section id="b-comunidades" class="hidden">${ver('🏰 Comunidades', 'comunidades.html')}<div id="comunidades-home"></div></section>
   <section id="b-feed-wrap" class="detalhe hidden" style="margin-top:8px">
@@ -286,60 +294,105 @@ async function carregarAtividade() {
 }
 
 // ---------- Procurando grupo agora ----------
-if (configurado) carregarLfg();
+if (configurado) carregarLfg().then(() => { if (['#grupo', '#b-grupo'].includes(location.hash)) $('#b-grupo').scrollIntoView(); }); // #grupo: links de notificações antigas
+const MIC = { obrigatorio: '🎙️ Microfone obrigatório', opcional: '🎧 Call opcional', sem: '🔇 Sem call' };
 async function carregarLfg() {
   const u = await usuario();
-  const { data: ps } = await sb.from('lfg_posts').select('*, profiles!lfg_posts_user_id_fkey(username,avatar_url,equipped_frame,psn_id,xbox_gamertag,discord_user), games(slug,title,cover_url), lfg_interest(user_id)')
-    .gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(20);
-  $('#lfg-abrir').classList.toggle('hidden', !u);
-  const resta = (d) => { const m = Math.max(0, Math.round((new Date(d) - Date.now()) / 60000)); return m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}` : `${m} min`; };
+  const consulta = (ordem) => sb.from('lfg_posts').select('*, profiles!lfg_posts_user_id_fkey(username,avatar_url,equipped_frame,psn_id,xbox_gamertag,discord_user), games(slug,title,cover_url), lfg_interest(user_id)')
+    .gt('expires_at', new Date().toISOString()).order(ordem, { ascending: ordem === 'starts_at' }).limit(20);
+  let { data: ps, error } = await consulta('starts_at');
+  // Banco ainda sem a migração da fase 6 (coluna starts_at): continua funcionando com a ordem antiga
+  if (error?.code === '42703') ({ data: ps, error } = await consulta('created_at'));
+  if (error) {
+    $('#lfg-lista').innerHTML = '<p class="vazio" role="alert">Não foi possível carregar os grupos. <button class="btn sec pequeno" type="button" id="lfg-retry">Tentar de novo</button></p>';
+    $('#lfg-retry').onclick = carregarLfg;
+    return;
+  }
+  const quando = (x) => {
+    const ini = new Date(x.starts_at || x.created_at), agora = Date.now();
+    if (ini - agora > 5 * 60000) return `🕒 começa ${ini.toLocaleString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}`;
+    const m = Math.max(0, Math.round((new Date(x.expires_at) - agora) / 60000));
+    return `🟢 rolando agora · até ${m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}` : `${m} min`}`;
+  };
   $('#lfg-lista').innerHTML = (ps || []).map((x) => {
     const meu = u && x.user_id === u.id, foi = u && x.lfg_interest.some((i) => i.user_id === u.id);
+    const n = x.lfg_interest.length, cheio = x.slots && n >= x.slots;
     const contas = [x.platform === 'PlayStation' && x.profiles?.psn_id && 'PSN: ' + x.profiles.psn_id, x.platform === 'Xbox' && x.profiles?.xbox_gamertag && 'Xbox: ' + x.profiles.xbox_gamertag, x.profiles?.discord_user && 'Discord: ' + x.profiles.discord_user].filter(Boolean);
-    return `<div class="cartao controles lfg" style="align-items:center">
-      ${avatarHtml(x.profiles)}
-      <div style="flex:1;min-width:200px"><a class="usuario" href="perfil.html?u=${encodeURIComponent(x.profiles?.username || '')}">${esc(x.profiles?.username)}</a> quer jogar
-        ${x.games ? `<a href="jogo.html?slug=${encodeURIComponent(x.games.slug)}"><strong>${esc(x.games.title)}</strong></a>` : '<strong>agora</strong>'}
-        ${x.platform ? `<span class="tag">${esc(x.platform)}</span>` : ''} ${x.slots ? `<span class="tag">${x.lfg_interest.length}/${x.slots} interessados</span>` : ''}
-        ${x.note ? `<br><span class="muted">${esc(x.note)}</span>` : ''}
-        ${contas.length ? `<br><span class="muted" style="font-size:.82rem">${esc(contas.join(' · '))}</span>` : ''}
-        <br><span class="muted" style="font-size:.8rem">⏱️ expira em ${resta(x.expires_at)}</span></div>
-      ${meu ? `<button class="btn sec pequeno" data-lfg-fim="${x.id}">Encerrar</button>`
-        : u ? `<button class="btn pequeno ${foi ? 'sec' : ''}" data-lfg-quero="${x.id}" ${foi ? 'disabled' : ''}>${foi ? '✓ Avisado' : '🙋 Quero jogar'}</button>` : ''}
-    </div>`;
-  }).join('') || `<div class="vazio-adelino"><img src="${urlCdn('img/adelino/luta.png', 160)}" alt="" width="72" height="66" loading="lazy"><p class="muted">Ninguém procurando grupo agora. Crie o primeiro e avise seus amigos.</p></div>`;
+    const acao = meu ? `<button class="btn sec pequeno" data-lfg-fim="${Number(x.id)}">Encerrar grupo</button>`
+      : !u ? `<a class="btn pequeno" href="entrar.html?volta=${encodeURIComponent('index.html#b-grupo')}">Entrar para participar</a>`
+      : foi ? `<button class="btn sec pequeno" data-lfg-sair="${Number(x.id)}">✓ No grupo · sair</button>`
+      : cheio ? '<button class="btn sec pequeno" disabled>Grupo cheio</button>'
+      : `<button class="btn pequeno" data-lfg-quero="${Number(x.id)}">Entrar no grupo</button>`;
+    return `<article class="cartao lfg-card" aria-label="Grupo de ${esc(x.games?.title || 'jogo')}">
+      ${x.games ? `<a href="jogo.html?slug=${encodeURIComponent(x.games.slug)}" class="lfg-capa"><img ${srcCapa(x.games.cover_url, 160)} alt="" loading="lazy" width="64" height="86"></a>` : '<span class="lfg-capa lfg-sem-capa" aria-hidden="true">🎮</span>'}
+      <div class="lfg-info">
+        <strong class="lfg-jogo">${x.games ? `<a href="jogo.html?slug=${encodeURIComponent(x.games.slug)}">${esc(x.games.title)}</a>` : 'Qualquer jogo'}</strong>
+        <span class="muted" style="font-size:.85rem">por <a class="usuario" href="perfil.html?u=${encodeURIComponent(x.profiles?.username || '')}">${esc(x.profiles?.username)}</a> · ${quando(x)}</span>
+        <span class="lfg-tags">${x.platform ? `<span class="tag">${esc(x.platform)}</span>` : ''}${x.crossplay ? '<span class="tag">🔀 Crossplay</span>' : ''}
+          <span class="tag">${MIC[x.mic] || MIC.opcional}</span>${x.visibility === 'amigos' ? '<span class="tag">👥 Só amigos</span>' : ''}
+          ${x.slots ? `<span class="tag ${cheio ? '' : 'amarela'}">${n}/${x.slots} ${x.slots === 1 ? 'vaga' : 'vagas'}</span>` : ''}</span>
+        ${x.note ? `<span class="quebra">${esc(x.note)}</span>` : ''}
+        ${foi || meu ? (contas.length ? `<span class="muted" style="font-size:.82rem">${esc(contas.join(' · '))}</span>` : '') : ''}
+      </div>
+      <div class="lfg-acao">${acao}</div>
+    </article>`;
+  }).join('') || `<div class="vazio-adelino"><img src="${urlCdn('img/adelino/luta.png', 160)}" alt="" width="72" height="66" loading="lazy"><p class="muted">Nenhum grupo aberto agora. Crie o primeiro e avise seus amigos.</p></div>`;
 
   $('#lfg-lista').querySelectorAll('[data-lfg-quero]').forEach((b) => b.onclick = async () => {
-    const { error } = await sb.from('lfg_interest').insert({ lfg_id: Number(b.dataset.lfgQuero), user_id: u.id });
-    if (error) return falha(error);
-    toast('Avisamos que você quer jogar! Combinem pelo perfil, Amigos ou Discord.'); carregarLfg();
+    b.disabled = true;
+    const { error: e } = await sb.from('lfg_interest').insert({ lfg_id: Number(b.dataset.lfgQuero), user_id: u.id });
+    if (e) { b.disabled = false; return falha(e); }
+    toast('Você entrou no grupo! Quem criou foi avisado. Combinem pelo perfil, Amigos ou Discord.'); carregarLfg();
+  });
+  $('#lfg-lista').querySelectorAll('[data-lfg-sair]').forEach((b) => b.onclick = async () => {
+    const { error: e } = await sb.from('lfg_interest').delete().eq('lfg_id', Number(b.dataset.lfgSair)).eq('user_id', u.id); e ? falha(e) : carregarLfg();
   });
   $('#lfg-lista').querySelectorAll('[data-lfg-fim]').forEach((b) => b.onclick = async () => {
-    const { error } = await sb.from('lfg_posts').delete().eq('id', b.dataset.lfgFim); error ? falha(error) : carregarLfg();
+    if (!confirm('Encerrar este grupo?')) return;
+    const { error: e } = await sb.from('lfg_posts').delete().eq('id', Number(b.dataset.lfgFim)); e ? falha(e) : carregarLfg();
   });
-  if (!u || $('#lfg-form').dataset.ok) return;
+  if ($('#lfg-form').dataset.ok) return;
   $('#lfg-form').dataset.ok = '1';
-  $('#lfg-abrir').onclick = () => $('#lfg-form').classList.toggle('hidden');
-  $('#lfg-cancelar').onclick = () => $('#lfg-form').classList.add('hidden');
-  let t;
+  const abrir = (sim) => { $('#lfg-form').classList.toggle('hidden', !sim); $('#lfg-abrir').setAttribute('aria-expanded', String(sim)); if (sim) $('#lfg-busca').focus(); };
+  // Visitante vê os grupos, mas precisa entrar para criar
+  $('#lfg-abrir').onclick = () => (u ? abrir($('#lfg-form').classList.contains('hidden')) : (location.href = `entrar.html?volta=${encodeURIComponent('index.html#b-grupo')}`));
+  if (!u) $('#lfg-abrir').textContent = 'Entrar para criar grupo';
+  $('#hero-grupo')?.addEventListener('click', () => setTimeout(() => u && abrir(true), 300));
+  $('#lfg-cancelar').onclick = () => { abrir(false); $('#lfg-abrir').focus(); };
+  $('#lfg-inicio').onchange = () => $('#lfg-hora').classList.toggle('hidden', $('#lfg-inicio').value !== 'hora');
+  let t, ctrl;
   $('#lfg-busca').oninput = () => {
     $('#lfg-jogo').value = ''; clearTimeout(t);
     t = setTimeout(async () => {
       const termo = $('#lfg-busca').value.trim().replace(/[%,()]/g, '');
       if (termo.length < 2) return $('#lfg-sug').classList.add('hidden');
-      const { data } = await sb.from('games').select('id,title').ilike('title', `%${termo}%`).order('igdb_rating_count', { ascending: false, nullsFirst: false }).limit(6);
-      $('#lfg-sug').innerHTML = (data || []).map((j) => `<button type="button" data-id="${j.id}" data-t="${esc(j.title)}">${esc(j.title)}</button>`).join('');
+      ctrl?.abort(); ctrl = new AbortController();
+      const { data } = await sb.from('games').select('id,title').ilike('title', `%${termo}%`).order('igdb_rating_count', { ascending: false, nullsFirst: false }).limit(6).abortSignal(ctrl.signal);
+      $('#lfg-sug').innerHTML = (data || []).map((j) => `<button type="button" role="option" data-id="${Number(j.id)}" data-t="${esc(j.title)}">${esc(j.title)}</button>`).join('') || '<span class="muted" style="padding:8px">Nenhum jogo encontrado.</span>';
       $('#lfg-sug').classList.remove('hidden');
-      $('#lfg-sug').querySelectorAll('[data-id]').forEach((b) => b.onclick = () => { $('#lfg-jogo').value = b.dataset.id; $('#lfg-busca').value = b.dataset.t; $('#lfg-sug').classList.add('hidden'); });
+      $('#lfg-sug').querySelectorAll('[data-id]').forEach((b) => b.onclick = () => { $('#lfg-jogo').value = b.dataset.id; $('#lfg-busca').value = b.dataset.t; $('#lfg-sug').classList.add('hidden'); $('#lfg-erro').textContent = ''; });
     }, 300);
   };
   $('#lfg-form').onsubmit = async (e) => {
     e.preventDefault();
-    const horas = Number($('#lfg-dur').value);
-    const { error } = await sb.from('lfg_posts').insert({ user_id: u.id, game_id: $('#lfg-jogo').value ? Number($('#lfg-jogo').value) : null,
-      platform: $('#lfg-plat').value || null, slots: Number($('#lfg-vagas').value) || null, note: $('#lfg-nota').value.trim() || null,
-      expires_at: new Date(Date.now() + horas * 3600e3).toISOString() });
-    if (error) return falha(/row-level/.test(error.message) ? { message: 'Você já tem 3 pedidos ativos. Encerre um para criar outro.' } : error);
-    toast('Publicado! Seus amigos foram avisados.'); e.target.reset(); e.target.classList.add('hidden'); carregarLfg();
+    const erro = (msg, campo) => { $('#lfg-erro').textContent = msg; campo?.focus(); };
+    if (!$('#lfg-jogo').value) return erro('Escolha o jogo na lista de sugestões.', $('#lfg-busca'));
+    let ini = Date.now();
+    if ($('#lfg-inicio').value === 'hora') {
+      ini = new Date($('#lfg-hora').value).getTime();
+      if (!ini || ini < Date.now() - 5 * 60000 || ini > Date.now() + 24 * 3600e3) return erro('Escolha um horário nas próximas 24 horas.', $('#lfg-hora'));
+    } else ini += Number($('#lfg-inicio').value) * 60000;
+    const vagas = Number($('#lfg-vagas').value);
+    if (!(vagas >= 1 && vagas <= 20)) return erro('As vagas vão de 1 a 20.', $('#lfg-vagas'));
+    $('#lfg-erro').textContent = '';
+    const bt = $('#lfg-enviar'); bt.disabled = true; bt.textContent = 'Criando...';
+    const { error: e2 } = await sb.from('lfg_posts').insert({ user_id: u.id, game_id: Number($('#lfg-jogo').value),
+      platform: $('#lfg-plat').value || null, slots: vagas, note: $('#lfg-nota').value.trim() || null,
+      starts_at: new Date(ini).toISOString(), expires_at: new Date(ini + Number($('#lfg-dur').value) * 3600e3).toISOString(),
+      mic: $('#lfg-mic').value, visibility: $('#lfg-vis').value, crossplay: $('#lfg-cross').checked, notify_friends: $('#lfg-avisar').checked });
+    bt.disabled = false; bt.textContent = 'Criar grupo';
+    if (e2) return erro(/row-level/.test(e2.message) ? 'Você já tem 3 grupos ativos. Encerre um para criar outro.' : e2.message);
+    toast($('#lfg-avisar').checked ? 'Grupo criado! Seus amigos foram avisados.' : 'Grupo criado!');
+    e.target.reset(); $('#lfg-hora').classList.add('hidden'); abrir(false); carregarLfg();
   };
 }
