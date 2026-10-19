@@ -16,6 +16,15 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     # Libera microfone, câmera e compartilhamento de tela para as calls
     Permissions-Policy = "camera=(self), microphone=(self), display-capture=(self)"
+    # HTTPS obrigatório por 1 ano (sem preload: o domínio é um subdomínio do netlify.app)
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    # Abre pop-ups (Spotify, Discord, mini player) sem dar a eles acesso a esta janela
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
+    # CSP em modo SÓ RELATÓRIO: nada é bloqueado, as violações aparecem no console do navegador.
+    # Ativar o modo bloqueante (trocar o nome para Content-Security-Policy) exige aprovação e testes.
+    # Origens: Supabase (API, Realtime, arquivos), jsDelivr (supabase-js), Spotify, YouTube, Discord, Twitch,
+    # Google Fonts; imagens vêm de vários sites (capas IGDB/Steam, notícias), por isso img-src https:.
+    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://open.spotify.com 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net; frame-src https://open.spotify.com https://www.youtube-nocookie.com https://www.youtube.com https://discord.com https://player.twitch.tv; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests"
 
 # Arquivos internos que não precisam ficar públicos
 [[redirects]]

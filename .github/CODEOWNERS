@@ -1,0 +1,7 @@
+# Revisão obrigatória (quando a proteção da main estiver ativa) para áreas sensíveis
+*                         @Control-Critic/admins
+/supabase/                @Control-Critic/admins
+/netlify/                 @Control-Critic/admins
+/lib/http.mjs             @Control-Critic/admins
+/.github/                 @Control-Critic/admins
+/netlify.toml             @Control-Critic/admins
