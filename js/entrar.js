@@ -44,8 +44,8 @@ $('#conteudo').insertAdjacentHTML('beforeend', `
       <div id="campo-termos" class="campo hidden">
         <label class="check" style="align-items:flex-start;font-weight:400">
           <input type="checkbox" id="termos" style="width:auto;margin-top:4px" aria-describedby="termos-erro">
-          <span>Tenho 13 anos ou mais e li e aceito os <a href="termos.html" target="_blank" rel="noopener">Termos de Uso</a>, as
-          <a href="diretrizes.html" target="_blank" rel="noopener">Diretrizes</a> e a <a href="privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</span></label>
+          <span>Tenho 13 anos ou mais e li e aceito os <a href="termos.html" target="_blank" rel="noopener">Termos de Uso</a> e a
+          <a href="privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</span></label>
         <p class="erro-campo" id="termos-erro"></p>
       </div>
       <button class="btn" style="width:100%;margin-top:16px" id="enviar">Entrar</button>
@@ -139,7 +139,7 @@ function validar() {
   }
   if (['entrar', 'criar', 'nova-senha'].includes(modo)) {
     const s = $('#senha').value;
-    marcar('senha', !s ? 'Digite sua senha.' : modo !== 'entrar' && !Object.values(REQ).every((f) => f(s)) ? 'A senha precisa de 8 caracteres, com letra e número.' : '');
+    marcar('senha', !s ? 'Digite sua senha.' : modo !== 'entrar' && !Object.values(REQ).every((regra) => regra(s)) ? 'A senha precisa de 8 caracteres, com letra e número.' : '');
   }
   if (modo === 'criar') marcar('termos', $('#termos').checked ? '' : 'Para criar a conta, confirme a idade e aceite os termos.');
   if (erros.length) $(`#${erros[0]}`).focus();
