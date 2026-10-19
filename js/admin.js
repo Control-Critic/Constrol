@@ -8,7 +8,7 @@ const main = $('#conteudo');
 let P;
 
 const ABAS = [
-  ['geral', 'Visão geral'], ['status', 'Status 🩺'], ['problemas', 'Problemas 🐞'], ['denuncias', 'Denúncias'], ['apelacoes', 'Apelações'], ['jogos', 'Jogos'], ['noticias', 'Notícias'], ['promos', 'Promoções'], ['memes', 'Memes 😂'], ['stories', 'Stories 📸'],
+  ['geral', 'Visão geral'], ['status', 'Status 🩺'], ['metricas', 'Métricas 📊'], ['problemas', 'Problemas 🐞'], ['denuncias', 'Denúncias'], ['apelacoes', 'Apelações'], ['jogos', 'Jogos'], ['noticias', 'Notícias'], ['promos', 'Promoções'], ['memes', 'Memes 😂'], ['stories', 'Stories 📸'],
   ['reviews', 'Avaliações'], ['posts', 'Posts'], ['comunidades', 'Comunidades'], ['mensagens', 'Mensagens'],
   ['usuarios', 'Usuários'], ['cargos', 'Cargos', true], ['itens', 'Itens', true], ['desafios', 'Desafios', true], ['registro', 'Registro'], ['site', 'Site', true], ['auto', 'Automação', true],
 ];
@@ -26,7 +26,7 @@ function iniciar() {
 }
 
 const painel = () => $('#painel');
-const VIEWS = { geral, status, problemas, denuncias, apelacoes, jogos, noticias, promos, memes, stories, reviews, posts, comunidades, mensagens, usuarios, cargos, itens, desafios, registro, site, auto };
+const VIEWS = { geral, status, metricas, problemas, denuncias, apelacoes, jogos, noticias, promos, memes, stories, reviews, posts, comunidades, mensagens, usuarios, cargos, itens, desafios, registro, site, auto };
 function abrir(k) { painel().innerHTML = '<p class="muted">Carregando...</p>'; VIEWS[k]().catch(falha); }
 
 // Campo de busca de jogo com sugestões (o catálogo tem milhares de jogos)
@@ -359,6 +359,38 @@ async function promos() {
     editar: (id) => salvar(ds.find((d) => d.id == id), id),
     excluir: async (id) => { const { error } = await sb.from('deals').delete().eq('id', id); if (error) throw error; promos(); },
   });
+}
+
+// ---------------- Métricas de produto (agregadas; ninguém é identificado) ----------------
+async function metricas() {
+  const dias = Number(painel().dataset.dias || 28);
+  const { data: m, error } = await sb.rpc('metricas_produto', { dias });
+  if (error) throw error;
+  const pct = (n, total) => (total ? `${Math.round((100 * n) / total)}%` : '—');
+  const novos = m.novos_cadastros || 0, at = m.ativacao || {}, ev = m.eventos || {}, ret = m.retencao || {}, uso = m.uso_7_dias || {};
+  const cartao = (titulo, valor, sub = '') => `<div class="cartao" style="text-align:center"><div class="nota-grande" style="font-size:2rem">${valor}</div><strong>${titulo}</strong>${sub ? `<p class="muted" style="font-size:.82rem;margin:4px 0 0">${sub}</p>` : ''}</div>`;
+  painel().innerHTML = `
+    <div class="chips" style="margin-bottom:12px">${[7, 28, 90].map((d) => `<button class="chip ${d === dias ? 'ativo' : ''}" data-d="${d}">${d} dias</button>`).join('')}</div>
+    <div class="grade">
+      ${cartao('Usuários semanais ativos de verdade', m.usuarios_semanais_significativos ?? 0, 'Métrica principal: pessoas que avaliaram, postaram, comentaram, criaram/entraram em grupo, mandaram mensagem, postaram story ou mexeram na biblioteca nos últimos 7 dias')}
+      ${cartao('Novos cadastros', novos, `nos últimos ${dias} dias`)}
+      ${cartao('Visitas (navegadores/dia)', ev.visita || 0, 'contagem diária sem identificar ninguém')}
+    </div>
+    <h2>Conversão</h2>
+    <p>Cliques em "Criar conta": <strong>${ev.clique_cadastro || 0}</strong> · Abriram o cadastro: <strong>${ev.cadastro_inicio || 0}</strong> · Enviaram o cadastro: <strong>${ev.cadastro_enviado || 0}</strong>
+      ${ev.cadastro_inicio ? `(${pct(ev.cadastro_enviado || 0, ev.cadastro_inicio)} de quem abriu)` : ''}</p>
+    <h2>Ativação de quem chegou no período</h2>
+    ${tabela(['Etapa', 'Pessoas', '% dos novos'], [['Concluiu as boas-vindas', at.onboarding], ['Adicionou o primeiro jogo', at.primeiro_jogo], ['Fez a primeira avaliação', at.primeira_avaliacao],
+      ['Entrou numa comunidade', at.primeira_comunidade], ['Criou ou entrou num grupo', at.primeiro_grupo], ['Entrou numa call', at.primeira_call]].map(([e, n]) => `<tr><td>${e}</td><td>${n || 0}</td><td>${pct(n || 0, novos)}</td></tr>`))}
+    <h2>Retenção</h2>
+    <p>Voltaram no dia seguinte: <strong>${ret.d1 ?? '—'}${ret.d1 != null ? '%' : ''}</strong> · na 2ª semana: <strong>${ret.d7 ?? '—'}${ret.d7 != null ? '%' : ''}</strong> · depois de 30 dias: <strong>${ret.d30 ?? '—'}${ret.d30 != null ? '%' : ''}</strong>
+      <br><span class="muted" style="font-size:.82rem">Base: login diário registrado. "—" = ainda não há gente suficiente com esse tempo de conta.</span></p>
+    <h2>Uso por funcionalidade (7 dias)</h2>
+    <p>${Object.entries(uso).map(([k, n]) => `<span class="tag">${esc(k)}: ${n}</span>`).join(' ')} ${ev.grupo_criado ? `<span class="tag">grupos criados (evento): ${ev.grupo_criado}</span>` : ''} ${ev.call_entrou ? `<span class="tag">entradas em call: ${ev.call_entrou}</span>` : ''} ${ev.instalou_app ? `<span class="tag">instalações do app: ${ev.instalou_app}</span>` : ''}</p>
+    <h2>Erros por página (${dias} dias)</h2>
+    <p>${Object.entries(m.erros_por_pagina || {}).map(([p, n]) => `<span class="tag">${esc(p)}: ${n}</span>`).join(' ') || 'Nenhum erro registrado. 🎉'}</p>
+    <p class="muted" style="font-size:.82rem;margin-top:14px">Privacidade: só contadores agregados. Nenhum id, nome, IP ou página com parâmetros é registrado para métricas; navegadores com "Não rastrear" não entram na contagem.</p>`;
+  painel().querySelectorAll('[data-d]').forEach((b) => b.onclick = () => { painel().dataset.dias = b.dataset.d; metricas(); });
 }
 
 // ---------------- Status: robôs, erros do site e serviços ----------------

@@ -1,4 +1,4 @@
-import { sb, $, montarLayout, configurado, param, toast, usuario } from './app.js';
+import { sb, $, montarLayout, configurado, param, toast, usuario, contarEvento } from './app.js';
 
 await montarLayout();
 // Retorno seguro: só páginas do próprio site (com ?parâmetros e #âncora opcionais)
@@ -71,8 +71,10 @@ let modo = 'entrar';
 const mostrar = (id, sim) => $(id).classList.toggle('hidden', !sim);
 const status = (t, erro = false) => { $('#status').textContent = t; $('#status').classList.toggle('erro', erro); };
 
+let contouCadastro = false;
 function trocarModo(m, focar = true) {
   modo = m;
+  if (m === 'criar' && !contouCadastro) { contouCadastro = true; contarEvento('cadastro_inicio'); }
   const cfg = MODOS[m];
   document.querySelectorAll('#abas-entrar .aba').forEach((x) => {
     const ativo = x.dataset.m === cfg.aba;
@@ -175,6 +177,7 @@ $('#form').onsubmit = async (e) => {
       bt.textContent = 'Criando sua conta...';
       const { data, error } = await sb.auth.signUp({ email, password, options: { data: { username: $('#user').value.trim(), accepted_terms: $('#termos').checked }, emailRedirectTo: pasta + 'perfil.html' } });
       if (error) throw error;
+      contarEvento('cadastro_enviado');
       // Mesma mensagem com ou sem conta já existente (não revela quem está cadastrado)
       if (!data.session) { status(`Pronto! Se ${email} ainda não tinha conta, enviamos um link de confirmação. Abra o e-mail para ativar (confira o spam).`); liberarReenvio(email); return; }
     } else if (modo === 'entrar') {

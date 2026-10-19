@@ -1,5 +1,5 @@
 // Interface da call (usada nas comunidades e na call entre amigos)
-import { sb, $, esc, falha, toast, statusCall, aplicarVolume } from './app.js';
+import { sb, $, esc, falha, toast, statusCall, aplicarVolume, contarEvento } from './app.js';
 import { SalaVoz } from './voz.js';
 import { preEntrar } from './pre-call.js';
 import { prefsAudio, salvarPrefsAudio, processarMic, restricoesMic, definirSaida } from './audio-mic.js';
@@ -119,6 +119,7 @@ export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call',
     sala = new SalaVoz({ salaId, eu: u.id, nome: p.username, container: el('sala'), aoMudar: atualizar, aoChat: mostrarMsg, aoAviso: avisar });
     try {
       await sala.entrar();
+      contarEvento('call_entrou');
       // Avisa aos amigos que você está em call (comunidade: com link para entrar; privada: só "em call")
       const cid = /^dm-/.test(salaId) ? null : Number(String(salaId).split('-')[0]) || null;
       statusCall({ titulo: String(titulo).slice(0, 60), cid });

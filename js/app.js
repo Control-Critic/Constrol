@@ -127,6 +127,20 @@ const RUIDO = /ResizeObserver|Script error|extension|chrome-extension|AbortError
 addEventListener('error', (e) => { if (e.message && !RUIDO.test(e.message + (e.filename || ''))) reportarErro('js', `${e.message} @${String(e.filename || '').split('/').pop()}:${e.lineno}`); });
 addEventListener('unhandledrejection', (e) => { const m = e.reason?.message || String(e.reason || ''); if (m && !RUIDO.test(m) && !/abort/i.test(m)) reportarErro('promessa', m); });
 
+// ---------- Métricas de produto (só contadores do dia por tipo de evento; sem usuário, IP ou página) ----------
+// Respeita "Não rastrear" / Global Privacy Control do navegador.
+const semMetricas = navigator.globalPrivacyControl === true || navigator.doNotTrack === '1';
+export function contarEvento(nome) {
+  if (!sb || semMetricas) return;
+  sb.rpc('contar_evento', { nome }).then(() => {}, () => {});
+}
+try {
+  const hoje = new Date().toISOString().slice(0, 10);
+  if (localStorage.getItem('cc_visita') !== hoje) { localStorage.setItem('cc_visita', hoje); contarEvento('visita'); }
+} catch { /* sem armazenamento: não conta */ }
+document.addEventListener('click', (e) => { if (e.target.closest('a[href*="modo=cadastro"]')) contarEvento('clique_cadastro'); });
+addEventListener('appinstalled', () => contarEvento('instalou_app'));
+
 // ---------- Bloqueios: quem eu bloqueei some do feed, comentários e stories ----------
 export const bloqueados = new Set();
 let _bloqCarregado = null;

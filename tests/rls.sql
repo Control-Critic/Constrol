@@ -279,11 +279,29 @@ do $$ begin
   assert not exists (select 1 from public.client_errors where mensagem like '%fulano%' or pagina like '%token%'), 'dado pessoal ficou no registro de erro';
 end $$;
 
+-- ---------- Métricas (fase 17) ----------
+select teste.como(null);
+do $$ begin
+  perform public.contar_evento('visita');
+  perform public.contar_evento('evento_inventado');
+  assert teste.ve('select 1 from public.metric_daily') <= 0, 'visitante leu as métricas';
+  assert teste.faz('select public.metricas_produto(28)') = -1, 'visitante viu os indicadores';
+end $$;
+reset role;
+select teste.como('aaaaaaaa-0000-0000-0000-00000000000a');
+do $$ begin assert teste.faz('select public.metricas_produto(28)') = -1, 'usuária comum viu os indicadores'; end $$;
+reset role;
+do $$ begin
+  assert (select total from public.metric_daily where evento = 'visita' and dia = current_date) >= 1, 'evento não contado';
+  assert not exists (select 1 from public.metric_daily where evento = 'evento_inventado'), 'evento desconhecido gravado';
+end $$;
+
 -- ---------- Admin ----------
 select teste.como('cccccccc-0000-0000-0000-00000000000c');
 do $$ begin
   assert teste.ve('select 1 from public.posts where community_id = 900001') = 1, 'admin deveria moderar comunidade privada';
   assert teste.ve('select 1 from public.direct_messages') = 0, 'admin não deve ler DMs alheias';
+  assert (select (public.metricas_produto(28) ->> 'novos_cadastros')::int) >= 0, 'admin deveria ver os indicadores';
 end $$;
 reset role;
 

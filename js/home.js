@@ -1,4 +1,4 @@
-import { sb, $, esc, montarLayout, cardJogo, plural, configurado, usuario, perfil, data, urlSegura, COLUNAS_CARD, avatarHtml, toast, falha, carrossel, esqueletoCards, esqueletoLista, param, srcCapa, steamAgora, urlCdn } from './app.js';
+import { sb, $, esc, montarLayout, cardJogo, plural, configurado, usuario, perfil, data, urlSegura, COLUNAS_CARD, avatarHtml, toast, falha, carrossel, esqueletoCards, esqueletoLista, param, srcCapa, steamAgora, urlCdn, contarEvento } from './app.js';
 import { barraStories } from './stories.js';
 import { COLUNAS_POST_DESAFIO as COLUNAS_POST, postHtml, ligarPosts, compositorHtml, ligarCompositor } from './posts.js';
 
@@ -392,6 +392,7 @@ async function carregarLfg() {
       mic: $('#lfg-mic').value, visibility: $('#lfg-vis').value, crossplay: $('#lfg-cross').checked, notify_friends: $('#lfg-avisar').checked });
     bt.disabled = false; bt.textContent = 'Criar grupo';
     if (e2) return erro(/row-level/.test(e2.message) ? 'Você já tem 3 grupos ativos. Encerre um para criar outro.' : e2.message);
+    contarEvento('grupo_criado');
     toast($('#lfg-avisar').checked ? 'Grupo criado! Seus amigos foram avisados.' : 'Grupo criado!');
     e.target.reset(); $('#lfg-hora').classList.add('hidden'); abrir(false); carregarLfg();
   };
