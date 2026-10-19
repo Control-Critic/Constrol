@@ -1,4 +1,6 @@
 // Posts com imagem, curtidas e comentários (usado na página inicial, nas comunidades e no perfil)
+import { apagarArquivos } from './app.js';
+import { bloqueados } from './app.js';
 import { sb, $, esc, avatarHtml, toast, falha, urlSegura, denunciar, enviarImagem, esqueletoLista, imagemAceitavel, spotifyId, spotifyPlayer, playerSpotify, somLigado, definirSom, tocarSo, pararMusica, enviarVideo } from './app.js';
 
 export const COLUNAS_POST = '*, profiles!posts_user_id_fkey(username,avatar_url,equipped_frame), games(slug,title), communities(id,name)';
@@ -19,6 +21,7 @@ const comLinks = (t) => esc(t)
   .replace(/(^|[\s(])@([A-Za-z0-9_]{3,30})\b/g, (_, a, n) => `${a}<a href="perfil.html?u=${n}">@${n}</a>`);
 
 export function postHtml(x, { u, moderar = false, mostrarComunidade = true } = {}) {
+  if (bloqueados.has(x.user_id)) return ''; // pessoa bloqueada: o post não aparece
   const meu = u && x.user_id === u.id;
   return `<article class="post ${x.aviso ? 'post-aviso' : ''}" data-post="${x.id}">${x.aviso ? '<span class="tag amarela" style="margin-bottom:6px">📢 Aviso da comunidade</span>' : ''}
     <header>${avatarHtml(x.profiles)}
@@ -103,8 +106,10 @@ export async function ligarPosts(box, { u, aoMudar } = {}) {
   box.querySelectorAll('[data-p-den]:not([data-ok])').forEach((b) => { b.dataset.ok = 1; b.onclick = () => denunciar('post', b.dataset.pDen); });
   box.querySelectorAll('[data-p-del]:not([data-ok])').forEach((b) => { b.dataset.ok = 1; b.onclick = async () => {
     if (!confirm('Apagar este post?')) return;
+    const { data: antes } = await sb.from('posts').select('image_url,video_url').eq('id', b.dataset.pDel).maybeSingle();
     const { error } = await sb.from('posts').delete().eq('id', b.dataset.pDel);
     if (error) return falha(error);
+    apagarArquivos(antes?.image_url, antes?.video_url); // libera espaço no armazenamento
     b.closest('.post').remove(); aoMudar?.();
   }; });
   // Clique na imagem: abre grande
@@ -125,7 +130,7 @@ async function abrirComentarios(art, u) {
   box.classList.remove('hidden'); box.dataset.ok = 1;
   box.innerHTML = esqueletoLista(1);
   const { data: cs } = await sb.from('post_comments').select('*, profiles(username,avatar_url,equipped_frame)').eq('post_id', id).order('created_at').limit(100);
-  box.innerHTML = `${(cs || []).map((c) => `<div class="comentario">${avatarHtml(c.profiles)}<div style="flex:1">
+  box.innerHTML = `${(cs || []).filter((c) => !bloqueados.has(c.user_id)).map((c) => `<div class="comentario">${avatarHtml(c.profiles)}<div style="flex:1">
       <a class="usuario" href="perfil.html?u=${encodeURIComponent(c.profiles?.username || '')}">${esc(c.profiles?.username)}</a> <span class="muted" style="font-size:.78rem">${tempo(c.created_at)}</span>
       <p class="quebra">${comLinks(c.body)}</p></div>
       ${u && c.user_id === u.id ? `<button class="bt-denunciar" data-c-del="${c.id}" aria-label="Apagar">✕</button>` : u ? `<button class="bt-denunciar" data-c-den="${c.id}" aria-label="Denunciar">🚩</button>` : ''}</div>`).join('') || '<p class="muted" style="font-size:.85rem">Nenhum comentário ainda.</p>'}
@@ -217,7 +222,8 @@ export function ligarCompositor(form, { u, comunidade = null, jogo = null, aoPub
       const ehVideo = arquivo?.type.startsWith('video/');
       if (ehVideo) bt.textContent = 'Enviando vídeo...';
       const image_url = arquivo && !ehVideo ? await enviarImagem(u.id, 'post', arquivo) : null;
-      const video_url = ehVideo ? await enviarVideo(u.id, 'video', arquivo) : null;
+      const video_url = ehVideo ? await enviarVideo(u.id, 'video', arquivo, 50, { maxSegundos: 180, aoProgresso: (p) => { bt.textContent = `Otimizando vídeo... ${Math.round(p * 100)}%`; } }) : null;
+      if (ehVideo) bt.textContent = 'Publicando...';
       const { error } = await sb.from('posts').insert({ user_id: u.id, community_id: comunidade, body: texto || '📷',
         image_url, ...(video_url ? { video_url } : {}), game_id: $('#cp-jogo', form).value ? Number($('#cp-jogo', form).value) : null, ...(desafio ? { challenge_id: desafio.id } : {}), ...(arquivo && $('#cp-meme', form).checked ? { ig_ok: true } : {}),
         ...(linkMus ? { musica: spotifyId(linkMus) } : {}), ...($('#cp-aviso', form).checked ? { aviso: true } : {}) });

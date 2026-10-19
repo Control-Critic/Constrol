@@ -44,8 +44,8 @@ $('#conteudo').insertAdjacentHTML('beforeend', `
       <div id="campo-termos" class="campo hidden">
         <label class="check" style="align-items:flex-start;font-weight:400">
           <input type="checkbox" id="termos" style="width:auto;margin-top:4px" aria-describedby="termos-erro">
-          <span>Tenho 13 anos ou mais e li e aceito os <a href="termos.html" target="_blank" rel="noopener">Termos de Uso</a> e a
-          <a href="privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</span></label>
+          <span>Tenho 13 anos ou mais e li e aceito os <a href="termos.html" target="_blank" rel="noopener">Termos de Uso</a>, as
+          <a href="diretrizes.html" target="_blank" rel="noopener">Diretrizes</a> e a <a href="privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</span></label>
         <p class="erro-campo" id="termos-erro"></p>
       </div>
       <button class="btn" style="width:100%;margin-top:16px" id="enviar">Entrar</button>

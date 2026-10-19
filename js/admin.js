@@ -1,3 +1,4 @@
+import { apagarArquivos } from './app.js';
 import { SUPABASE_ANON_KEY } from './config.js';
 import { avatarHtml, cssDoItem, cssMolduraImagem, aoMudarOnline, estadoOnline } from './app.js';
 import { sb, $, esc, montarLayout, configurado, exigirLogin, perfil, data, toast, falha, urlSegura, plural, paginaInterna, corSegura, cabecalhosLogin } from './app.js';
@@ -7,7 +8,7 @@ const main = $('#conteudo');
 let P;
 
 const ABAS = [
-  ['geral', 'Visão geral'], ['problemas', 'Problemas 🐞'], ['denuncias', 'Denúncias'], ['jogos', 'Jogos'], ['noticias', 'Notícias'], ['promos', 'Promoções'], ['memes', 'Memes 😂'], ['stories', 'Stories 📸'],
+  ['geral', 'Visão geral'], ['problemas', 'Problemas 🐞'], ['denuncias', 'Denúncias'], ['apelacoes', 'Apelações'], ['jogos', 'Jogos'], ['noticias', 'Notícias'], ['promos', 'Promoções'], ['memes', 'Memes 😂'], ['stories', 'Stories 📸'],
   ['reviews', 'Avaliações'], ['posts', 'Posts'], ['comunidades', 'Comunidades'], ['mensagens', 'Mensagens'],
   ['usuarios', 'Usuários'], ['cargos', 'Cargos', true], ['itens', 'Itens', true], ['desafios', 'Desafios', true], ['registro', 'Registro'], ['site', 'Site', true], ['auto', 'Automação', true],
 ];
@@ -25,7 +26,7 @@ function iniciar() {
 }
 
 const painel = () => $('#painel');
-const VIEWS = { geral, problemas, denuncias, jogos, noticias, promos, memes, stories, reviews, posts, comunidades, mensagens, usuarios, cargos, itens, desafios, registro, site, auto };
+const VIEWS = { geral, problemas, denuncias, apelacoes, jogos, noticias, promos, memes, stories, reviews, posts, comunidades, mensagens, usuarios, cargos, itens, desafios, registro, site, auto };
 function abrir(k) { painel().innerHTML = '<p class="muted">Carregando...</p>'; VIEWS[k]().catch(falha); }
 
 // Campo de busca de jogo com sugestões (o catálogo tem milhares de jogos)
@@ -137,7 +138,7 @@ async function stories() {
       <td>${data(x.created_at)}</td>
       <td>${x.highlight ? `<span class="tag amarela">⭐ ${esc(x.highlight)}</span>` : new Date(x.expires_at) > agora ? '<span class="tag">no ar</span>' : '<span class="tag">vencido</span>'}${x.close_friends ? ' <span class="tag">💚</span>' : ''}</td>
       <td><button class="btn perigo pequeno" data-acao="apagar" data-id="${x.id}">Apagar</button></td></tr>`)) : '<p class="muted">Nenhum story ainda.</p>'}`;
-  acoes({ apagar: async (id) => { if (!confirm('Apagar este story? A pessoa não é avisada.')) return; const { error: e } = await sb.from('stories').delete().eq('id', id); if (e) throw e; toast('Story apagado.'); stories(); } });
+  acoes({ apagar: async (id) => { if (!confirm('Apagar este story? A pessoa não é avisada.')) return; const st = (ss || []).find((x) => x.id == id); const { error: e } = await sb.from('stories').delete().eq('id', id); if (e) throw e; apagarArquivos(st?.image_url, st?.video_url); toast('Story apagado.'); stories(); } });
 }
 
 async function geral() {
@@ -360,11 +361,30 @@ async function promos() {
   });
 }
 
+// ---------------- Apelações de suspensão ----------------
+async function apelacoes() {
+  const { data: ap, error } = await sb.from('appeals').select('*, profiles(username,banned,banned_until,ban_reason)').order('created_at', { ascending: false }).limit(100);
+  if (error) throw error;
+  painel().innerHTML = `<p class="muted" style="margin-bottom:10px">Pedidos de revisão de quem foi suspenso. Cada pessoa pode pedir uma vez por semana.</p>
+    ${tabela(['Data', 'Usuário', 'Pedido', 'Situação', ''], (ap || []).map((a) => `<tr><td>${data(a.created_at)}</td>
+      <td>${esc(a.profiles?.username || '—')}${a.profiles?.ban_reason ? `<br><span class="muted" style="font-size:.8rem">Motivo: ${corta(a.profiles.ban_reason, 100)}</span>` : ''}</td>
+      <td>${corta(a.texto, 300)}</td><td>${esc(a.status)}${a.resposta ? `<br><span class="muted">${corta(a.resposta, 140)}</span>` : ''}</td>
+      <td class="controles">${a.status === 'aberta' ? `<button class="btn pequeno" data-acao="aceitar" data-id="${a.id}">Aceitar e reativar</button><button class="btn sec pequeno" data-acao="negar" data-id="${a.id}">Negar</button>` : ''}</td></tr>`))}`;
+  const responder = async (id, status) => {
+    const resposta = (prompt(status === 'aceita' ? 'Mensagem para a pessoa (opcional)' : 'Explique por que a suspensão continua', '') || '').trim().slice(0, 500) || null;
+    const { error: e } = await sb.from('appeals').update({ status, resposta }).eq('id', id); if (e) throw e;
+    const a = ap.find((x) => x.id == id);
+    if (status === 'aceita') { const { error: e2 } = await sb.rpc('admin_unban', { uid: a.user_id }); if (e2) throw e2; }
+    toast('Resposta registrada.'); apelacoes();
+  };
+  acoes({ aceitar: (id) => responder(id, 'aceita'), negar: (id) => responder(id, 'negada') });
+}
+
 // ---------------- Denúncias ----------------
 const MOTIVO = { spam: 'Spam', ofensivo: 'Ofensivo', assedio: 'Assédio', 'conteudo_impróprio': 'Impróprio', golpe: 'Golpe', outro: 'Outro' };
 async function denuncias() {
   const filtro = painel().dataset.filtro || 'aberta';
-  const { data: rs } = await sb.from('reports').select('*, profiles!reports_reporter_id_fkey(username)').eq('status', filtro).order('created_at', { ascending: false }).limit(200);
+  const { data: rs } = await sb.from('reports').select('*, profiles!reports_reporter_id_fkey(username)').eq('status', filtro).order('gravidade', { ascending: false }).order('created_at', { ascending: false }).limit(200);
   // Carrega o conteúdo denunciado para mostrar junto
   const ids = (t) => rs.filter((r) => r.target_type === t).map((r) => r.target_id);
   const [rev, pos, pro, com, cmt, pcm] = await Promise.all([
@@ -380,12 +400,14 @@ async function denuncias() {
     comment: new Map((cmt.data || []).map((x) => [String(x.id), x])), post_comment: new Map((pcm.data || []).map((x) => [String(x.id), x])) };
   const descrever = (r) => {
     const x = alvo[r.target_type]?.get(String(r.target_id));
+    if (r.target_type === 'message') return `Mensagem direta <span class="muted">(privada: abra só para analisar)</span> <button class="btn sec pequeno" data-acao="verMsg" data-id="${r.id}">Ver mensagem</button>`;
     if (!x) return '<span class="muted">(conteúdo já removido)</span>';
     if (r.target_type === 'review') return `Avaliação de <strong>${esc(x.profiles?.username)}</strong> em <a href="jogo.html?slug=${encodeURIComponent(x.games?.slug)}" target="_blank">${esc(x.games?.title)}</a>: “${corta(x.body, 160)}” ${x.status === 'hidden' ? '<span class="tag">oculta</span>' : ''}`;
     if (r.target_type === 'post_comment') return `Comentário de <strong>${esc(x.profiles?.username)}</strong> num <a href="index.html?post=${x.post_id}" target="_blank">post</a>: “${corta(x.body, 160)}”`;
     if (r.target_type === 'post') return `Post de <strong>${esc(x.profiles?.username)}</strong> (<a href="${x.community_id ? 'comunidade.html?id=' + x.community_id : 'index.html?post=' + x.id}" target="_blank">${x.community_id ? 'comunidade' : 'feed'}</a>): “${corta(x.body, 160)}” ${x.status === 'hidden' ? '<span class="tag">oculto</span>' : ''}`;
     if (r.target_type === 'profile') return `Perfil <a href="perfil.html?u=${encodeURIComponent(x.username)}" target="_blank">${esc(x.username)}</a> ${x.banned ? '<span class="tag">banido</span>' : ''}`;
     if (r.target_type === 'community') return `Comunidade <a href="comunidade.html?id=${x.id}" target="_blank">${esc(x.name)}</a>`;
+    if (r.target_type === 'message') return `<button class="btn sec pequeno" data-acao="verMsg" data-id="${r.id}">Ver mensagem denunciada</button>`;
     if (r.target_type === 'comment') return `Comentário de <strong>${esc(x.profiles?.username)}</strong>: “${corta(x.body, 160)}” ${x.status === 'hidden' ? '<span class="tag">oculto</span>' : ''}`;
     return esc(r.target_type);
   };
@@ -400,15 +422,17 @@ async function denuncias() {
   };
   painel().innerHTML = `<div class="chips">${['aberta', 'resolvida', 'descartada'].map((f) => `<button class="chip ${f === filtro ? 'ativo' : ''}" data-f="${f}">${f[0].toUpperCase() + f.slice(1)}s</button>`).join('')}</div>
     ${tabela(['Data', 'Motivo', 'Conteúdo denunciado', 'Denunciante', ''], rs.map((r) => `<tr>
-      <td>${data(r.created_at)}</td><td><span class="tag amarela">${MOTIVO[r.reason] || esc(r.reason)}</span>${r.details ? `<br><span class="muted">${corta(r.details, 140)}</span>` : ''}</td>
+      <td>${data(r.created_at)}</td><td>${r.gravidade >= 3 ? '<span class="tag" style="background:var(--perigo,#e53935);color:#fff">🔴 Urgente</span> ' : r.gravidade === 2 ? '<span class="tag">🟠</span> ' : ''}<span class="tag amarela">${MOTIVO[r.reason] || esc(r.reason)}</span>${r.decisao ? `<br><span class="muted" style="font-size:.8rem">Decisão: ${corta(r.decisao, 140)}</span>` : ''}${r.details ? `<br><span class="muted">${corta(r.details, 140)}</span>` : ''}</td>
       <td>${descrever(r)}</td><td>${esc(r.profiles?.username || '—')}</td>
       <td class="controles">${r.status === 'aberta' ? `${acaoAlvo(r)}<button class="btn sec pequeno" data-acao="resolver" data-id="${r.id}">✓ Resolvida</button>
         <button class="btn sec pequeno" data-acao="descartar" data-id="${r.id}">Descartar</button>` : ''}</td></tr>`))}`;
   painel().querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { painel().dataset.filtro = b.dataset.f; denuncias(); });
-  const marcar = async (id, status) => { const { error } = await sb.from('reports').update({ status }).eq('id', id); if (error) throw error; };
+  // Toda decisão fica registrada (quem, quando e o porquê)
+  const marcar = async (id, status) => { const decisao = (prompt('Registre a decisão (opcional): o que foi feito e por quê', '') || '').trim().slice(0, 500) || null; const { error } = await sb.from('reports').update({ status, decisao }).eq('id', id); if (error) throw error; };
   const r = (id) => rs.find((x) => x.id == id);
   acoes({
     resolver: async (id) => { await marcar(id, 'resolvida'); denuncias(); },
+    verMsg: async (id) => { const { data: m, error } = await sb.rpc('mensagem_denunciada', { rid: Number(id) }); if (error) throw error; const x = m?.[0]; alert(x ? `De: ${x.autor}\nPara: ${x.destinatario}\nEm: ${new Date(x.enviada).toLocaleString('pt-BR')}\n\n${x.corpo}` : 'A mensagem não existe mais.'); },
     descartar: async (id) => { await marcar(id, 'descartada'); denuncias(); },
     ocultar: async (id) => {
       const d = r(id), t = { review: 'reviews', post: 'posts', comment: 'review_comments' }[d.target_type];
@@ -456,7 +480,7 @@ async function posts() {
     <button class="btn perigo pequeno" data-acao="excluir" data-id="${p.id}">Excluir</button></td></tr>`));
   acoes({
     alternar: async (id) => { const p = ps.find((x) => x.id == id); const { error } = await sb.from('posts').update({ status: p.status === 'published' ? 'hidden' : 'published' }).eq('id', id); if (error) throw error; posts(); },
-    excluir: async (id) => { if (!confirm('Excluir post?')) return; const { error } = await sb.from('posts').delete().eq('id', id); if (error) throw error; posts(); },
+    excluir: async (id) => { if (!confirm('Excluir post?')) return; const { data: antes } = await sb.from('posts').select('image_url,video_url').eq('id', id).maybeSingle(); const { error } = await sb.from('posts').delete().eq('id', id); if (error) throw error; apagarArquivos(antes?.image_url, antes?.video_url); posts(); },
   });
 }
 
