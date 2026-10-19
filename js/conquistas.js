@@ -34,7 +34,7 @@ async function carregar() {
       <div class="itens destaques-conq" style="margin-bottom:18px">${destaques.map((i) => cartaoItem(i, tenho, p, i.kind)).join('')}</div>` : ''}
     ${p ? `<div class="grade" style="margin-bottom:18px">
       <div class="cartao" style="text-align:center"><div class="sequencia">🔥 ${p.streak_current}</div>
-        <p>dia(s) seguidos</p><p class="muted" style="font-size:.85rem">Recorde: ${p.streak_best} · entre todo dia para ganhar mais XP e molduras de chama</p></div>
+        <p>${p.streak_current === 1 ? 'dia seguido' : 'dias seguidos'}</p><p class="muted" style="font-size:.85rem">Recorde: ${p.streak_best} · entre todo dia para ganhar mais XP e molduras de chama</p></div>
       <div class="cartao" style="text-align:center"><div class="sequencia" style="color:var(--amarelo)">Nv. ${n.lv}</div>
         <p>${n.titulo} · ${p.xp} XP</p><div class="barra-xp" style="margin-top:8px"><div style="width:${n.pct}%"></div></div>
         <p class="muted" style="font-size:.85rem;margin-top:4px">Próximo nível em ${n.prox} XP</p></div>
@@ -128,11 +128,11 @@ function cartaoItem(i, tenho, p, tipo) {
   const meu = tenho.get(i.id);
   const equipado = p && ((tipo === 'frame' && p.equipped_frame === i.id) || (tipo === 'banner' && p.equipped_banner === i.id));
   const visual = tipo === 'frame' ? avatarHtml({ ...(p || {}), equipped_frame: i.id }, 'grande')
-    : tipo === 'banner' ? `<div class="amostra-banner bn-${i.id}" style="width:100%"></div>`
+    : tipo === 'banner' ? `<div class="amostra-banner bn-${esc(i.id)}" style="width:100%"></div>`
     : `<div class="selo">${esc(i.icon || '🏅')}</div>`;
   const acao = !p || !meu || tipo === 'badge' ? ''
     : equipado ? `<button class="btn sec pequeno" data-equipar="${tipo}:">Remover</button>`
-    : `<button class="btn pequeno" data-equipar="${tipo}:${i.id}">Equipar</button>`;
+    : `<button class="btn pequeno" data-equipar="${tipo}:${esc(i.id)}">Equipar</button>`;
   return `<div class="item ${meu ? '' : 'bloqueado'} ${equipado ? 'equipado' : ''}">
     ${visual}
     <strong>${esc(i.name)}</strong>

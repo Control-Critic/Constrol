@@ -1,4 +1,4 @@
-import { sb, $, esc, montarLayout, cardJogo, configurado, usuario, perfil, data, urlSegura, COLUNAS_CARD, avatarHtml, toast, falha, carrossel, esqueletoCards, esqueletoLista, param, srcCapa, steamAgora } from './app.js';
+import { sb, $, esc, montarLayout, cardJogo, plural, configurado, usuario, perfil, data, urlSegura, COLUNAS_CARD, avatarHtml, toast, falha, carrossel, esqueletoCards, esqueletoLista, param, srcCapa, steamAgora } from './app.js';
 import { barraStories } from './stories.js';
 import { COLUNAS_POST_DESAFIO as COLUNAS_POST, postHtml, ligarPosts, compositorHtml, ligarCompositor } from './posts.js';
 
@@ -214,9 +214,9 @@ async function carregarDesafio() {
   const dias = Math.ceil((new Date(ch.ends_at) - Date.now()) / 864e5);
   $('#desafio').innerHTML = `<div class="cartao" style="margin-bottom:16px;border-color:var(--amarelo)">
     <h2 style="margin:0">🏆 ${esc(ch.title)}</h2>
-    <p class="muted" style="margin:6px 0">${aberto ? `Termina em ${dias} dia(s)` : 'Encerrado'} · Prêmio: ${ch.cosmetics ? `<strong>${esc(ch.cosmetics.name)}</strong> + ` : ''}${ch.reward_extras?.length ? `${ch.reward_extras.length} item(ns) extra(s) + ` : ''}${ch.reward_xp} XP</p>
+    <p class="muted" style="margin:6px 0">${aberto ? `Termina em ${plural(dias, 'dia')}` : 'Encerrado'} · Prêmio: ${ch.cosmetics ? `<strong>${esc(ch.cosmetics.name)}</strong> + ` : ''}${ch.reward_extras?.length ? `${ch.reward_extras.length === 1 ? '1 item extra' : `${ch.reward_extras.length} itens extras`} + ` : ''}${ch.reward_xp} XP</p>
     ${ch.description ? `<p class="quebra">${esc(ch.description)}</p>` : ''}
-    ${venc?.length ? `<p style="margin-top:8px">🥇 Vencedor(es): ${venc.map((v) => `<a href="perfil.html?u=${encodeURIComponent(v.username)}">${esc(v.username)}</a>`).join(', ')}</p>` : ''}
+    ${venc?.length ? `<p style="margin-top:8px">🥇 ${venc.length === 1 ? 'Vencedor' : 'Vencedores'}: ${venc.map((v) => `<a href="perfil.html?u=${encodeURIComponent(v.username)}">${esc(v.username)}</a>`).join(', ')}</p>` : ''}
     ${(ps || []).length ? `<p style="margin:10px 0 6px"><strong>Mais curtidos até agora:</strong></p>${carrossel(ps.map((x) => `<a class="noticia-card" href="index.html?post=${x.id}">
       ${x.image_url ? `<img class="noticia-img" src="${urlSegura(x.image_url)}" alt="" loading="lazy">` : ''}
       <span class="noticia-corpo">${x.image_url ? '' : `<span class="quebra noticia-resumo">${esc(x.body.slice(0, 160))}</span>`}

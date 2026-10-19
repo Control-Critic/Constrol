@@ -58,11 +58,11 @@ async function carregar(continuar = false) {
         <span><span class="tag amarela">-${d.discount_pct}%</span> <span class="tag">${esc(d.store)}</span></span>
         <span>${d.price_cents != null ? `<strong>${reais(d.price_cents)}</strong>` : ''} ${d.original_cents ? `<s class="muted">${reais(d.original_cents)}</s>` : ''}</span>
         ${d.ends_at ? `<span class="muted">Até ${new Date(d.ends_at).toLocaleDateString('pt-BR')}</span>` : ''}
-        ${d.url ? `<a class="btn pequeno" href="${urlSegura(d.url)}" target="_blank" rel="noopener">Ver na loja</a>` : ''}
+        ${d.url ? `<a class="btn pequeno" href="${urlSegura(d.url)}" target="_blank" rel="noopener noreferrer">Ver na loja</a>` : ''}
       </div>
     </div>`).join('');
   if (continuar) $('#lista').insertAdjacentHTML('beforeend', html);
   else $('#lista').innerHTML = html || '<p class="vazio">Nenhuma promoção com esses filtros.</p>';
-  $('#contagem').textContent = `${(count ?? 0).toLocaleString('pt-BR')} promoção(ões) ativa(s)`;
+  $('#contagem').textContent = (count === 1 ? '1 promoção ativa' : `${(count ?? 0).toLocaleString('pt-BR')} promoções ativas`);
   $('#mais').classList.toggle('hidden', (pagina + 1) * POR_PAGINA >= (count ?? 0));
 }
