@@ -667,3 +667,13 @@ main#conteudo { min-height: calc(100vh - 69px); }
 /* Categorias do catálogo chegam depois: espaço reservado para não empurrar a grade */
 #cats:empty { min-height: 84px; }
 @media (max-width: 760px) { #cats:empty { min-height: 150px; } }
+
+/* ---------- Calls (fase 14) ---------- */
+.pre-call { width: min(480px, 96vw); }
+.pre-call .medidor { height: 10px; background: var(--cartao-2); border-radius: 999px; overflow: hidden; margin-top: 8px; }
+.pre-call .medidor > div { height: 100%; width: 0; background: var(--amarelo); transition: width .08s; }
+.pc-suporte { list-style: none; padding: 0; margin: 10px 0 0; font-size: .9rem; }
+.qualidade { position: absolute; top: 10px; left: 10px; width: 12px; height: 12px; border-radius: 50%; background: var(--texto-2); box-shadow: 0 0 0 2px #0008; z-index: 2; }
+.qualidade[data-nivel="boa"] { background: #22c55e; }
+.qualidade[data-nivel="media"] { background: #f59e0b; }
+.qualidade[data-nivel="ruim"] { background: #ef4444; }
