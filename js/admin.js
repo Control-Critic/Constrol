@@ -1,3 +1,4 @@
+import { apagarArquivos } from './app.js';
 import { SUPABASE_ANON_KEY } from './config.js';
 import { avatarHtml, cssDoItem, cssMolduraImagem, aoMudarOnline, estadoOnline } from './app.js';
 import { sb, $, esc, montarLayout, configurado, exigirLogin, perfil, data, toast, falha, urlSegura, plural, paginaInterna, corSegura, cabecalhosLogin } from './app.js';
@@ -137,7 +138,7 @@ async function stories() {
       <td>${data(x.created_at)}</td>
       <td>${x.highlight ? `<span class="tag amarela">⭐ ${esc(x.highlight)}</span>` : new Date(x.expires_at) > agora ? '<span class="tag">no ar</span>' : '<span class="tag">vencido</span>'}${x.close_friends ? ' <span class="tag">💚</span>' : ''}</td>
       <td><button class="btn perigo pequeno" data-acao="apagar" data-id="${x.id}">Apagar</button></td></tr>`)) : '<p class="muted">Nenhum story ainda.</p>'}`;
-  acoes({ apagar: async (id) => { if (!confirm('Apagar este story? A pessoa não é avisada.')) return; const { error: e } = await sb.from('stories').delete().eq('id', id); if (e) throw e; toast('Story apagado.'); stories(); } });
+  acoes({ apagar: async (id) => { if (!confirm('Apagar este story? A pessoa não é avisada.')) return; const st = (ss || []).find((x) => x.id == id); const { error: e } = await sb.from('stories').delete().eq('id', id); if (e) throw e; apagarArquivos(st?.image_url, st?.video_url); toast('Story apagado.'); stories(); } });
 }
 
 async function geral() {
@@ -479,7 +480,7 @@ async function posts() {
     <button class="btn perigo pequeno" data-acao="excluir" data-id="${p.id}">Excluir</button></td></tr>`));
   acoes({
     alternar: async (id) => { const p = ps.find((x) => x.id == id); const { error } = await sb.from('posts').update({ status: p.status === 'published' ? 'hidden' : 'published' }).eq('id', id); if (error) throw error; posts(); },
-    excluir: async (id) => { if (!confirm('Excluir post?')) return; const { error } = await sb.from('posts').delete().eq('id', id); if (error) throw error; posts(); },
+    excluir: async (id) => { if (!confirm('Excluir post?')) return; const { data: antes } = await sb.from('posts').select('image_url,video_url').eq('id', id).maybeSingle(); const { error } = await sb.from('posts').delete().eq('id', id); if (error) throw error; apagarArquivos(antes?.image_url, antes?.video_url); posts(); },
   });
 }
 
