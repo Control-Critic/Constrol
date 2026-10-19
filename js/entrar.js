@@ -120,7 +120,7 @@ $('#ver-senha').onclick = () => {
 };
 
 // Requisitos da senha atualizados enquanto digita
-const REQ = { tam: (s) => s.length >= 8, letra: (s) => /[A-Za-zÀ-ú]/.test(s), num: (s) => /\d/.test(s) };
+const REQ = { tam: (v) => v.length >= 8, letra: (v) => /[A-Za-zÀ-ú]/.test(v), num: (v) => /\d/.test(v) };
 $('#senha').addEventListener('input', () => {
   for (const li of document.querySelectorAll('#senha-req li')) li.classList.toggle('ok', REQ[li.dataset.r]($('#senha').value));
 });
@@ -138,8 +138,8 @@ function validar() {
     marcar('email', !e ? 'Digite seu e-mail.' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) ? 'Esse e-mail não parece válido.' : '');
   }
   if (['entrar', 'criar', 'nova-senha'].includes(modo)) {
-    const s = $('#senha').value;
-    marcar('senha', !s ? 'Digite sua senha.' : modo !== 'entrar' && !Object.values(REQ).every((regra) => regra(s)) ? 'A senha precisa de 8 caracteres, com letra e número.' : '');
+    const senha = $('#senha').value;
+    marcar('senha', !senha ? 'Digite sua senha.' : modo !== 'entrar' && !Object.values(REQ).every((regra) => regra(senha)) ? 'A senha precisa de 8 caracteres, com letra e número.' : '');
   }
   if (modo === 'criar') marcar('termos', $('#termos').checked ? '' : 'Para criar a conta, confirme a idade e aceite os termos.');
   if (erros.length) $(`#${erros[0]}`).focus();
