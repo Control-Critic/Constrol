@@ -1,4 +1,4 @@
-import { sb, $, esc, montarLayout, configurado, param, usuario, perfil, avatarHtml, toast, falha, urlSegura, denunciar, aoVivo, seloAoVivo, enviarImagem, esqueletoLista } from './app.js';
+import { sb, $, esc, montarLayout, configurado, param, usuario, perfil, avatarHtml, toast, falha, urlSegura, cssUrl, denunciar, aoVivo, seloAoVivo, enviarImagem, esqueletoLista } from './app.js';
 import { COLUNAS_POST, postHtml, ligarPosts, compositorHtml, ligarCompositor } from './posts.js';
 import { montarCall } from './chamada-ui.js';
 
@@ -26,7 +26,7 @@ async function carregar() {
 
   main.innerHTML = `
     <div class="cartao" style="margin-bottom:18px">
-      <div class="com-capa" ${urlSegura(c.banner_url) ? `style="background-image:url('${urlSegura(c.banner_url)}')"` : ''}></div>
+      <div class="com-capa" ${cssUrl(c.banner_url) ? `style="background-image:url('${esc(cssUrl(c.banner_url))}')"` : ''}></div>
       <div class="controles" style="align-items:flex-end;gap:14px"><img class="com-icone" src="${urlSegura(c.icon_url) || 'img/Control.png'}" alt="">
       <h1 style="margin:8px 0 0">${c.is_private ? '🔒 ' : ''}${esc(c.name)}</h1></div>
       <p class="muted">${esc(c.description || '')}</p>
@@ -96,7 +96,7 @@ async function carregar() {
           (PS5: Configurações → Usuários e contas → Vincular a outros serviços → Discord) e entre na call do <strong>servidor do Discord</strong> da comunidade.</p>
           <p class="muted" style="margin-top:8px">🔗 Com a <strong>ponte de voz</strong> ligada (o robô do Control Critic aparece no canal de voz do Discord), quem está no Discord e quem está na call do site <strong>se ouvem</strong>: o Discord aparece na call do site como “🎮 Discord”. A ponte leva só a voz; tela e câmera continuam só no site. Sem a ponte, são salas separadas: combinem de usar a mesma.</p>
         </div>
-        ${c.discord_invite ? `<a class="btn discord" href="${urlSegura(c.discord_invite)}" target="_blank" rel="noopener">Entrar no servidor do Discord</a>`
+        ${c.discord_invite ? `<a class="btn discord" href="${urlSegura(c.discord_invite)}" target="_blank" rel="noopener noreferrer">Entrar no servidor do Discord</a>`
           : '<span class="muted">Esta comunidade ainda não tem servidor do Discord vinculado.</span>'}
       </div>
       <div id="widget" style="margin-top:14px"></div>
@@ -277,7 +277,7 @@ async function painelPonte(c) {
     ${!app ? '<p class="aviso" style="margin-top:10px">O robô oficial ainda não foi configurado pela equipe do site.</p>' : !servidor
       ? '<p class="aviso" style="margin-top:10px">Primeiro preencha o <strong>ID do servidor do Discord</strong> em "Configurar" (no topo da comunidade).</p>' : `
       <ol style="margin:10px 0 0 18px;line-height:1.9">
-        <li><a class="btn sec pequeno" href="${convite}" target="_blank" rel="noopener">➕ Adicionar o robô ao meu servidor</a> <span class="muted" style="font-size:.85rem">(precisa ser administrador do servidor)</span></li>
+        <li><a class="btn sec pequeno" href="${convite}" target="_blank" rel="noopener noreferrer">➕ Adicionar o robô ao meu servidor</a> <span class="muted" style="font-size:.85rem">(precisa ser administrador do servidor)</span></li>
         <li>No Discord: Configurações → Avançado → ligue o <strong>Modo desenvolvedor</strong>. Clique com o botão direito no canal de voz → <strong>Copiar ID do canal</strong>.
           <form id="form-ponte" class="controles" style="margin-top:6px"><input id="ponte-canal" required pattern="\\d{17,20}" placeholder="ID do canal de voz" value="${esc(ponte?.channel_id || '')}" style="max-width:260px">
             <button class="btn pequeno">Salvar canal</button></form></li>
@@ -329,7 +329,7 @@ async function widgetDiscord(guildId) {
         ${emCall.map((m) => `<span>🔊 ${esc(m.username)} <span class="muted">(${esc(canais[m.channel_id] || 'voz')})</span></span>`).join('')}</div>`
         : '<p class="muted">Ninguém na call do Discord agora.</p>'}
       <p class="muted" style="font-size:.82rem;margin-top:8px">Lista do widget público do Discord (pode levar alguns minutos para atualizar e não mostra quem está invisível).</p>
-      ${w.instant_invite ? `<p style="margin-top:10px"><a href="${urlSegura(w.instant_invite)}" target="_blank" rel="noopener">Convite instantâneo</a></p>` : ''}
+      ${w.instant_invite ? `<p style="margin-top:10px"><a href="${urlSegura(w.instant_invite)}" target="_blank" rel="noopener noreferrer">Convite instantâneo</a></p>` : ''}
     </div>`;
   } catch {
     box.innerHTML = '<p class="muted">Não foi possível carregar o widget. Verifique se o widget do servidor está habilitado no Discord.</p>';

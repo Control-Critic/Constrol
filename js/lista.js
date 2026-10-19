@@ -1,4 +1,4 @@
-import { sb, $, esc, montarLayout, configurado, param, usuario, avatarHtml, urlSegura, toast, falha, srcCapa } from './app.js';
+import { sb, $, esc, montarLayout, configurado, param, usuario, avatarHtml, urlSegura, toast, falha, srcCapa, plural } from './app.js';
 
 await montarLayout();
 const main = $('#conteudo');
@@ -20,7 +20,7 @@ async function carregar() {
       <h1 style="margin:4px 0">${esc(l.title)}</h1>
       ${l.description ? `<p class="quebra">${esc(l.description)}</p>` : ''}
       <p class="controles" style="align-items:center;margin-top:8px">${avatarHtml(l.profiles)} por <a class="usuario" href="perfil.html?u=${encodeURIComponent(l.profiles?.username || '')}">${esc(l.profiles?.username)}</a>
-        <span class="muted">· ${(itens || []).length} jogo(s)</span></p>
+        <span class="muted">· ${plural((itens || []).length, 'jogo')}</span></p>
       <div class="controles" style="margin-top:10px">
         ${l.is_public ? '<button class="btn sec pequeno" id="compartilhar">🔗 Copiar link</button>' : ''}
         ${meu ? '<button class="btn sec pequeno" id="editar">✏️ Editar</button><button class="btn perigo pequeno" id="excluir">Excluir lista</button>' : ''}

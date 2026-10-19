@@ -17,17 +17,8 @@ export const $ = (sel, el = document) => el.querySelector(sel);
 export const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 export const param = (nome) => new URLSearchParams(location.search).get(nome);
 
-export function esc(v) {
-  return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-// Aceita apenas links http(s) ou caminhos relativos (evita javascript: em links vindos do banco)
-export function urlSegura(u) {
-  if (!u) return '';
-  const s = String(u).trim();
-  if (/^https?:\/\//i.test(s) || /^[a-z0-9_\-./]+$/i.test(s)) return esc(s);
-  return '';
-}
+export { esc, plural, paginaInterna, corSegura, cssUrl, urlSegura } from './seguro.js';
+import { esc, plural, urlSegura } from './seguro.js';
 
 export function estrelas(nota) {
   const n = Math.round(Number(nota) || 0);
@@ -142,12 +133,12 @@ export async function montarLayout() {
   rodape.className = 'rodape';
   rodape.innerHTML = `
     <div class="redes">
-      <a href="https://www.instagram.com/Control.Critic/" target="_blank" rel="noopener"><img src="img/redes/insta.png" alt="Instagram"></a>
-      <a href="https://twitter.com/ControlCritic" target="_blank" rel="noopener"><img src="img/redes/tw.png" alt="Twitter"></a>
+      <a href="https://www.instagram.com/Control.Critic/" target="_blank" rel="noopener noreferrer"><img src="img/redes/insta.png" alt="Instagram"></a>
+      <a href="https://twitter.com/ControlCritic" target="_blank" rel="noopener noreferrer"><img src="img/redes/tw.png" alt="Twitter"></a>
       <a href="contato.html"><img src="img/redes/gm.png" alt="Fale conosco"></a>
     </div>
     <p>© ${new Date().getFullYear()} Control Critic. Todos os direitos reservados.</p>
-    <p style="font-size:.8rem;margin-top:6px">Dados de jogos: <a href="https://www.igdb.com" target="_blank" rel="noopener">IGDB.com</a> e Steam.</p>
+    <p style="font-size:.8rem;margin-top:6px">Dados de jogos: <a href="https://www.igdb.com" target="_blank" rel="noopener noreferrer">IGDB.com</a> e Steam.</p>
     <p style="font-size:.85rem;margin-top:8px"><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos de uso</a> ·
       <a href="contato.html">Contato</a> <button class="btn sec pequeno hidden" id="instalar" style="margin-left:8px">📲 Instalar app</button>
       <button class="btn sec pequeno" id="reportar" style="margin-left:8px">🐞 Reportar problema</button>
@@ -236,7 +227,8 @@ export function cardJogo(g) {
     <div class="info">
       <span class="titulo" title="${esc(g.title)}">${esc(g.title)}</span>
       ${nomesCategorias(g).length ? `<span class="tags-cat">${nomesCategorias(g).map((n) => `<span class="tag">${esc(n)}</span>`).join(' ')}</span>` : ''}
-      ${g.reviews_count || !g.igdb_rating ? `<span>${estrelas(g.avg_rating)} <span class="muted">(${g.reviews_count})</span></span>`
+      ${g.reviews_count ? `<span title="Nota da comunidade: ${plural(g.reviews_count, 'avaliação', 'avaliações')}">${estrelas(g.avg_rating)} <span class="muted">(${g.reviews_count})</span></span>`
+        : !g.igdb_rating ? '<span class="muted">Sem notas ainda</span>'
         // Sem avaliações no site ainda: mostra a nota do IGDB (crítica e público) como nota inicial, convertida para 5 estrelas
         : `<span title="Nota inicial do IGDB (${Math.round(g.igdb_rating)}/100). Avalie para dar a nota do Control Critic!">${estrelas(g.igdb_rating / 20)} <span class="muted">IGDB</span></span>`}
     </div></a>`;
@@ -455,7 +447,7 @@ async function contarAmigosOnline(uid) {
     const n = [...amigos].filter((id) => online.has(id)).length, b = $('#badge-online');
     if (!b) return;
     b.textContent = n; b.classList.toggle('hidden', !n);
-    b.parentElement.title = n ? `${n} amigo(s) online agora` : 'Amigos';
+    b.parentElement.title = n ? `${n} ${n === 1 ? 'amigo online' : 'amigos online'} agora` : 'Amigos';
   });
 }
 // Status "na call": vai junto na presença (só o título e, se for de comunidade, o id dela; nunca a chave da sala)
@@ -547,7 +539,7 @@ export async function aoVivo(logins) {
     return new Map((await r.json()).ao_vivo.map((s) => [s.login.toLowerCase(), s]));
   } catch { return new Map(); }
 }
-export const seloAoVivo = (s, login) => `<a class="ao-vivo" href="https://twitch.tv/${encodeURIComponent(login)}" target="_blank" rel="noopener"
+export const seloAoVivo = (s, login) => `<a class="ao-vivo" href="https://twitch.tv/${encodeURIComponent(login)}" target="_blank" rel="noopener noreferrer"
   title="${esc(s.titulo || '')}">🔴 AO VIVO${s.jogo ? ' · ' + esc(s.jogo) : ''}</a>`;
 
 // ---------- Notificações no celular (Web Push) ----------
@@ -588,7 +580,7 @@ export async function testarPush() {
   if (!r.ok) return d.erro || 'Não foi possível testar agora.';
   const p = [];
   if (!d.aparelhos) p.push('Nenhum aparelho seu está inscrito: toque em "🔔 Ativar neste aparelho" no celular.');
-  else if (d.enviados) p.push(`✅ Teste 1 enviado para ${d.enviados} aparelho(s).`);
+  else if (d.enviados) p.push(`✅ Teste 1 enviado para ${plural(d.enviados, 'aparelho')}.`);
   else p.push('❌ O envio direto falhou (' + d.erros.map((e) => (e.status || 'erro') + ' em ' + e.servico).join(', ') + '). A inscrição antiga foi apagada: ative de novo neste aparelho.');
   if (!d.chaves_netlify) p.push('⚠️ Falta PUSH_SECRET (ou as chaves VAPID) no Netlify.');
   if (!d.banco_configurado) p.push('⚠️ O banco não sabe para onde mandar: admin → Site → Notificações → "Gerar chaves e configurar".');

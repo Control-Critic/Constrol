@@ -24,7 +24,7 @@ async function carregar() {
       <h3>${esc(n.title)}</h3>${n.lang === 'en' ? `<button class="btn sec pequeno" data-trad="${n.id}" style="margin:4px 0">🌐 Traduzir</button>` : ''}
       ${n.games ? `<p><a class="tag" href="jogo.html?slug=${encodeURIComponent(n.games.slug)}">${esc(n.games.title)}</a></p>` : ''}
       <p class="quebra">${esc(n.source ? (n.summary || '') : n.body)}</p>
-      ${n.source_url ? `<p style="margin-top:8px"><a href="${urlSegura(n.source_url)}" target="_blank" rel="noopener">Ler na fonte oficial →</a></p>` : ''}
+      ${n.source_url ? `<p style="margin-top:8px"><a href="${urlSegura(n.source_url)}" target="_blank" rel="noopener noreferrer">Ler na fonte oficial →</a></p>` : ''}
     </article>`).join('') || '<p class="vazio">Nenhuma notícia ainda.</p>';
   if (location.hash) document.querySelector(location.hash)?.scrollIntoView();
   document.querySelectorAll('[data-trad]').forEach((b) => b.onclick = async () => {

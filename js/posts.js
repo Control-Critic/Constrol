@@ -25,7 +25,7 @@ export function postHtml(x, { u, moderar = false, mostrarComunidade = true } = {
       <span style="flex:1;min-width:0"><a class="usuario" href="perfil.html?u=${encodeURIComponent(x.profiles?.username || '')}">${esc(x.profiles?.username)}</a>
         ${mostrarComunidade && x.communities ? `<span class="muted"> em <a href="comunidade.html?id=${x.communities.id}">${esc(x.communities.name)}</a></span>` : ''}
         ${x.challenges ? `<span class="tag amarela" style="margin-left:4px">🏆 ${esc(x.challenges.title)}</span>` : ''}
-        ${x.instagram_url ? `<a class="tag amarela" style="margin-left:4px" href="${urlSegura(x.instagram_url)}" target="_blank" rel="noopener">📸 no Instagram</a>` : x.ig_ok ? '<span class="tag" style="margin-left:4px">😂 meme</span>' : ''}
+        ${x.instagram_url ? `<a class="tag amarela" style="margin-left:4px" href="${urlSegura(x.instagram_url)}" target="_blank" rel="noopener noreferrer">📸 no Instagram</a>` : x.ig_ok ? '<span class="tag" style="margin-left:4px">😂 meme</span>' : ''}
         <br><span class="muted" style="font-size:.8rem">${tempo(x.created_at)}${x.games ? ` · 🎮 <a href="jogo.html?slug=${encodeURIComponent(x.games.slug)}">${esc(x.games.title)}</a>` : ''}</span></span>
       ${meu || moderar ? `<button class="btn sec pequeno" data-p-del="${x.id}">Apagar</button>` : u ? `<button class="bt-denunciar" data-p-den="${x.id}" aria-label="Denunciar">🚩</button>` : ''}
     </header>
@@ -114,7 +114,7 @@ export async function ligarPosts(box, { u, aoMudar } = {}) {
 export function verImagem(src) {
   const d = document.createElement('dialog');
   d.className = 'visor';
-  d.innerHTML = `<img src="${esc(src)}" alt=""><button class="btn sec pequeno" aria-label="Fechar">✕</button>`;
+  d.innerHTML = `<img src="${urlSegura(src)}" alt=""><button class="btn sec pequeno" aria-label="Fechar">✕</button>`;
   d.onclick = () => d.close(); d.onclose = () => d.remove();
   document.body.append(d); d.showModal();
 }
