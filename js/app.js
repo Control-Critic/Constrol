@@ -161,6 +161,7 @@ export async function montarLayout() {
       <div class="conta"></div>
     </div>`;
   document.body.prepend(topo);
+  document.querySelector('.topo-reserva')?.remove(); // o espaço já estava reservado: o conteúdo não pula
   // Atalho de teclado para pular o menu
   const main0 = document.querySelector('main');
   if (main0) { main0.id ||= 'conteudo'; main0.tabIndex = -1; topo.insertAdjacentHTML('beforebegin', `<a class="pular" href="#${main0.id}">Pular para o conteúdo</a>`); }

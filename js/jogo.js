@@ -96,7 +96,7 @@ async function carregar() {
   main.innerHTML = `
     <div class="detalhe">
       <div>
-        <img id="capa-jogo" ${srcCapa(g.cover_url, 1000)} alt="" style="border-radius:14px;width:100%">
+        <img id="capa-jogo" ${srcCapa(g.cover_url, 1000)} alt="" fetchpriority="high" style="border-radius:14px;width:100%">
         <p style="text-align:right;margin-top:4px;font-size:.8rem"><button type="button" class="bt-link muted" id="capa-errada">📷 Capa errada?</button>
           <button type="button" class="bt-link hidden" id="trocar-capa">🖼️ Trocar capa</button></p>
         <h1 style="margin-top:16px">${esc(g.title)}${g.release_year ? ` <span class="muted ano-jogo">(${Number(g.release_year)})</span>` : ''}</h1>
