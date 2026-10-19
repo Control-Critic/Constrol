@@ -17,6 +17,12 @@ export const $ = (sel, el = document) => el.querySelector(sel);
 export const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 export const param = (nome) => new URLSearchParams(location.search).get(nome);
 
+// Cabeçalhos para chamar as Netlify Functions como o usuário logado (TURN das calls, admin)
+export async function cabecalhosLogin(extra = {}) {
+  const { data: { session } } = sb ? await sb.auth.getSession() : { data: {} };
+  return { ...extra, ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}), apikey: SUPABASE_ANON_KEY };
+}
+
 export { esc, plural, paginaInterna, corSegura, cssUrl, urlSegura } from './seguro.js';
 import { esc, plural, urlSegura } from './seguro.js';
 
