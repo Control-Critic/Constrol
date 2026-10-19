@@ -588,6 +588,26 @@ iframe.spotify { width: 100%; border: 0; border-radius: 12px; }
 .cta-cadastro { border-color: var(--amarelo); text-align: center; }
 .cta-cadastro .controles { justify-content: center; }
 
+/* ---------- Personalidade da home ---------- */
+.hero h1 em { font-style: normal; color: var(--amarelo); }
+.selo-br { display: inline-block; font-size: .8rem; font-weight: 700; letter-spacing: .02em; color: var(--amarelo);
+  border: 1px solid var(--amarelo); border-radius: 999px; padding: 3px 10px; margin-bottom: 10px; }
+.adelino-hero { position: relative; display: grid; place-items: center; }
+.adelino-hero .balao { position: absolute; top: 4%; left: 2%; background: var(--amarelo); color: #111; font-weight: 800;
+  padding: 8px 14px; border-radius: 16px 16px 16px 4px; box-shadow: 0 6px 18px #0006; font-size: .95rem; white-space: nowrap; z-index: 1; }
+.adelino-hero img { animation: flutuar 4s ease-in-out infinite; }
+@keyframes flutuar { 50% { transform: translateY(-8px) rotate(-2deg); } }
+.passos-home li img { width: 96px; height: auto; justify-self: start; margin-bottom: 4px; filter: drop-shadow(0 6px 10px #0007); }
+.passos-home li::before { display: none; }
+.passos-home li { transition: transform .15s, border-color .15s; }
+.passos-home li:hover { transform: translateY(-3px); border-color: var(--amarelo); }
+.diferenciais li { border-color: #ffd33c55; }
+.cta-cadastro { position: relative; overflow: hidden; background: radial-gradient(circle at 85% 20%, #ffd33c22, transparent 55%), var(--cartao); }
+.cta-adelino { width: 110px; height: auto; display: block; margin: 0 auto 6px; filter: drop-shadow(0 6px 10px #0007); }
+.vazio-adelino { display: flex; align-items: center; gap: 12px; }
+.vazio-adelino img { width: 72px; height: auto; }
+@media (prefers-reduced-motion: reduce) { .adelino-hero img { animation: none; } .passos-home li { transition: none; } }
+@media (max-width: 760px) { .adelino-hero .balao { font-size: .85rem; left: 0; } }
 /* ---------- Procurando grupo (fase 6) ---------- */
 .lfg-card { display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; align-items: center; }
 .lfg-capa img, .lfg-sem-capa { width: 64px; height: 86px; object-fit: cover; border-radius: 10px; display: grid; place-items: center; background: var(--cartao-2); font-size: 1.6rem; }
