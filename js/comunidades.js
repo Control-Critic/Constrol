@@ -1,6 +1,8 @@
 import { urlSegura } from './app.js';
 import { sb, $, esc, montarLayout, configurado, usuario, falha, toast } from './app.js';
 
+const POR_PAG = 24;
+let pag = 0, ctrlC = null; // declarados antes do uso (carregar() roda já no carregamento)
 await montarLayout();
 const main = $('#conteudo');
 main.insertAdjacentHTML('beforeend', `
@@ -69,8 +71,6 @@ if (configurado) {
   });
 }
 
-const POR_PAG = 24;
-let pag = 0, ctrlC = null;
 const ha = (d) => { if (!d) return ''; const m = Math.round((Date.now() - new Date(d)) / 60000); return m < 60 ? 'ativa agora' : m < 1440 ? `ativa há ${Math.round(m / 60)} h` : m < 43200 ? `ativa há ${Math.round(m / 1440)} d` : ''; };
 async function carregar(mais = false) {
   pag = mais ? pag + 1 : 0;

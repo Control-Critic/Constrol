@@ -125,8 +125,18 @@ Regras gerais de todas as fases:
 - [ ] CI verde, smoke test das páginas públicas sem erros de console.
 
 ## 6. Situação das fases
+| Fase | Situação | PR |
+|---|---|---|
+| 1 | Mesclada | #75 |
+| 2 | Mesclada (migração 01 aplicada) | #77 |
+| 3 | Mesclada (migração 02 aplicada) | #79 |
+| 4 | Mesclada | #78 |
+| 5 | Mesclada (+ personalidade #87) | #80 |
+| 6 | Mesclada (aplicar a migração 03) | #88 |
+| 7 | PR aberto | #93 |
+| 9 (bloqueio e moderação) | PR aberto | #90 |
+| 10 | PR aberto | #92 |
+| Compressão de vídeo | PR aberto | #91 |
+| 8, 9 (comunidades), 11 a 17 | PR único, a pedido (inclui #90 a #93) | ver o `CHANGELOG-MELHORIAS.md` |
 
-| Fase | Situação |
-|---|---|
-| 1 | Em andamento |
-| 2 a 17 | Pendentes. Cada uma entra aqui com o seu PR, os testes e os resultados |
+Resultados, ações manuais, riscos e o checklist de produção estão em `CHANGELOG-MELHORIAS.md`.
