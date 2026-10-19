@@ -114,6 +114,19 @@ const LINKS = [
 // Ficam no menu "Mais" (deixa a barra do topo numa linha só)
 const LINKS_MAIS = [['conquistas.html', '🏆 Conquistas'], ['sobre.html', 'Quem Somos'], ['contato.html', 'Fale Conosco'], ['privacidade.html', 'Privacidade']];
 
+// ---------- Erros do site (agregados no banco, sem dados pessoais) ----------
+export const VERSAO_SITE = '__BUILD__'; // trocado pelo commit no deploy (netlify.toml)
+let errosEnviados = 0;
+const limparErro = (t) => String(t || '').replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '***@***').replace(/(eyJ[\w-]+\.[\w-]+\.[\w-]+|sb_[a-z]+_[\w-]+|Bearer\s+\S+)/g, '***').replace(/https?:\/\/\S+/g, (u) => u.split('?')[0]).slice(0, 300);
+export function reportarErro(categoria, mensagem, acao = null) {
+  if (!sb || errosEnviados >= 5) return; // no máximo 5 por carregamento de página
+  errosEnviados++;
+  sb.rpc('registrar_erro', { categoria, pagina: location.pathname, mensagem: limparErro(mensagem), acao, versao: VERSAO_SITE }).then(() => {}, () => {});
+}
+const RUIDO = /ResizeObserver|Script error|extension|chrome-extension|AbortError|NetworkError|Failed to fetch|Load failed/i;
+addEventListener('error', (e) => { if (e.message && !RUIDO.test(e.message + (e.filename || ''))) reportarErro('js', `${e.message} @${String(e.filename || '').split('/').pop()}:${e.lineno}`); });
+addEventListener('unhandledrejection', (e) => { const m = e.reason?.message || String(e.reason || ''); if (m && !RUIDO.test(m) && !/abort/i.test(m)) reportarErro('promessa', m); });
+
 // ---------- Bloqueios: quem eu bloqueei some do feed, comentários e stories ----------
 export const bloqueados = new Set();
 let _bloqCarregado = null;
@@ -431,20 +444,7 @@ export async function reportarProblema(textoInicial = '') {
   }, { once: true });
 }
 
-// Erros do site no navegador das pessoas são registrados automaticamente (aparecem no admin → Problemas)
-let errosEnviados = 0;
-async function registrarErro(msg, extra) {
-  if (!sb || errosEnviados >= 5 || !msg) return;
-  const m = String(msg).slice(0, 500);
-  if (/ResizeObserver|Script error|extension|chrome-extension|AbortError|NetworkError|Failed to fetch|Load failed/i.test(m + (extra?.arquivo || ''))) return;
-  errosEnviados++;
-  try {
-    const u = await usuario();
-    await sb.from('app_feedback').insert({ user_id: u?.id ?? null, kind: 'erro', message: m, page: (location.pathname + location.search).slice(0, 300), agent: navigator.userAgent.slice(0, 300), details: extra || null });
-  } catch { /* nunca quebra a página por causa do registro */ }
-}
-addEventListener('error', (e) => registrarErro(e.message, { arquivo: String(e.filename || '').split('/').pop(), linha: e.lineno, coluna: e.colno }));
-addEventListener('unhandledrejection', (e) => registrarErro(e.reason?.message || String(e.reason), { tipo: 'promise', pilha: String(e.reason?.stack || '').slice(0, 800) }));
+// Erros do site: ver reportarErro() no topo (agregados em client_errors, painel Admin → Status)
 
 // ---------- Tradução ----------
 // Usa o tradutor embutido do navegador (Chrome 138+), que roda no próprio aparelho e é gratuito.

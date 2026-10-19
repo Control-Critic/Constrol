@@ -8,7 +8,7 @@ const main = $('#conteudo');
 let P;
 
 const ABAS = [
-  ['geral', 'Visão geral'], ['problemas', 'Problemas 🐞'], ['denuncias', 'Denúncias'], ['apelacoes', 'Apelações'], ['jogos', 'Jogos'], ['noticias', 'Notícias'], ['promos', 'Promoções'], ['memes', 'Memes 😂'], ['stories', 'Stories 📸'],
+  ['geral', 'Visão geral'], ['status', 'Status 🩺'], ['problemas', 'Problemas 🐞'], ['denuncias', 'Denúncias'], ['apelacoes', 'Apelações'], ['jogos', 'Jogos'], ['noticias', 'Notícias'], ['promos', 'Promoções'], ['memes', 'Memes 😂'], ['stories', 'Stories 📸'],
   ['reviews', 'Avaliações'], ['posts', 'Posts'], ['comunidades', 'Comunidades'], ['mensagens', 'Mensagens'],
   ['usuarios', 'Usuários'], ['cargos', 'Cargos', true], ['itens', 'Itens', true], ['desafios', 'Desafios', true], ['registro', 'Registro'], ['site', 'Site', true], ['auto', 'Automação', true],
 ];
@@ -26,7 +26,7 @@ function iniciar() {
 }
 
 const painel = () => $('#painel');
-const VIEWS = { geral, problemas, denuncias, apelacoes, jogos, noticias, promos, memes, stories, reviews, posts, comunidades, mensagens, usuarios, cargos, itens, desafios, registro, site, auto };
+const VIEWS = { geral, status, problemas, denuncias, apelacoes, jogos, noticias, promos, memes, stories, reviews, posts, comunidades, mensagens, usuarios, cargos, itens, desafios, registro, site, auto };
 function abrir(k) { painel().innerHTML = '<p class="muted">Carregando...</p>'; VIEWS[k]().catch(falha); }
 
 // Campo de busca de jogo com sugestões (o catálogo tem milhares de jogos)
@@ -359,6 +359,34 @@ async function promos() {
     editar: (id) => salvar(ds.find((d) => d.id == id), id),
     excluir: async (id) => { const { error } = await sb.from('deals').delete().eq('id', id); if (error) throw error; promos(); },
   });
+}
+
+// ---------------- Status: robôs, erros do site e serviços ----------------
+async function status() {
+  const [{ data: robos }, { data: erros }, { data: cfg }] = await Promise.all([
+    sb.from('robot_runs').select('*').order('robo'),
+    sb.from('client_errors').select('*').gte('dia', new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)).order('vezes', { ascending: false }).limit(100),
+    sb.from('settings').select('key,value').in('key', ['push', 'last_sync', 'last_igdb']),
+  ]);
+  const conf = Object.fromEntries((cfg || []).map((x) => [x.key, x.value]));
+  const ROBOS = { sync: 'Notícias e promoções (6/6 h)', igdb: 'Catálogo IGDB (diário)', instagram: 'Instagram (3x/dia)', semanal: 'Robô semanal', backup: 'Backup (domingo)' };
+  const dur = (r) => (r.inicio && r.fim ? `${Math.max(0, Math.round((new Date(r.fim) - new Date(r.inicio)) / 1000))} s` : '—');
+  const porCat = {};
+  for (const e of erros || []) porCat[e.categoria] = (porCat[e.categoria] || 0) + e.vezes;
+  painel().innerHTML = `
+    <h2>🤖 Robôs</h2>
+    ${tabela(['Robô', 'Última execução', 'Duração', 'Resultado'], Object.entries(ROBOS).map(([k, nome]) => { const r = (robos || []).find((x) => x.robo === k);
+      return `<tr><td>${nome}</td><td>${r ? data(r.fim || r.inicio) : '<span class="muted">sem registro ainda</span>'}</td><td>${r ? dur(r) : '—'}</td>
+        <td>${!r ? '—' : r.ok === null ? '⏳ rodando' : r.ok ? '✅ ok' : '❌ falhou'} <span class="muted" style="font-size:.8rem">${esc(r?.resumo || '')}</span></td></tr>`; }))}
+    <h2>🔔 Serviços</h2>
+    <ul>
+      <li>Notificações no celular: ${conf.push?.url ? '✅ configuradas' : '⚠️ não configuradas (aba Site)'}</li>
+      <li>Última sincronização de notícias: ${conf.last_sync?.at ? data(conf.last_sync.at) : '—'}</li>
+      <li>TURN e robô do Discord: teste na aba <strong>Site</strong>.</li>
+    </ul>
+    <h2>🐞 Erros do site (7 dias)</h2>
+    <p class="muted">Agrupados por mensagem; sem dados pessoais. ${Object.entries(porCat).map(([c, n]) => `<span class="tag">${esc(c)}: ${n}</span>`).join(' ') || 'Nenhum erro registrado. 🎉'}</p>
+    ${(erros || []).length ? tabela(['Dia', 'Vezes', 'Tipo', 'Página', 'Mensagem', 'Versão'], erros.map((e) => `<tr><td>${esc(e.dia)}</td><td>${e.vezes}</td><td>${esc(e.categoria)}</td><td>${esc(e.pagina)}</td><td>${corta(e.mensagem, 160)}</td><td><code>${esc(String(e.versao || '').slice(0, 7))}</code></td></tr>`)) : ''}`;
 }
 
 // ---------------- Apelações de suspensão ----------------

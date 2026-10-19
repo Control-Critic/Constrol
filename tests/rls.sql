@@ -265,6 +265,20 @@ do $$ begin
   assert (select count(*) from public.community_members where community_id = 900002) >= 1, 'teste sem membros';
 end $$;
 
+-- ---------- Observabilidade (fase 15) ----------
+select teste.como(null);
+do $$ begin
+  perform public.registrar_erro('js', '/x.html?token=abc', 'falhou para fulano@email.com');
+  assert teste.ve('select 1 from public.client_errors') <= 0, 'visitante leu os erros registrados';
+  assert teste.ve('select 1 from public.robot_runs') <= 0, 'visitante leu o status dos robôs';
+  assert teste.faz($q$insert into public.client_errors (assinatura, categoria, pagina, mensagem) values ('x', 'js', '/', 'x')$q$) <= 0, 'visitante gravou erro direto na tabela';
+end $$;
+reset role;
+do $$ begin
+  assert exists (select 1 from public.client_errors where pagina = '/x.html' and mensagem like '%***@***%'), 'erro não foi registrado limpo';
+  assert not exists (select 1 from public.client_errors where mensagem like '%fulano%' or pagina like '%token%'), 'dado pessoal ficou no registro de erro';
+end $$;
+
 -- ---------- Admin ----------
 select teste.como('cccccccc-0000-0000-0000-00000000000c');
 do $$ begin

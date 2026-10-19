@@ -2,7 +2,7 @@
 [build]
   publish = "."
   # Sem build de verdade: só carimba o commit na versão do service worker (invalida o cache a cada deploy)
-  command = "sed -i \"s/__BUILD__/${COMMIT_REF:-local}/\" sw.js"
+  command = "sed -i \"s/__BUILD__/${COMMIT_REF:-local}/\" sw.js js/app.js"
 
 # Funções no servidor (busca de jogos no IGDB)
 [functions]
