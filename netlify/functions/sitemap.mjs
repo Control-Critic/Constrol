@@ -2,7 +2,7 @@
 //   GET /sitemap.xml (redirecionado para cá no netlify.toml)
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../js/config.js';
 
-const PAGINAS = ['index.html', 'jogos.html', 'novidades.html', 'promocoes.html', 'comunidades.html', 'conquistas.html', 'sobre.html', 'contato.html', 'privacidade.html', 'termos.html'];
+const PAGINAS = ['index.html', 'jogos.html', 'novidades.html', 'promocoes.html', 'comunidades.html', 'conquistas.html', 'sobre.html', 'contato.html', 'privacidade.html', 'termos.html', 'diretrizes.html'];
 const rest = async (c) => { try { const r = await fetch(`${SUPABASE_URL}/rest/v1/${c}`, { headers: { apikey: SUPABASE_ANON_KEY }, signal: AbortSignal.timeout(15000) }); return r.ok ? r.json() : []; } catch { return []; } };
 const xml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 

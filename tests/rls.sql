@@ -239,6 +239,25 @@ do $$ begin
 end $$;
 reset role;
 
+
+-- ---------- Bloqueio e moderação ----------
+select teste.como('bbbbbbbb-0000-0000-0000-00000000000b');
+do $$ begin
+  assert teste.faz($q$insert into public.user_blocks (blocker_id, blocked_id) values ('bbbbbbbb-0000-0000-0000-00000000000b', 'aaaaaaaa-0000-0000-0000-00000000000a')$q$) = 1, 'B deveria bloquear A';
+  assert teste.faz($q$insert into public.user_blocks (blocker_id, blocked_id) values ('aaaaaaaa-0000-0000-0000-00000000000a', 'dddddddd-0000-0000-0000-00000000000d')$q$) <= 0, 'B criou bloqueio em nome de A';
+end $$;
+reset role;
+select teste.como('aaaaaaaa-0000-0000-0000-00000000000a');
+do $$ begin
+  assert teste.ve('select 1 from public.user_blocks') = 0, 'A descobriu que foi bloqueada';
+  assert teste.faz($q$insert into public.follows (follower_id, followed_id) values ('aaaaaaaa-0000-0000-0000-00000000000a', 'bbbbbbbb-0000-0000-0000-00000000000b')$q$) <= 0, 'A seguiu quem a bloqueou';
+  assert teste.faz($q$insert into public.post_comments (post_id, user_id, body) select id, 'aaaaaaaa-0000-0000-0000-00000000000a', 'oi' from public.posts where user_id = 'bbbbbbbb-0000-0000-0000-00000000000b' and community_id is null limit 1$q$) <= 0, 'A comentou no post de quem a bloqueou';
+  assert teste.faz($q$insert into public.appeals (user_id, texto) values ('aaaaaaaa-0000-0000-0000-00000000000a', 'texto de apelação válido')$q$) = 1, 'A deveria poder apelar';
+  assert teste.faz($q$insert into public.appeals (user_id, texto) values ('aaaaaaaa-0000-0000-0000-00000000000a', 'segunda apelação no mesmo dia')$q$) <= 0, 'A apelou duas vezes na semana';
+  assert teste.faz($q$update public.appeals set status = 'aceita'$q$) <= 0, 'A aceitou a própria apelação';
+end $$;
+reset role;
+
 -- ---------- Admin ----------
 select teste.como('cccccccc-0000-0000-0000-00000000000c');
 do $$ begin

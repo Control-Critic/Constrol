@@ -114,7 +114,36 @@ const LINKS = [
 // Ficam no menu "Mais" (deixa a barra do topo numa linha só)
 const LINKS_MAIS = [['conquistas.html', '🏆 Conquistas'], ['sobre.html', 'Quem Somos'], ['contato.html', 'Fale Conosco'], ['privacidade.html', 'Privacidade']];
 
+// ---------- Bloqueios: quem eu bloqueei some do feed, comentários e stories ----------
+export const bloqueados = new Set();
+let _bloqCarregado = null;
+export function carregarBloqueados() {
+  if (_bloqCarregado) return _bloqCarregado;
+  _bloqCarregado = (async () => {
+    const u = sb ? await usuario() : null;
+    if (!u) return bloqueados;
+    const { data } = await sb.from('user_blocks').select('blocked_id').limit(1000);
+    for (const b of data || []) bloqueados.add(b.blocked_id);
+    return bloqueados;
+  })().catch(() => bloqueados);
+  return _bloqCarregado;
+}
+export async function bloquear(alvo, nome) {
+  const u = await usuario();
+  if (!u || !alvo || alvo === u.id) return false;
+  if (!confirm(`Bloquear ${nome}?\n\nVocês deixam de ser amigos e de se seguir, você não verá mais posts, comentários e stories dessa pessoa, e ela não poderá falar com você. Ela não é avisada.`)) return false;
+  const { error } = await sb.from('user_blocks').insert({ blocker_id: u.id, blocked_id: alvo });
+  if (error && error.code !== '23505') { falha(error); return false; }
+  bloqueados.add(alvo); toast(`Você bloqueou ${nome}.`); return true;
+}
+export async function desbloquear(alvo, nome) {
+  const { error } = await sb.from('user_blocks').delete().eq('blocked_id', alvo);
+  if (error) { falha(error); return false; }
+  bloqueados.delete(alvo); toast(`Você desbloqueou ${nome}.`); return true;
+}
+
 export async function montarLayout() {
+  carregarBloqueados();
   const pagina = location.pathname.split('/').pop() || 'index.html';
   const topo = document.createElement('header');
   topo.className = 'topo';
@@ -145,7 +174,7 @@ export async function montarLayout() {
     </div>
     <p>© ${new Date().getFullYear()} Control Critic. Todos os direitos reservados.</p>
     <p style="font-size:.8rem;margin-top:6px">Dados de jogos: <a href="https://www.igdb.com" target="_blank" rel="noopener noreferrer">IGDB.com</a> e Steam.</p>
-    <p style="font-size:.85rem;margin-top:8px"><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos de uso</a> ·
+    <p style="font-size:.85rem;margin-top:8px"><a href="diretrizes.html">Diretrizes da comunidade</a> · <a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos de uso</a> ·
       <a href="contato.html">Contato</a> <button class="btn sec pequeno hidden" id="instalar" style="margin-left:8px">📲 Instalar app</button>
       <button class="btn sec pequeno" id="reportar" style="margin-left:8px">🐞 Reportar problema</button>
       <button class="btn sec pequeno" id="tema" style="margin-left:8px" aria-label="Alternar tema claro/escuro">${document.documentElement.dataset.tema === 'claro' ? '🌙 Tema escuro' : '☀️ Tema claro'}</button></p>`;
@@ -179,7 +208,13 @@ export async function montarLayout() {
   // Conta suspensa: avisa a própria pessoa (ela continua navegando, mas não publica)
   if (p?.banned && (!p.banned_until || new Date(p.banned_until) > new Date())) {
     $('main')?.insertAdjacentHTML('afterbegin', `<div class="aviso erro">⛔ Sua conta está suspensa${p.banned_until ? ' até ' + new Date(p.banned_until).toLocaleString('pt-BR') : ''}.
-      ${p.ban_reason ? 'Motivo: ' + esc(p.ban_reason) + '. ' : ''}Você pode navegar, mas não pode publicar. Dúvidas? <a href="contato.html">Fale Conosco</a>.</div>`);
+      ${p.ban_reason ? 'Motivo: ' + esc(p.ban_reason) + '. ' : ''}Você pode navegar, mas não pode publicar. <a href="diretrizes.html">Diretrizes</a> · <button class="btn sec pequeno" id="pedir-revisao">Pedir revisão</button></div>`);
+    $('#pedir-revisao')?.addEventListener('click', async () => {
+      const texto = (prompt('Explique por que a suspensão deve ser revista (10 a 1000 caracteres):', '') || '').trim();
+      if (texto.length < 10) return;
+      const { error } = await sb.from('appeals').insert({ user_id: p.id, texto: texto.slice(0, 1000) });
+      error ? toast(/row-level/.test(error.message) ? 'Você já pediu uma revisão nesta semana.' : error.message, true) : toast('Pedido enviado. A equipe vai analisar.');
+    });
   }
   if (!p) {
     conta.innerHTML = `<a class="btn pequeno" href="entrar.html">Entrar</a>`;
@@ -349,7 +384,7 @@ export async function denunciar(tipo, id) {
   let dlg = $('#dlg-denuncia');
   if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'dlg-denuncia'; document.body.append(dlg); }
   dlg.innerHTML = `<form method="dialog"><h2 style="margin-top:0">Denunciar</h2>
-    <p class="muted">A equipe de moderação vai analisar. Quem você denunciou não fica sabendo.</p>
+    <p class="muted">A equipe de moderação vai analisar conforme as <a href="diretrizes.html" target="_blank" rel="noopener">diretrizes da comunidade</a>. Quem você denunciou não fica sabendo.</p>
     <label for="den-motivo">Motivo</label><select id="den-motivo" required>${MOTIVOS.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select>
     <label for="den-det">Detalhes (opcional)</label><textarea id="den-det" rows="3" maxlength="1000"></textarea>
     <div class="controles" style="margin-top:14px"><button class="btn perigo" value="ok">Enviar denúncia</button><button class="btn sec" value="cancel" formnovalidate>Cancelar</button></div></form>`;

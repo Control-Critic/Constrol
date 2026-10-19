@@ -1,4 +1,4 @@
-import { sb, $, esc, montarLayout, configurado, exigirLogin, perfil, avatarHtml, toast, falha, param, aoMudarOnline, aoVivo, seloAoVivo, notaAtiva, steamAgora, estadoOnline } from './app.js';
+import { sb, $, esc, denunciar, montarLayout, configurado, exigirLogin, perfil, avatarHtml, toast, falha, param, aoMudarOnline, aoVivo, seloAoVivo, notaAtiva, steamAgora, estadoOnline } from './app.js';
 import { montarCall } from './chamada-ui.js';
 
 await montarLayout();
@@ -141,7 +141,8 @@ async function carregar(u) {
   const { data: naoLidas } = await sb.from('direct_messages').select('sender_id').eq('receiver_id', u.id).eq('read', false).limit(500);
   for (const m of naoLidas || []) { const el = main.querySelector(`[data-nl="${m.sender_id}"]`); if (el) el.textContent = Number(el.textContent || 0) + 1; }
   const hora = (d) => new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-  const bolha = (m) => `<div class="dm ${m.sender_id === u.id ? 'minha' : ''}"><p class="quebra">${esc(m.body)}</p><span>${hora(m.created_at)}</span></div>`;
+  const bolha = (m) => `<div class="dm ${m.sender_id === u.id ? 'minha' : ''}"><p class="quebra">${esc(m.body)}</p><span>${hora(m.created_at)}${m.sender_id === u.id ? '' : ` <button class="bt-denunciar" data-den-msg="${Number(m.id)}" aria-label="Denunciar mensagem" title="Denunciar mensagem">🚩</button>`}</span></div>`;
+  main.addEventListener('click', (e) => { const b = e.target.closest('[data-den-msg]'); if (b) denunciar('message', b.dataset.denMsg); });
   const abrirChat = async (username) => {
     const a = amigos.find((x) => x.username === username);
     if (!a) return toast('Vocês precisam ser amigos para conversar.', true);
