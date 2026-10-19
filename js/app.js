@@ -581,7 +581,7 @@ export async function testarPush() {
   const p = [];
   if (!d.aparelhos) p.push('Nenhum aparelho seu está inscrito: toque em "🔔 Ativar neste aparelho" no celular.');
   else if (d.enviados) p.push(`✅ Teste 1 enviado para ${plural(d.enviados, 'aparelho')}.`);
-  else p.push('❌ O envio direto falhou (' + d.erros.map((e) => e.status || e.msg).join(', ') + '). A inscrição antiga foi apagada: ative de novo neste aparelho.');
+  else p.push('❌ O envio direto falhou (' + d.erros.map((e) => (e.status || 'erro') + ' em ' + e.servico).join(', ') + '). A inscrição antiga foi apagada: ative de novo neste aparelho.');
   if (!d.chaves_netlify) p.push('⚠️ Falta PUSH_SECRET (ou as chaves VAPID) no Netlify.');
   if (!d.banco_configurado) p.push('⚠️ O banco não sabe para onde mandar: admin → Site → Notificações → "Gerar chaves e configurar".');
   else {

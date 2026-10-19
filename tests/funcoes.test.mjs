@@ -51,16 +51,13 @@ test('Login: confirma com a chave pública quando a secreta é recusada (bug "En
   } finally { globalThis.fetch = antigo; }
 });
 
-test('TURN próprio: credencial no padrão do coturn e recusa de outros sites', async () => {
+test('TURN próprio: credencial no padrão do coturn (autorização testada em functions.test.mjs)', async () => {
   process.env.TURN_URL = 'turn:casa.duckdns.org:3478'; process.env.TURN_SECRET = 'segredo';
-  delete process.env.CLOUDFLARE_TURN_KEY_ID;
-  const fn = (await import('../netlify/functions/turn.mjs')).default;
-  const r = await fn(new Request('https://site.netlify.app/.netlify/functions/turn', { headers: { origin: 'https://site.netlify.app' } }));
-  const s = (await r.json()).iceServers[0];
+  const { turnProprio } = await import('../netlify/functions/turn.mjs');
+  const s = turnProprio('abc');
   assert.equal(s.credential, createHmac('sha1', 'segredo').update(s.username).digest('base64'));
+  assert.match(s.username, /^\d+:abc$/);
   assert.ok(s.urls.includes('turn:casa.duckdns.org:3478?transport=tcp'));
-  const r2 = await fn(new Request('https://site.netlify.app/.netlify/functions/turn', { headers: { origin: 'https://outro.com' } }));
-  assert.equal(r2.status, 403);
 });
 
 test('Push: só aceita envio com o segredo e devolve a chave pública', async () => {
