@@ -11,10 +11,10 @@ $('#conteudo').insertAdjacentHTML('beforeend', `
   <div class="cartao entrar" style="max-width:460px;margin:24px auto">
     <h1 class="sr-only" id="titulo-entrar">Entrar no Control Critic</h1>
     <div class="abas" role="tablist" aria-label="Entrar ou criar conta" id="abas-entrar">
-      <button class="aba" role="tab" id="aba-entrar" data-m="entrar" aria-controls="form" aria-selected="false">Entrar</button>
-      <button class="aba" role="tab" id="aba-criar" data-m="criar" aria-controls="form" aria-selected="false">Criar conta</button>
+      <button class="aba" role="tab" id="aba-entrar" data-m="entrar" aria-controls="painel-entrar" aria-selected="false">Entrar</button>
+      <button class="aba" role="tab" id="aba-criar" data-m="criar" aria-controls="painel-entrar" aria-selected="false">Criar conta</button>
     </div>
-    <form id="form" role="tabpanel" aria-labelledby="aba-entrar" novalidate>
+    <div role="tabpanel" id="painel-entrar" aria-labelledby="aba-entrar"><form id="form" novalidate>
       <h2 id="titulo-modo" class="titulo-modo hidden"></h2>
       <p id="dica-modo" class="muted hidden"></p>
       <div id="campo-user" class="campo hidden">
@@ -50,7 +50,7 @@ $('#conteudo').insertAdjacentHTML('beforeend', `
       </div>
       <button class="btn" style="width:100%;margin-top:16px" id="enviar">Entrar</button>
       <p id="status" class="status-entrar" role="status" aria-live="polite"></p>
-    </form>
+    </form></div>
     <div id="links-extra" class="links-entrar">
       <button type="button" class="link" id="ir-recuperar">Esqueci minha senha</button>
       <button type="button" class="link" id="ir-link">Entrar com um link no e-mail</button>
@@ -78,7 +78,7 @@ function trocarModo(m, focar = true) {
     const ativo = x.dataset.m === cfg.aba;
     x.classList.toggle('ativo', ativo); x.setAttribute('aria-selected', String(ativo)); x.tabIndex = ativo || (!cfg.aba && x.dataset.m === 'entrar') ? 0 : -1;
   });
-  if (cfg.aba) $('#form').setAttribute('aria-labelledby', `aba-${cfg.aba}`);
+  if (cfg.aba) $('#painel-entrar').setAttribute('aria-labelledby', `aba-${cfg.aba}`);
   mostrar('#abas-entrar', !!cfg.aba);
   mostrar('#titulo-modo', !!cfg.titulo); $('#titulo-modo').textContent = cfg.titulo || '';
   mostrar('#dica-modo', !!cfg.dica); $('#dica-modo').textContent = cfg.dica || '';

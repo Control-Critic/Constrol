@@ -635,3 +635,23 @@ button.link { background: none; border: 0; color: var(--amarelo); cursor: pointe
 #aviso-versao { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 100; }
 .offline-caixa { padding: 48px 16px; text-align: center; } .offline-caixa img { max-width: 160px; height: auto; }
 .regras-com summary { cursor: pointer; }
+
+/* ---------- Acessibilidade (fase 11) ---------- */
+/* Links dentro de texto: sublinhados (não dependem só da cor) */
+.aviso a, p a:not(.btn):not(.tag):not(.usuario), li a:not(.btn):not(.tag), .muted a:not(.btn):not(.tag), .rodape a { text-decoration: underline; text-underline-offset: 2px; }
+h2.h3 { font-size: 1.17em; }
+/* Itens bloqueados: o desenho fica apagado, mas o texto mantém contraste */
+.item.bloqueado { opacity: 1; filter: none; }
+.item.bloqueado > :is(.selo, .avatar, .amostra-banner, img, .moldura) { opacity: .45; filter: grayscale(.8); }
+/* Foco sempre visível no teclado */
+:focus-visible { outline: 3px solid var(--amarelo); outline-offset: 2px; }
+.car-trilho:focus-visible { outline-offset: -3px; }
+/* Pular para o conteúdo */
+.pular { position: absolute; left: 8px; top: -60px; z-index: 200; background: var(--amarelo); color: #111; padding: 10px 14px; border-radius: 10px; font-weight: 800; }
+.pular:focus { top: 8px; }
+/* Movimento reduzido: sem animações nem rolagem suave */
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+/* Alto contraste do sistema */
+@media (forced-colors: active) { .btn, .chip, .tag { border: 1px solid ButtonText; } }
+/* Alvos de toque mínimos */
+.btn.pequeno, .chip, .bt-denunciar { min-height: 32px; }

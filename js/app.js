@@ -153,15 +153,18 @@ export async function montarLayout() {
         <img class="marca" src="img/ControlHeader.png" alt="Control Critic">
         <img class="mascote" src="img/Adelino.png" alt="">
       </a>
-      <button class="menu-toggle" aria-label="Abrir menu">☰</button>
-      <nav class="nav">${LINKS.map(([h, t]) => `<a href="${h}" class="${h === pagina ? 'ativo' : ''}">${t}</a>`).join('')}
+      <button class="menu-toggle" aria-label="Abrir menu" aria-expanded="false" aria-controls="nav-principal">☰</button>
+      <nav class="nav" id="nav-principal" aria-label="Principal">${LINKS.map(([h, t]) => `<a href="${h}" class="${h === pagina ? 'ativo' : ''}" ${h === pagina ? 'aria-current="page"' : ''}>${t}</a>`).join('')}
         <details class="nav-mais"><summary class="${LINKS_MAIS.some(([h]) => h === pagina) ? 'ativo' : ''}">Mais ▾</summary>
-          <div class="nav-sub">${LINKS_MAIS.map(([h, t]) => `<a href="${h}" class="${h === pagina ? 'ativo' : ''}">${t}</a>`).join('')}</div></details></nav>
+          <div class="nav-sub">${LINKS_MAIS.map(([h, t]) => `<a href="${h}" class="${h === pagina ? 'ativo' : ''}" ${h === pagina ? 'aria-current="page"' : ''}>${t}</a>`).join('')}</div></details></nav>
       <form class="busca" action="jogos.html"><input name="q" type="search" placeholder="Buscar jogo..." aria-label="Buscar jogo"></form>
       <div class="conta"></div>
     </div>`;
   document.body.prepend(topo);
-  $('.menu-toggle', topo).onclick = () => topo.classList.toggle('aberto');
+  // Atalho de teclado para pular o menu
+  const main0 = document.querySelector('main');
+  if (main0) { main0.id ||= 'conteudo'; main0.tabIndex = -1; topo.insertAdjacentHTML('beforebegin', `<a class="pular" href="#${main0.id}">Pular para o conteúdo</a>`); }
+  $('.menu-toggle', topo).onclick = (e) => { const aberto = topo.classList.toggle('aberto'); e.currentTarget.setAttribute('aria-expanded', String(aberto)); e.currentTarget.setAttribute('aria-label', aberto ? 'Fechar menu' : 'Abrir menu'); };
   document.addEventListener('click', (e) => { const m = $('.nav-mais', topo); if (m?.open && !m.contains(e.target)) m.open = false; });
 
   const rodape = document.createElement('footer');
@@ -282,7 +285,7 @@ export const esqueletoLista = (n = 3) => Array.from({ length: n }, () => '<div c
 // Carrossel horizontal com setas (rolagem por toque no celular)
 export function carrossel(itensHtml, vazio = '') {
   if (!itensHtml) return vazio ? `<p class="vazio">${vazio}</p>` : '';
-  return `<div class="carrossel"><button class="car-seta esq" aria-label="Anterior">‹</button><div class="car-trilho">${itensHtml}</div><button class="car-seta dir" aria-label="Próximo">›</button></div>`;
+  return `<div class="carrossel"><button class="car-seta esq" aria-label="Anterior">‹</button><div class="car-trilho" tabindex="0">${itensHtml}</div><button class="car-seta dir" aria-label="Próximo">›</button></div>`;
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest('.car-seta');
@@ -657,7 +660,7 @@ export function spotifyId(link) {
   return m ? `${m[1]}/${m[2]}` : null;
 }
 export const spotifyPlayer = (id, alto = false) => /^(track|album|playlist|episode)\/[A-Za-z0-9]{22}$/.test(id || '')
-  ? `<iframe class="spotify" src="https://open.spotify.com/embed/${id}?utm_source=controlcritic" height="${alto ? 352 : 80}" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" title="Música no Spotify"></iframe>` : '';
+  ? `<iframe class="spotify" title="Música no Spotify" src="https://open.spotify.com/embed/${id}?utm_source=controlcritic" height="${alto ? 352 : 80}" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" title="Música no Spotify"></iframe>` : '';
 // Nota (status de até 60 caracteres) vale por 24 horas
 export const notaAtiva = (p) => p?.nota && p.nota_at && Date.now() - new Date(p.nota_at) < 864e5 ? p.nota : null;
 
@@ -683,6 +686,7 @@ export async function playerSpotify(el, tocar = false, ainda = () => true) {
   const api = await carregarApiSpotify();
   if (!api) { el.outerHTML = spotifyPlayer(id); return null; }
   return new Promise((ok) => api.createController(el, { uri: `spotify:${id.replace('/', ':')}`, height: 80, width: '100%' }, (c) => {
+    document.querySelectorAll('iframe[src*="open.spotify.com"]:not([title])').forEach((f) => f.setAttribute('title', 'Música no Spotify'));
     c.addListener('ready', () => { if (tocar && somLigado() && ainda()) tocarSo(c); });
     ok(c);
   }));

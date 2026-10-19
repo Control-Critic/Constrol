@@ -120,7 +120,7 @@ async function carregar(p, meu, u) {
             const s = [...topo.values()].sort((a, b) => a.cosmetics.sort - b.cosmetics.sort);
             return s.length || p.streak_current ? `<div class="vitrine">${p.streak_current ? `<span title="Dias seguidos">🔥 ${p.streak_current} dias</span>` : ''}
               ${s.slice(-6).reverse().map((x) => `<span class="${x.cosmetics.serie ? 'selo-r r-' + x.cosmetics.rarity : ''}" title="${esc(x.cosmetics.name)}: ${esc(x.cosmetics.description || '')}">${esc(x.cosmetics.icon || '🏅')} ${esc(x.cosmetics.name)}</span>`).join('')}
-              <a href="conquistas.html" style="font-size:.82rem;align-self:center">${meu ? 'Ver conquistas →' : ''}</a></div>` : ''; })()}
+              ${meu ? '<a href="conquistas.html" style="font-size:.82rem;align-self:center">Ver conquistas →</a>' : ''}</div>` : ''; })()}
           <div class="barra-xp" style="margin-top:10px;max-width:360px" title="${p.xp} XP"><div style="width:${n.pct}%"></div></div>
           <p class="muted" style="font-size:.85rem">${p.xp} XP · próximo nível em ${n.prox} XP</p>
           <p style="margin-top:6px"><strong id="n-seguidores">${seguidores ?? 0}</strong> seguidores · <strong>${seguindo ?? 0}</strong> seguindo ·

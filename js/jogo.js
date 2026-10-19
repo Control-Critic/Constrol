@@ -48,7 +48,7 @@ async function carregarPrecosLojas(g) {
   const d = await fetch(`/.netlify/functions/precos-lojas?${qs}`).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   if (!d.atual && !d.menor) return;
   const dinheiro = (x) => Number(x.preco).toLocaleString('pt-BR', { style: 'currency', currency: x.moeda || 'BRL' });
-  $('#precos-lojas').innerHTML = `<div class="cartao" style="margin-top:14px"><h3>💸 Preço em todas as lojas</h3><div class="controles" style="gap:22px;align-items:flex-end">
+  $('#precos-lojas').innerHTML = `<div class="cartao" style="margin-top:14px"><h2 class="h3">💸 Preço em todas as lojas</h2><div class="controles" style="gap:22px;align-items:flex-end">
     ${d.atual ? `<div><div class="nota-grande" style="font-size:1.8rem">${dinheiro(d.atual)}</div><span class="muted">melhor preço agora${d.atual.loja ? ` na ${esc(d.atual.loja)}` : ''}${d.atual.desconto ? ` (-${d.atual.desconto}%)` : ''}</span>
       ${d.atual.url ? `<br><a class="btn pequeno" href="${urlSegura(d.atual.url)}" target="_blank" rel="noopener sponsored" style="margin-top:6px">Ver oferta</a>` : ''}</div>` : ''}
     ${d.menor ? `<div><div class="nota-grande" style="font-size:1.8rem;color:var(--ok,#22c55e)">${dinheiro(d.menor)}</div><span class="muted">menor preço da história${d.menor.loja ? ` (${esc(d.menor.loja)}` : ''}${d.menor.quando ? `, ${new Date(d.menor.quando).toLocaleDateString('pt-BR')}` : ''}${d.menor.loja ? ')' : ''}</span></div>` : ''}
@@ -117,7 +117,7 @@ async function carregar() {
           : '<div class="nota-grande" style="font-size:1.6rem">Sem notas ainda</div><a href="#form-review" class="muted">Seja o primeiro a avaliar no Control Critic →</a>'}
           ${g.igdb_rating ? `<p class="muted" style="margin-top:8px;font-size:.88rem">Nota da crítica e público (IGDB): <strong>${Math.round(g.igdb_rating)}/100</strong> · ${g.igdb_rating_count} votos</p>` : ''}
         </div>
-        <div class="cartao"><h3>Onde comprar</h3><div class="lojas">
+        <div class="cartao"><h2 class="h3">Onde comprar</h2><div class="lojas">
           ${LOJAS.filter(([k]) => g[k]).map(([k, ic, n]) => `<a href="${urlSegura(g[k])}" target="_blank" rel="noopener noreferrer" title="${n}"><img src="img/icones/${ic}.png" alt="${n}"></a>`).join('') || '<span class="muted">Sem links cadastrados.</span>'}
         </div>
         ${(deals || []).filter((d) => d.discount_pct > 0).map((d) => `<p style="margin-top:10px"><span class="tag amarela">-${d.discount_pct}%</span>
@@ -126,9 +126,9 @@ async function carregar() {
           ${d.url ? ` · <a href="${urlSegura(d.url)}" target="_blank" rel="noopener noreferrer">ver oferta</a>` : ''}</p>`).join('')}
         ${(deals || []).some((d) => d.discount_pct > 0) ? `<p class="muted" style="font-size:.78rem;margin-top:8px">Preço atualizado ${data((deals || []).reduce((m, d) => (d.updated_at > m ? d.updated_at : m), ''))}. Confira na loja antes de comprar.</p>` : ''}
         </div>
-        ${versoes.length ? `<div class="cartao"><h3>🔁 Outras versões</h3>${versoes.map((v) => `<p><a href="jogo.html?slug=${encodeURIComponent(v.slug)}">${esc(v.title)}</a>
+        ${versoes.length ? `<div class="cartao"><h2 class="h3">🔁 Outras versões</h2>${versoes.map((v) => `<p><a href="jogo.html?slug=${encodeURIComponent(v.slug)}">${esc(v.title)}</a>
           <span class="muted">${v.release_year ? `· ${v.release_year}` : ''}${v.release_year && g.release_year ? (v.release_year > g.release_year ? ' (mais nova)' : v.release_year < g.release_year ? ' (original)' : '') : ''}</span></p>`).join('')}</div>` : ''}
-        ${comms?.length ? `<div class="cartao"><h3>Comunidades</h3>${comms.map((c) => `<p><a href="comunidade.html?id=${c.id}">${esc(c.name)}</a> <span class="muted">· ${c.members_count} membros</span></p>`).join('')}</div>` : ''}
+        ${comms?.length ? `<div class="cartao"><h2 class="h3">Comunidades</h2>${comms.map((c) => `<p><a href="comunidade.html?id=${c.id}">${esc(c.name)}</a> <span class="muted">· ${c.members_count} membros</span></p>`).join('')}</div>` : ''}
       </aside>
     </div>
 
@@ -151,10 +151,10 @@ async function carregar() {
         g.steam_appid && [`https://www.protondb.com/app/${Number(g.steam_appid)}`, '🐧 Roda no Steam Deck/Linux? (ProtonDB)'],
         [`https://www.youtube.com/results?search_query=${q}+gameplay+pt-br`, '▶️ Gameplay no YouTube'],
       ].filter(Boolean);
-      return `<div id="precos-lojas"></div><div class="cartao links-uteis" style="margin-top:14px"><h3>🔗 Mais sobre o jogo</h3><div class="controles">${links.map(([u, t]) =>
+      return `<div id="precos-lojas"></div><div class="cartao links-uteis" style="margin-top:14px"><h2 class="h3">🔗 Mais sobre o jogo</h2><div class="controles">${links.map(([u, t]) =>
         `<a class="btn sec pequeno" href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>`).join('')}</div></div>`;
     })()}
-    ${precos?.menor ? `<div class="cartao" style="margin-top:14px"><h3>📉 Histórico de preço</h3>
+    ${precos?.menor ? `<div class="cartao" style="margin-top:14px"><h2 class="h3">📉 Histórico de preço</h2>
       <p>Menor preço já visto aqui: <strong>${reais(precos.menor.preco)}</strong> na ${esc(precos.menor.loja)} em ${new Date(precos.menor.quando).toLocaleDateString('pt-BR')}
       <span class="muted">(acompanhando desde ${new Date(precos.desde).toLocaleDateString('pt-BR')})</span></p>
       ${(deals || []).find((d) => d.store === precos.menor.loja && d.price_cents != null && d.price_cents <= precos.menor.preco) ? '<p style="color:var(--ok);margin-top:4px">✅ O preço atual é o menor que já registramos!</p>' : ''}

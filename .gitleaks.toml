@@ -1,0 +1,8 @@
+# Configuração do gitleaks (CI). Usa as regras padrão e libera só o que é público por definição.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Chave PÚBLICA do Supabase (sb_publishable_...): feita para ficar no navegador; a segurança vem do RLS"
+regexes = ['''sb_publishable_[A-Za-z0-9_-]+''']
+paths = ['''package-lock\.json''']
