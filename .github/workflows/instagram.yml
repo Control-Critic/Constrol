@@ -2,18 +2,23 @@ name: Instagram
 
 on:
   schedule:
-    - cron: '20 12 * * *'      # todo dia às 09h20 (Brasília): promoção do dia (ou enquete)
-    - cron: '50 15 * * *'      # todo dia às 12h50 (Brasília): meme da comunidade ou enquete
-    - cron: '50 21 * * *'      # todo dia às 18h50 (Brasília): resumo do dia, notícia ou promoção
+    - cron: '20 12 * * *'      # todo dia às 09h20 (Brasília): útil para salvar (jogo bom por menos de R$ X, antes de comprar, promoção)
+    - cron: '50 15 * * *'      # todo dia às 12h50 (Brasília): opinião (meme, este ou aquele, zerou ou largou...)
+    - cron: '50 21 * * *'      # todo dia às 18h50 (Brasília): notícias em carrossel, opinião da comunidade (o Reels do dia sai aqui)
   workflow_dispatch:
     inputs:
       modo:
-        description: 'manha = promoção do dia | diario = resumo do dia | entretenimento = meme ou enquete | urgente = publica agora as notícias marcadas como urgentes'
+        description: 'manha = 09h20 | entretenimento = 12h50 | diario = 18h50 | urgente = notícias marcadas | amostra = gera TODOS os formatos (só com "Só gerar as artes")'
         type: choice
-        options: [manha, diario, entretenimento, urgente]
+        options: [manha, diario, entretenimento, urgente, amostra]
         default: diario
       noticia:
         description: 'ID da notícia (opcional, só no modo urgente)'
+        default: ''
+      formato:
+        description: 'Forçar um formato (vazio = rotação automática)'
+        type: choice
+        options: ['', precos, promo, antes-de-comprar, meme, versus, versus-resultado, critica-comunidade, superestimado, zerou-largou, top-genero, opiniao, noticias]
         default: ''
       teste:
         description: 'Só gerar as artes (sem publicar): baixe em "Artifacts" no fim da execução'
@@ -28,7 +33,7 @@ permissions:
 jobs:
   publicar:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -46,6 +51,7 @@ jobs:
       - run: node scripts/instagram/publicar.mjs "${{ inputs.modo || (github.event.schedule == '20 12 * * *' && 'manha') || (github.event.schedule == '50 15 * * *' && 'entretenimento') || 'diario' }}" "${{ inputs.noticia }}"
         env:
           TESTE: ${{ inputs.teste && '1' || '' }}
+          FORMATO: ${{ inputs.formato }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}

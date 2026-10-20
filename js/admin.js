@@ -8,7 +8,7 @@ const main = $('#conteudo');
 let P;
 
 const ABAS = [
-  ['geral', 'Visão geral'], ['status', 'Status 🩺'], ['metricas', 'Métricas 📊'], ['problemas', 'Problemas 🐞'], ['denuncias', 'Denúncias'], ['apelacoes', 'Apelações'], ['jogos', 'Jogos'], ['noticias', 'Notícias'], ['promos', 'Promoções'], ['memes', 'Memes 😂'], ['stories', 'Stories 📸'],
+  ['geral', 'Visão geral'], ['status', 'Status 🩺'], ['metricas', 'Métricas 📊'], ['problemas', 'Problemas 🐞'], ['denuncias', 'Denúncias'], ['apelacoes', 'Apelações'], ['jogos', 'Jogos'], ['noticias', 'Notícias'], ['promos', 'Promoções'], ['memes', 'Memes 😂'], ['instagram', 'Instagram 📸'], ['stories', 'Stories 📸'],
   ['reviews', 'Avaliações'], ['posts', 'Posts'], ['comunidades', 'Comunidades'], ['mensagens', 'Mensagens'],
   ['usuarios', 'Usuários'], ['cargos', 'Cargos', true], ['itens', 'Itens', true], ['desafios', 'Desafios', true], ['registro', 'Registro'], ['site', 'Site', true], ['auto', 'Automação', true],
 ];
@@ -26,7 +26,7 @@ function iniciar() {
 }
 
 const painel = () => $('#painel');
-const VIEWS = { geral, status, metricas, problemas, denuncias, apelacoes, jogos, noticias, promos, memes, stories, reviews, posts, comunidades, mensagens, usuarios, cargos, itens, desafios, registro, site, auto };
+const VIEWS = { geral, status, metricas, problemas, denuncias, apelacoes, jogos, noticias, promos, memes, instagram, stories, reviews, posts, comunidades, mensagens, usuarios, cargos, itens, desafios, registro, site, auto };
 function abrir(k) { painel().innerHTML = '<p class="muted">Carregando...</p>'; VIEWS[k]().catch(falha); }
 
 // Campo de busca de jogo com sugestões (o catálogo tem milhares de jogos)
@@ -253,6 +253,37 @@ async function jogos() {
   $('#j-prox')?.addEventListener('click', () => { f.pagina++; jogos(); });
 }
 
+// ---------------- Instagram: histórico do robô e números do Insights (anotados à mão) ----------------
+const NOMES_IG = { precos: 'Jogo bom por menos de R$ X', promo: 'Promoção', 'antes-de-comprar': 'Antes de comprar', meme: 'Meme', versus: 'Este ou aquele', 'versus-resultado': 'Resultado do versus',
+  'critica-comunidade': 'Crítica × comunidade', superestimado: 'Superestimado?', 'zerou-largou': 'Zerou ou largou?', 'top-genero': 'Top 5 por gênero', opiniao: 'Opinião da comunidade', noticias: 'Notícias', urgente: 'Urgente' };
+async function instagram() {
+  const { data: ps, error } = await sb.from('instagram_posts').select('id,created_at,horario,tipo,formato,ig_media_id,permalink,hashtags,erro,salvamentos,compartilhamentos,comentarios,alcance')
+    .order('created_at', { ascending: false }).limit(30);
+  if (error) throw /instagram_posts/.test(error.message) ? new Error('Rode a migração supabase/migrations/20261020_08_instagram_posts.sql para ativar o histórico.') : error;
+  // Média de salvamentos por tipo (só posts com números anotados, últimos 30 dias)
+  const porTipo = {};
+  for (const p of ps.filter((x) => x.salvamentos != null && Date.now() - new Date(x.created_at) < 30 * 864e5)) (porTipo[p.tipo] ||= []).push(p.salvamentos);
+  const ranking = Object.entries(porTipo).map(([t, l]) => [t, l.reduce((a, b) => a + b, 0) / l.length, l.length]).sort((a, b) => b[1] - a[1]);
+  const num = (v, campo, id) => `<input type="number" min="0" inputmode="numeric" style="width:76px" data-m="${campo}" data-id="${id}" value="${v ?? ''}" aria-label="${campo}">`;
+  painel().innerHTML = `<div class="cartao" style="margin-bottom:12px"><strong>📸 Posts do robô</strong>
+      <p class="muted" style="font-size:.88rem;margin-top:4px">Os números vêm do app do Instagram: abra o post → <strong>Ver insights</strong> e copie salvamentos, compartilhamentos, comentários e alcance aqui (o robô não lê métricas: o app não tem essa permissão).
+      Depois de 3 posts medidos, um formato que salva 1,5× mais que a média do horário passa a ter prioridade na rotação.</p>
+      ${ranking.length ? `<p style="margin-top:8px"><strong>Salvamentos por formato (média, 30 dias):</strong> ${ranking.map(([t, m, n]) => `${esc(NOMES_IG[t] || t)}: ${m.toFixed(1).replace('.', ',')} (${plural(n, 'post', 'posts')})`).join(' · ')}</p>` : ''}</div>
+    ${ps.length ? tabela(['Data', 'Horário', 'Tipo', 'Formato', 'Post', 'Salv.', 'Compart.', 'Coment.', 'Alcance', ''], ps.map((p) => `<tr>
+      <td>${new Date(p.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</td><td>${esc(p.horario || '')}</td><td>${esc(NOMES_IG[p.tipo] || p.tipo)}</td><td>${esc(p.formato || '')}</td>
+      <td>${p.erro ? `<span class="tag" style="background:#e5484d;color:#fff" title="${esc(p.erro)}">${/^limite/.test(p.erro) ? 'limite da API' : 'falhou'}</span>` : p.permalink ? `<a href="${urlSegura(p.permalink)}" target="_blank" rel="noopener noreferrer">ver</a> <span class="muted" style="font-size:.75rem">${esc(p.ig_media_id || '')}</span>` : esc(p.ig_media_id || '')}</td>
+      ${p.erro ? '<td colspan="5"></td>' : `<td>${num(p.salvamentos, 'salv', p.id)}</td><td>${num(p.compartilhamentos, 'comp', p.id)}</td><td>${num(p.comentarios, 'coment', p.id)}</td><td>${num(p.alcance, 'alc', p.id)}</td>
+      <td><button class="btn pequeno" data-acao="medir" data-id="${p.id}">Salvar</button></td>`}</tr>`))
+    : '<p class="muted">Nenhum post registrado ainda. O histórico começa no próximo post do robô.</p>'}`;
+  acoes({
+    medir: async (id) => {
+      const v = (c) => { const x = painel().querySelector(`[data-m="${c}"][data-id="${id}"]`).value; return x === '' ? null : Math.max(0, Math.round(Number(x))); };
+      const { error: e } = await sb.rpc('instagram_medir', { post_id: Number(id), salv: v('salv'), comp: v('comp'), coment: v('coment'), alc: v('alc') });
+      if (e) throw e; toast('Números salvos.'); instagram();
+    },
+  });
+}
+
 // ---------------- Notícias ----------------
 async function noticias() {
   const [{ data: ns }, { data: gs }] = await Promise.all([
@@ -265,7 +296,7 @@ async function noticias() {
   const igStatus = (n) => n.instagram_at ? `<a class="tag" href="${urlSegura(n.instagram_url || 'https://www.instagram.com/control.critic/')}" target="_blank" rel="noopener noreferrer">📸 no Instagram</a>`
     : n.instagram_status === 'urgente' ? '<span class="tag amarela">📸 publicando…</span>' : n.instagram_status === 'erro' ? '<span class="tag" style="background:#e5484d;color:#fff">📸 falhou</span>' : '';
   painel().innerHTML = `<div class="cartao" style="margin-bottom:12px"><strong>📸 Instagram</strong>
-      <p class="muted" style="font-size:.88rem;margin-top:4px">Todo dia às 12h50 sai um <strong>meme</strong> aprovado (aba Memes) ou uma enquete, e às 18h50 o <strong>resumo do dia</strong> (ou a notícia do dia; sem notícia, a promoção do dia).
+      <p class="muted" style="font-size:.88rem;margin-top:4px">Três posts por dia, com rotação de formatos (veja a aba <strong>Instagram 📸</strong>): 09h20 conteúdo útil (promoções, "antes de comprar"), 12h50 opinião (meme, enquete), 18h50 notícias em carrossel ou opinião da comunidade. Notícias só saem com até 48 h.
         Para algo urgente, use <strong>📸 Postar agora</strong> na notícia: sai em 1 a 2 minutos com a etiqueta "URGENTE".</p>
       ${ultimo ? `<p style="font-size:.88rem;margin-top:6px">Último post: ${esc({ resumo: 'resumo do dia', noticia: 'notícia do dia', promocao: 'promoção do dia', urgente: 'notícia urgente', meme: 'meme', versus: 'enquete' }[ultimo.tipo] || ultimo.tipo)} em ${new Date(ultimo.em).toLocaleString('pt-BR')}
         ${ultimo.url ? ` · <a href="${urlSegura(ultimo.url)}" target="_blank" rel="noopener noreferrer">ver post</a>` : ''}</p>` : '<p class="muted" style="font-size:.85rem;margin-top:6px">Ainda nenhum post (configure o robô: scripts/instagram/LEIA-ME.md).</p>'}</div>
@@ -313,8 +344,8 @@ async function memes() {
   const situacao = (m) => m.instagram_at ? `<a class="tag amarela" href="${urlSegura(m.instagram_url || 'https://www.instagram.com/control.critic/')}" target="_blank" rel="noopener noreferrer">📸 publicado</a>`
     : m.ig_aprovado ? '<span class="tag amarela">na fila</span>' : m.ig_recusado ? '<span class="tag">recusado</span>' : '<span class="tag">aguardando</span>';
   painel().innerHTML = `<div class="cartao" style="margin-bottom:12px"><strong>😂 Memes da comunidade</strong>
-      <p class="muted" style="font-size:.88rem;margin-top:4px">Todo dia às 12h50 o robô publica o meme aprovado mais antigo, com crédito ao autor. Na fila: <strong>${fila}</strong>.
-      Sem meme aprovado, ele posta uma enquete "Qual você prefere?" com dois jogos.<br>Aprove só o que é original ou de uso livre, sem ofensas e sem dados pessoais.</p></div>
+      <p class="muted" style="font-size:.88rem;margin-top:4px">Às 12h50, quando for a vez do meme na rotação, o robô publica até 3 memes aprovados (os mais antigos) em carrossel, com o nome do autor na arte. Na fila: <strong>${fila}</strong>.
+      Sem meme aprovado, sai outro formato de opinião (enquete, zerou ou largou...).<br>Aprove só o que é original ou de uso livre, sem ofensas e sem dados pessoais.</p></div>
     ${ms.length ? tabela(['Meme', 'Autor', 'Legenda', 'Data', 'Situação', ''], ms.map((m) => `<tr>
       <td><a href="${urlSegura(m.image_url)}" target="_blank" rel="noopener noreferrer"><img src="${urlSegura(m.image_url)}" alt="" style="width:90px;height:90px;object-fit:cover;border-radius:8px"></a></td>
       <td>@${esc(m.profiles?.username)}</td><td>${corta(m.body, 100)}</td><td>${data(m.created_at)}</td><td>${situacao(m)}</td>

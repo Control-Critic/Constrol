@@ -1,17 +1,21 @@
 // Publica no Instagram do Control Critic pela API oficial (Instagram API com login do Instagram).
-//   node scripts/instagram/publicar.mjs manha           -> promoção do dia; sem promoção nova, enquete "Qual você prefere?"
-//   node scripts/instagram/publicar.mjs diario          -> resumo do dia (carrossel) ou uma notícia; sem notícia, a promoção do dia
-//   node scripts/instagram/publicar.mjs entretenimento   -> meme da comunidade aprovado pela equipe; sem meme, enquete "Qual você prefere?"
+//   node scripts/instagram/publicar.mjs manha           -> 09h20: útil para salvar (jogo bom por menos de R$ X, antes de comprar, promoção)
+//   node scripts/instagram/publicar.mjs entretenimento  -> 12h50: opinião (meme, este ou aquele, crítica x comunidade, zerou ou largou...)
+//   node scripts/instagram/publicar.mjs diario          -> 18h50: notícias em carrossel, opinião da comunidade, top 5 (o Reels do dia sai aqui)
 //   node scripts/instagram/publicar.mjs urgente [id]    -> notícias marcadas como urgentes no painel (ou a de id informado)
-//   TESTE=1 ...                                        -> só gera as artes e a legenda (pasta saida-instagram/), sem publicar
+//   node scripts/instagram/publicar.mjs amostra         -> só com TESTE=1: gera TODOS os formatos em saida-instagram/<formato>/
+//   FORMATO=precos ...                                  -> força um formato (veja formatos.mjs), ignorando a rotação
+//   TESTE=1 ...                                         -> só gera as artes e a legenda (pasta saida-instagram/), sem publicar
 // Variáveis: SUPABASE_URL, SUPABASE_SERVICE_KEY, IG_USER_ID, IG_TOKEN (o token é renovado sozinho e guardado no banco)
+// Cada formato escolhe o conteúdo; a rotação (rotacao.mjs) decide qual formato sai em cada horário.
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { supabaseRest } from '../../lib/igdb.mjs';
-import { escolherVersus } from './versus.mjs';
-import { arteNoticia, arteResumo, artePromo, arteMeme, arteVersus, arteStory } from './arte.mjs';
+import { arteStory } from './arte.mjs';
+import { FORMATOS, noticias } from './formatos.mjs';
+import { ordemDeFormatos, usadosRecentes, podeReels, HORARIO_DO_MODO } from './rotacao.mjs';
 
 const gh = !!process.env.GITHUB_ACTIONS;
 const env = (k) => (process.env[k] || '').trim();
@@ -23,25 +27,35 @@ process.on('unhandledRejection', (e) => falhar(`Falha: ${e?.message || e}`));
 const TESTE = env('TESTE') === '1';
 const MODO = process.argv[2] || 'diario';
 const ID_NOTICIA = Number(process.argv[3]) || null;
+const FORMATO = env('FORMATO');
 const faltam = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY', ...(TESTE ? [] : ['IG_USER_ID'])].filter((k) => !env(k));
 if (faltam.length) falhar(`Faltam variáveis: ${faltam.join(', ')}`);
+if (MODO === 'amostra' && !TESTE) falhar('O modo amostra só roda com TESTE=1 (marque "Só gerar as artes").');
+if (FORMATO && !FORMATOS[FORMATO]) falhar(`Formato desconhecido: ${FORMATO}. Use um de: ${Object.keys(FORMATOS).join(', ')}`);
 
 const BASE = env('SUPABASE_URL').replace(/\/+(rest\/v1)?\/*$/, '');
 const CHAVE = env('SUPABASE_SERVICE_KEY');
 const api = supabaseRest(BASE, CHAVE);
 const IG = 'https://graph.instagram.com/v23.0';
-const SITE = 'control-critic.netlify.app';
-const hoje = () => new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
-const dataCurta = (d) => new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
 const espera = (ms) => new Promise((ok) => setTimeout(ok, ms));
+const SAIDA = 'saida-instagram';
+
+// Conta linhas sem trazer os dados (só o número; usado em contagens agregadas como "N zeraram")
+async function contar(caminho) {
+  const auth = CHAVE.startsWith('eyJ') ? { Authorization: `Bearer ${CHAVE}` } : {};
+  const r = await fetch(`${BASE}/rest/v1/${caminho}`, { method: 'HEAD', headers: { apikey: CHAVE, ...auth, Prefer: 'count=exact' } });
+  return Number(r.headers.get('content-range')?.split('/')[1]) || 0;
+}
 
 // ---------- Token: usa o guardado no banco (renovado a cada ~20 dias); na primeira vez, o do GitHub ----------
+let tokenCache = null;
 async function tokenInstagram() {
+  if (tokenCache) return tokenCache;
   const [salvo] = await api('app_secrets?key=eq.instagram_token&select=value');
   let token = salvo?.value?.token || env('IG_TOKEN');
   if (!token) falhar('Sem token do Instagram: coloque IG_TOKEN nos segredos do GitHub (veja scripts/instagram/LEIA-ME.md).');
   const renovado = salvo?.value?.renovado_em ? new Date(salvo.value.renovado_em) : new Date(0);
-  if (Date.now() - renovado > 20 * 864e5) {
+  if (!TESTE && Date.now() - renovado > 20 * 864e5) {
     const r = await fetch(`https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(token)}`);
     const d = await r.json().catch(() => ({}));
     if (r.ok && d.access_token) {
@@ -53,15 +67,30 @@ async function tokenInstagram() {
       log(`Aviso: não deu para renovar o token agora (${d.error?.message || r.status}). Seguindo com o atual.`);
     } else falhar(`O token do Instagram expirou ou foi revogado (${d.error?.message || r.status}). Gere outro e atualize IG_TOKEN (LEIA-ME, passo 4).`);
   }
-  return token;
+  return (tokenCache = token);
 }
 
 async function ig(caminho, params, token, metodo = 'POST') {
   const q = new URLSearchParams({ ...params, access_token: token });
   const r = await fetch(`${IG}/${caminho}${metodo === 'GET' ? '?' + q : ''}`, metodo === 'GET' ? {} : { method: 'POST', body: q });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok || d.error) throw new Error(`Instagram (${caminho}): ${d.error?.message || r.status}`);
+  if (!r.ok || d.error) {
+    const e = new Error(`Instagram (${caminho.replace(/^\d+\//, '')}): ${d.error?.message || r.status}`);
+    e.codigo = d.error?.code; e.sub = d.error?.error_subcode; e.status = r.status;
+    throw e;
+  }
   return d;
+}
+// Limite de publicação ou de chamadas: registra e pula, sem quebrar o robô
+const ehLimite = (e) => [4, 9, 17, 32, 613].includes(e?.codigo) || e?.sub === 2207042 || /limit|limite|too many/i.test(e?.message || '');
+class LimiteAtingido extends Error {}
+async function conferirCota(token) {
+  try {
+    const d = await ig(`${env('IG_USER_ID')}/content_publishing_limit`, { fields: 'quota_usage,config' }, token, 'GET');
+    const uso = d.data?.[0]?.quota_usage ?? 0, total = d.data?.[0]?.config?.quota_total ?? 50;
+    log(`Cota de publicação do Instagram: ${uso}/${total} nas últimas 24 h.`);
+    if (uso >= total) throw new LimiteAtingido(`Cota de publicação esgotada (${uso}/${total} em 24 h).`);
+  } catch (e) { if (e instanceof LimiteAtingido) throw e; log(`Não deu para consultar a cota (${e.message}). Seguindo.`); }
 }
 
 // O Instagram baixa a imagem de uma URL pública: guardamos no armazenamento do Supabase
@@ -77,10 +106,10 @@ async function aguardarPronto(id, token, tentativas = 30) {
   for (let i = 0; i < tentativas; i++) {
     const d = await ig(id, { fields: 'status_code' }, token, 'GET');
     if (d.status_code === 'FINISHED') return;
-    if (d.status_code === 'ERROR' || d.status_code === 'EXPIRED') throw new Error(`Instagram recusou a imagem (${d.status_code}).`);
+    if (d.status_code === 'ERROR' || d.status_code === 'EXPIRED') throw new Error(`Instagram recusou a mídia (${d.status_code}).`);
     await espera(3000);
   }
-  throw new Error('Instagram demorou demais para processar a imagem.');
+  throw new Error('Instagram demorou demais para processar a mídia.');
 }
 
 // ---------- Reels com música ----------
@@ -90,41 +119,28 @@ function musicas() { try { return readdirSync(PASTA_MUSICAS).filter((f) => /\.mp
 function temFfmpeg() { try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); return true; } catch { return false; } }
 export const reelsDisponivel = () => env('REELS') !== '0' && musicas().length > 0 && temFfmpeg();
 
-// Monta um vídeo vertical (1080x1920) com as artes (4 s cada, transição suave) e uma música sorteada com fade no fim
-async function montarReel(imagens) {
+// Vídeo vertical (1080x1920): cada arte fica 3,5 s com zoom lento (efeito Ken Burns), transição suave e música com fade no fim
+export async function montarReel(imagens, musica) {
   const dir = join(tmpdir(), `reel-${Date.now()}`); mkdirSync(dir, { recursive: true });
   const quadros = [];
-  for (const [i, im] of imagens.entries()) { const f = join(dir, `q${i}.jpg`); writeFileSync(f, await arteStory(im.jpeg, chamadaDe(im.nome))); quadros.push(f); }
-  const lista = musicas(); const musica = new URL(lista[Math.floor(Math.random() * lista.length)], PASTA_MUSICAS).pathname;
-  const dur = 4, total = quadros.length * dur, saida = join(dir, 'reel.mp4');
-  const entradas = quadros.flatMap((q) => ['-loop', '1', '-t', String(dur + 0.5), '-i', q]);
-  // transição "fade" entre os quadros
-  let filtro = '', anterior = '[0:v]';
-  for (let i = 1; i < quadros.length; i++) { const rot = i === quadros.length - 1 ? '[v]' : `[x${i}]`; filtro += `${anterior}[${i}:v]xfade=transition=fade:duration=0.5:offset=${i * dur}${rot};`; anterior = rot; }
-  if (quadros.length === 1) filtro = '[0:v]null[v];';
-  execFileSync('ffmpeg', ['-y', ...entradas, '-i', musica, '-filter_complex', `${filtro}[${quadros.length}:a]afade=t=out:st=${Math.max(0, total - 2.5)}:d=2.5[a]`,
-    '-map', '[v]', '-map', '[a]', '-t', String(total), '-r', '30', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'veryfast', '-crf', '23',
+  for (const [i, im] of imagens.slice(0, 6).entries()) { const f = join(dir, `q${i}.jpg`); writeFileSync(f, await arteStory(im.jpeg, chamadaDe(im.nome), 'Salve e mande para um amigo')); quadros.push(f); }
+  const dur = 3.5, trans = 0.5, fps = 30, n = quadros.length, total = n * dur - (n - 1) * trans, saida = join(dir, 'reel.mp4');
+  const quadrosPorArte = Math.round(dur * fps);
+  let filtro = quadros.map((_, i) => `[${i}:v]scale=1296:2304,zoompan=z='min(zoom+0.0007,1.12)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${quadrosPorArte}:s=1080x1920:fps=${fps},setsar=1,format=yuv420p[z${i}];`).join('');
+  let anterior = '[z0]';
+  for (let i = 1; i < n; i++) { const rot = i === n - 1 ? '[v]' : `[x${i}]`; filtro += `${anterior}[z${i}]xfade=transition=fade:duration=${trans}:offset=${(i * (dur - trans)).toFixed(2)}${rot};`; anterior = rot; }
+  if (n === 1) filtro += '[z0]null[v];';
+  execFileSync('ffmpeg', ['-y', ...quadros.flatMap((q) => ['-i', q]), '-i', musica, '-filter_complex', `${filtro}[${n}:a]afade=t=out:st=${Math.max(0, total - 2.5)}:d=2.5[a]`,
+    '-map', '[v]', '-map', '[a]', '-t', String(total), '-r', String(fps), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'veryfast', '-crf', '23',
     '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', saida], { stdio: 'ignore' });
   const mp4 = readFileSync(saida); rmSync(dir, { recursive: true, force: true });
   return mp4;
 }
+const sortearMusica = () => { const l = musicas(); return new URL(l[Math.floor(Math.random() * l.length)], PASTA_MUSICAS).pathname; };
 
-async function publicarReel(imagens, legenda) {
-  const mp4 = await montarReel(imagens);
-  if (TESTE) { mkdirSync('saida-instagram', { recursive: true }); writeFileSync('saida-instagram/reel.mp4', mp4); writeFileSync('saida-instagram/legenda.txt', legenda); aviso('TESTE: Reels salvo em saida-instagram/reel.mp4 (nada foi publicado).'); return { url: null }; }
-  const token = await tokenInstagram();
-  const url = await hospedar(mp4, 'reel', 'video/mp4', 'mp4');
-  const c = await ig(`${env('IG_USER_ID')}/media`, { media_type: 'REELS', video_url: url, caption: legenda, share_to_feed: 'true' }, token);
-  await aguardarPronto(c.id, token, 100);   // vídeo demora mais para processar (até ~5 min)
-  const post = await ig(`${env('IG_USER_ID')}/media_publish`, { creation_id: c.id }, token);
-  const info = await ig(post.id, { fields: 'permalink' }, token, 'GET').catch(() => ({}));
-  await publicarStory(imagens[0].jpeg, imagens[0].nome, token);
-  return { id: post.id, url: info.permalink || null };
-}
-
-// imagens: [{ jpeg, nome }]; uma imagem = post simples; várias = carrossel
-// Todo post do feed também vira story (mais alcance: os stories aparecem no topo do app para os seguidores)
-const CHAMADAS = { resumo: 'RESUMO DO DIA', noticia: 'NOTÍCIA NOVA', urgente: 'URGENTE', promo: 'PROMOÇÃO DO DIA', meme: 'MEME DO DIA', versus: 'VOTE NOS COMENTÁRIOS' };
+// Story: todo post do feed também vira story (mais alcance: os stories aparecem no topo do app para os seguidores)
+const CHAMADAS = { resumo: 'RESUMO DO DIA', noticia: 'NOTÍCIA NOVA', urgente: 'URGENTE', promo: 'PROMOÇÃO DO DIA', preco: 'PROMOÇÃO DO DIA', precos: 'SALVE PARA DEPOIS', antes: 'ANTES DE COMPRAR',
+  meme: 'MEME DO DIA', versus: 'VOTE NOS COMENTÁRIOS', resultado: 'RESULTADO', critica: 'QUEM ESTÁ CERTO?', super: 'DÊ SUA OPINIÃO', zerou: 'ZEROU OU LARGOU?', top: 'SALVE PARA DEPOIS', opiniao: 'A COMUNIDADE DISSE' };
 const chamadaDe = (nome) => CHAMADAS[String(nome).split('-')[0]] || 'NOVO POST NO PERFIL';
 async function publicarStory(jpeg, nome, token) {
   try {
@@ -136,165 +152,133 @@ async function publicarStory(jpeg, nome, token) {
   } catch (e) { aviso(`O post saiu, mas o story falhou: ${e.message}`); }   // story nunca derruba o post
 }
 
-async function publicar(imagens, legenda) {
-  if (TESTE) {
-    mkdirSync('saida-instagram', { recursive: true });
-    imagens.forEach((im, i) => writeFileSync(`saida-instagram/${i + 1}-${im.nome}.jpg`, im.jpeg));
-    writeFileSync('saida-instagram/story.jpg', await arteStory(imagens[0].jpeg, chamadaDe(imagens[0].nome)));
-    writeFileSync('saida-instagram/legenda.txt', legenda);
-    aviso(`TESTE: ${imagens.length} arte(s) e a legenda salvas em saida-instagram/ (nada foi publicado).`);
-    return { url: null };
-  }
+// Salva para revisão humana (TESTE): artes, story, legenda e, se for o caso, o Reels
+async function salvarTeste(conteudo, pasta, comReels) {
+  const dir = join(SAIDA, pasta); mkdirSync(dir, { recursive: true });
+  conteudo.imagens.forEach((im, i) => writeFileSync(join(dir, `${String(i + 1).padStart(2, '0')}-${im.nome}.jpg`), im.jpeg));
+  writeFileSync(join(dir, 'story.jpg'), await arteStory(conteudo.imagens[0].jpeg, chamadaDe(conteudo.imagens[0].nome)));
+  writeFileSync(join(dir, 'legenda.txt'), conteudo.legenda);
+  if (comReels) writeFileSync(join(dir, 'reel.mp4'), await montarReel(conteudo.imagens, sortearMusica()));
+}
+
+// Publica: 1 imagem = post simples; várias = carrossel (até 10); comReels = vídeo
+async function publicarNoInstagram(conteudo, comReels) {
   const token = await tokenInstagram();
+  await conferirCota(token);
   const usuario = env('IG_USER_ID');
-  const urls = [];
-  for (const im of imagens) urls.push(await hospedar(im.jpeg, im.nome));
+  const { imagens, legenda } = conteudo;
   let container;
-  if (urls.length === 1) {
-    container = (await ig(`${usuario}/media`, { image_url: urls[0], caption: legenda }, token)).id;
+  if (comReels) {
+    const url = await hospedar(await montarReel(imagens, sortearMusica()), 'reel', 'video/mp4', 'mp4');
+    container = (await ig(`${usuario}/media`, { media_type: 'REELS', video_url: url, caption: legenda, share_to_feed: 'true' }, token)).id;
+    await aguardarPronto(container, token, 100);   // vídeo demora mais (até ~5 min)
   } else {
-    const filhos = [];
-    for (const u of urls) { const c = await ig(`${usuario}/media`, { image_url: u, is_carousel_item: 'true' }, token); filhos.push(c.id); }
-    for (const f of filhos) await aguardarPronto(f, token);
-    container = (await ig(`${usuario}/media`, { media_type: 'CAROUSEL', children: filhos.join(','), caption: legenda }, token)).id;
+    const urls = [];
+    for (const im of imagens.slice(0, 10)) urls.push(await hospedar(im.jpeg, im.nome));
+    if (urls.length === 1) container = (await ig(`${usuario}/media`, { image_url: urls[0], caption: legenda }, token)).id;
+    else {
+      const filhos = [];
+      for (const u of urls) filhos.push((await ig(`${usuario}/media`, { image_url: u, is_carousel_item: 'true' }, token)).id);
+      for (const f of filhos) await aguardarPronto(f, token);
+      container = (await ig(`${usuario}/media`, { media_type: 'CAROUSEL', children: filhos.join(','), caption: legenda }, token)).id;
+    }
+    await aguardarPronto(container, token);
   }
-  await aguardarPronto(container, token);
   const post = await ig(`${usuario}/media_publish`, { creation_id: container }, token);
   const info = await ig(post.id, { fields: 'permalink' }, token, 'GET').catch(() => ({}));
   await publicarStory(imagens[0].jpeg, imagens[0].nome, token);
   return { id: post.id, url: info.permalink || null };
 }
 
-// ---------- Legendas (emojis e hashtags ficam aqui; a arte não usa emoji) ----------
-const TAGS = '#games #videogames #noticiasgames #gamer #ControlCritic';
-const corta = (t, n) => { const s = String(t || '').replace(/\s*The post .*? appeared first on .*$/i, '').trim(); return s.length > n ? s.slice(0, n - 1).replace(/\s\S*$/, '') + '…' : s; };
-const legendaNoticia = (n, urgente) => [
-  `${urgente ? '🚨 URGENTE | ' : '🎮 '}${n.title}`, '',
-  corta(n.summary || n.body, 600), '',
-  n.source ? `📰 Fonte: ${n.source}` : null,
-  `🔗 Mais no site: link na bio (${SITE})`, '', TAGS,
-].filter((x) => x !== null).join('\n');
-const legendaResumo = (ns) => [
-  `📅 Resumo do dia ${hoje()}: o que rolou no mundo dos games`, '',
-  ...ns.map((n, i) => `${i + 1}️⃣ ${n.title}`), '',
-  '👉 Arraste para ver cada notícia',
-  `🔗 Notícias completas, promoções e comunidades: link na bio (${SITE})`, '', TAGS,
-].join('\n');
-
-const prioridade = (n) => (n.cover_url ? 4 : 0) + (n.lang === 'pt' ? 2 : 0) + (n.source ? 1 : 0);
-
-async function marcar(ns, resultado) {
-  for (const n of ns) await api(`news?id=eq.${n.id}`, { method: 'PATCH', body: { instagram_at: new Date().toISOString(), instagram_url: resultado.url, instagram_status: null } });
+// Comentários de um post (para o resultado do "este ou aquele"). Sem a permissão de comentários, devolve null e o formato é pulado.
+async function lerComentarios(mediaId) {
+  try {
+    const d = await ig(`${mediaId}/comments`, { fields: 'text', limit: '100' }, await tokenInstagram(), 'GET');
+    return (d.data || []).map((c) => c.text);
+  } catch (e) { log(`Sem acesso aos comentários (${e.message}): resultado do versus pulado.`); return null; }
 }
-async function registrar(dados) {
-  await api('settings?on_conflict=key', { method: 'POST', prefer: 'resolution=merge-duplicates', body: [{ key: 'instagram_ultimo', value: { ...dados, em: new Date().toISOString() } }] });
+
+// ---------- Registro (tabela instagram_posts) ----------
+let temTabela = true;
+async function historico() {
+  try { return await api(`instagram_posts?select=tipo,horario,formato,created_at,game_ids,news_ids,refs,ig_media_id,erro,salvamentos&created_at=gte.${new Date(Date.now() - 30 * 864e5).toISOString()}&order=created_at.desc&limit=300`); }
+  catch (e) { temTabela = false; aviso(`Sem histórico (${e.message.slice(0, 120)}). Rode a migração 20261020_08_instagram_posts.sql. Seguindo sem rotação por histórico.`); return []; }
+}
+async function registrarPost(linha) {
+  if (TESTE || !temTabela) return;
+  try { await api('instagram_posts', { method: 'POST', body: [linha] }); } catch (e) { aviso(`Não deu para registrar o post: ${e.message}`); }
+  // compatibilidade com o painel antigo ("último post do Instagram")
+  await api('settings?on_conflict=key', { method: 'POST', prefer: 'resolution=merge-duplicates', body: [{ key: 'instagram_ultimo', value: { tipo: linha.tipo, url: linha.permalink, erro: linha.erro, em: new Date().toISOString() } }] }).catch(() => {});
+}
+
+// Gera o conteúdo e publica (ou salva no teste). Devolve true se publicou/gerou.
+async function executar(conteudo, horario, hist) {
+  const comReels = horario === 'noite' && conteudo.imagens.length >= 3 && reelsDisponivel() && podeReels(horario, hist) && conteudo.tipo !== 'urgente';
+  const formato = comReels ? 'reels' : conteudo.imagens.length > 1 ? 'carrossel' : 'imagem';
+  const base = { modo: MODO, horario, tipo: conteudo.tipo, formato, game_ids: conteudo.game_ids || [], news_ids: conteudo.news_ids || [], refs: conteudo.refs || [], hashtags: conteudo.tags || [] };
+  if (TESTE) {
+    await salvarTeste(conteudo, MODO === 'amostra' ? conteudo.tipo : '.', comReels);
+    aviso(`TESTE: ${conteudo.tipo} (${formato}, ${conteudo.imagens.length} ${conteudo.imagens.length === 1 ? 'arte' : 'artes'}) salvo em ${SAIDA}/ (nada foi publicado).`);
+    return true;
+  }
+  try {
+    const r = await publicarNoInstagram(conteudo, comReels);
+    await conteudo.depois?.(r);
+    await registrarPost({ ...base, ig_media_id: r.id, permalink: r.url });
+    aviso(`Instagram: ${conteudo.tipo} publicado como ${formato} ${r.url || ''}`);
+    return true;
+  } catch (e) {
+    if (e instanceof LimiteAtingido || ehLimite(e)) {
+      await registrarPost({ ...base, erro: `limite: ${e.message}`.slice(0, 500) });
+      aviso(`Instagram: limite da API atingido. Post pulado e registrado (${e.message}).`);
+      return true;   // não quebra o robô
+    }
+    await registrarPost({ ...base, erro: e.message.slice(0, 500) });
+    throw e;
+  }
+}
+
+function contexto(hist, { ignorarRepetidos = false } = {}) {
+  const { jogos, noticias: ns } = usadosRecentes(hist);
+  const refsTodas = new Set(hist.filter((h) => !h.erro).flatMap((h) => h.refs || []));
+  const refs30 = refsTodas; // o histórico carregado já é de 30 dias
+  // promoções: além das 48 h, não repete o mesmo jogo em promoção na semana
+  const semana = hist.filter((h) => !h.erro && ['precos', 'promo', 'antes-de-comprar'].includes(h.tipo) && Date.now() - new Date(h.created_at) < 7 * 864e5).flatMap((h) => h.game_ids || []);
+  return { api, contar, historico: hist, lerComentarios: TESTE ? null : lerComentarios,
+    evitarJogos: ignorarRepetidos ? new Set() : new Set([...jogos, ...semana]), evitarNoticias: ignorarRepetidos ? new Set() : ns, refsUsadas: refsTodas, refsRecentes: refs30 };
 }
 
 // ---------- Modos ----------
-async function diario() {
-  const desde = new Date(Date.now() - 26 * 3600e3).toISOString();
-  const ns = (await api(`news?select=id,title,summary,body,source,cover_url,lang,created_at,games(categories(slug))&published=eq.true&instagram_at=is.null&created_at=gte.${desde}&order=created_at.desc&limit=30`))
-    .sort((a, b) => prioridade(b) - prioridade(a)).slice(0, 5);
-  if (ns.length >= 2) {
-    const imagens = [{ jpeg: await arteResumo({ data: hoje(), titulos: ns.map((n) => n.title) }), nome: 'resumo' }];
-    for (const [i, n] of ns.entries()) imagens.push({ jpeg: await arteNoticia({ titulo: n.title, fonte: n.source || 'Control Critic', data: dataCurta(n.created_at), capa: n.cover_url, numero: i + 1, tema: n.games?.categories?.slug }), nome: `noticia-${n.id}` });
-    // Com música disponível, o resumo vira Reels (mais alcance); senão, carrossel
-    const r = reelsDisponivel() ? await publicarReel(imagens, legendaResumo(ns).replace('👉 Arraste para ver cada notícia', '🎬 Assista até o fim')) : await publicar(imagens, legendaResumo(ns));
-    if (!TESTE) { await marcar(ns, r); await registrar({ tipo: 'resumo', noticias: ns.length, url: r.url }); }
-    return aviso(`Instagram: resumo do dia com ${ns.length} notícias ${TESTE ? 'gerado (teste)' : 'publicado'} ${r.url || ''}`);
+const hist = await historico();
+
+if (MODO === 'urgente') {
+  // Notícias marcadas no painel (ou a de id informado). Também respeitam o limite de 48 h.
+  const ids = ID_NOTICIA ? [ID_NOTICIA] : (await api('news?select=id&instagram_status=eq.urgente&instagram_at=is.null&order=created_at.asc&limit=3')).map((n) => n.id);
+  if (!ids.length) aviso('Instagram: nenhuma notícia urgente pendente.');
+  for (const id of ids) {
+    const c = await noticias(contexto(hist, { ignorarRepetidos: true }), { ids: [id], urgente: true });
+    if (!c) { aviso(`Instagram: a notícia ${id} tem mais de 48 h ou não existe. Não publicada.`); if (!TESTE) await api(`news?id=eq.${id}`, { method: 'PATCH', body: { instagram_status: 'erro' } }); continue; }
+    try { await executar(c, 'urgente', hist); } catch (e) { if (!TESTE) await api(`news?id=eq.${id}`, { method: 'PATCH', body: { instagram_status: 'erro' } }); throw e; }
   }
-  if (ns.length === 1) {
-    const n = ns[0];
-    const r = await publicar([{ jpeg: await arteNoticia({ titulo: n.title, fonte: n.source || 'Control Critic', data: dataCurta(n.created_at), capa: n.cover_url, tema: n.games?.categories?.slug }), nome: `noticia-${n.id}` }], legendaNoticia(n, false));
-    if (!TESTE) { await marcar(ns, r); await registrar({ tipo: 'noticia', noticias: 1, url: r.url }); }
-    return aviso(`Instagram: notícia do dia ${TESTE ? 'gerada (teste)' : 'publicada'} ${r.url || ''}`);
+} else if (MODO === 'amostra') {
+  // Revisão humana: um exemplo de cada formato, cada um na sua pasta
+  const ctx = contexto(hist, { ignorarRepetidos: true });
+  for (const [tipo, gerar] of Object.entries(FORMATOS)) {
+    try { const c = await gerar(ctx); if (c) await executar(c, 'amostra', hist); else log(`${tipo}: sem conteúdo agora.`); }
+    catch (e) { aviso(`${tipo}: falhou (${e.message}).`); }
   }
-  // Sem notícia nova: promoção do dia (para a página não ficar parada)
-  if (!(await promocao())) aviso('Instagram: nada novo para publicar hoje.');
+} else {
+  const horario = HORARIO_DO_MODO[MODO] || 'noite';
+  const { ordem, anterior } = FORMATO ? { ordem: [FORMATO], anterior: null } : ordemDeFormatos(horario, hist);
+  log(`Horário: ${horario}. Último tipo publicado: ${anterior || 'nenhum'}. Ordem de tentativa: ${ordem.join(' → ')}`);
+  const ctx = contexto(hist);
+  let feito = false;
+  for (const tipo of ordem) {
+    let c = null;
+    try { c = await FORMATOS[tipo](ctx); } catch (e) { aviso(`${tipo}: não deu para montar (${e.message}). Tentando o próximo.`); continue; }
+    if (!c) { log(`${tipo}: sem conteúdo bom agora.`); continue; }
+    feito = await executar(c, horario, hist);
+    break;
+  }
+  if (!feito) aviso('Instagram: nada novo para publicar agora.');
 }
-
-// Promoção do dia, sem repetir jogo da última semana. Devolve false se não houver.
-async function promocao() {
-  const cfg = (await api('settings?key=eq.instagram_promos&select=value'))[0]?.value || {};
-  const recentes = Object.entries(cfg).filter(([, d]) => Date.now() - new Date(d) < 7 * 864e5).map(([id]) => Number(id));
-  // Jogos em destaque no site entram primeiro (a partir de 20% de desconto); depois, os maiores descontos (40%+)
-  const [destaques, deals] = await Promise.all([
-    api('deals?select=game_id,discount_pct,price_cents,store,games!inner(title,cover_url,featured,categories(slug))&games.featured=eq.true&discount_pct=gte.20&order=discount_pct.desc&limit=30'),
-    api('deals?select=game_id,discount_pct,price_cents,store,games(title,cover_url,featured,categories(slug))&discount_pct=gte.40&order=discount_pct.desc&limit=30'),
-  ]);
-  const d = [...destaques, ...deals].find((x) => x.games && !recentes.includes(x.game_id));
-  if (!d) return false;
-  const preco = d.price_cents != null ? (d.price_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
-  const loja = { steam: 'Steam', playstation: 'PlayStation Store', xbox: 'Xbox Store', nintendo: 'Nintendo eShop' }[d.store] || d.store;
-  const legenda = [`💸 PROMOÇÃO DO DIA${d.games.featured ? ' ⭐ DESTAQUE' : ''}: ${d.games.title} com ${d.discount_pct}% de desconto${preco ? ` (${preco})` : ''} na ${loja}!`, '',
-    '⏳ Corre que promoção acaba. Veja esta e outras ofertas no site.', `🔗 Link na bio (${SITE})`, '', '#promocao #jogosbaratos ' + TAGS].join('\n');
-  const r = await publicar([{ jpeg: await artePromo({ jogo: d.games.title, desconto: d.discount_pct, preco, loja, capa: d.games.cover_url, tema: d.games.categories?.slug }), nome: `promo-${d.game_id}` }], legenda);
-  if (!TESTE) {
-    await api('settings?on_conflict=key', { method: 'POST', prefer: 'resolution=merge-duplicates', body: [{ key: 'instagram_promos', value: { ...Object.fromEntries(Object.entries(cfg).filter(([id]) => recentes.includes(Number(id)))), [d.game_id]: new Date().toISOString() } }] });
-    await registrar({ tipo: 'promocao', url: r.url });
-  }
-  aviso(`Instagram: promoção do dia ${TESTE ? 'gerada (teste)' : 'publicada'} (${d.games.title}) ${r.url || ''}`);
-  return true;
-}
-
-async function urgente() {
-  const filtro = ID_NOTICIA ? `id=eq.${ID_NOTICIA}` : 'instagram_status=eq.urgente&instagram_at=is.null';
-  const ns = await api(`news?select=id,title,summary,body,source,cover_url,lang,created_at,published,games(categories(slug))&${filtro}&order=created_at.asc&limit=3`);
-  if (!ns.length) return aviso('Instagram: nenhuma notícia urgente pendente.');
-  for (const n of ns) {
-    try {
-      const r = await publicar([{ jpeg: await arteNoticia({ titulo: n.title, fonte: n.source || 'Control Critic', data: dataCurta(n.created_at), capa: n.cover_url, urgente: true, tema: n.games?.categories?.slug }), nome: `urgente-${n.id}` }], legendaNoticia(n, true));
-      if (!TESTE) { await marcar([n], r); await registrar({ tipo: 'urgente', noticias: 1, url: r.url }); }
-      aviso(`Instagram: notícia urgente ${TESTE ? 'gerada (teste)' : 'publicada'} (${n.title}) ${r.url || ''}`);
-    } catch (e) {
-      if (!TESTE) await api(`news?id=eq.${n.id}`, { method: 'PATCH', body: { instagram_status: 'erro' } });
-      throw e;
-    }
-  }
-}
-
-// ---------- Entretenimento (12h50): alcance e comentários ----------
-async function entretenimento({ soEnquete = false } = {}) {
-  const [m] = soEnquete ? [] : await api('posts?select=id,body,image_url,profiles!posts_user_id_fkey(username)&ig_ok=eq.true&ig_aprovado=eq.true&instagram_at=is.null&status=eq.published&image_url=not.is.null&order=created_at.asc&limit=1');
-  if (m) {
-    const autor = m.profiles?.username || 'membro';
-    const texto = corta(m.body && m.body !== '📷' ? m.body : '', 300);
-    const legenda = [`😂 ${texto || 'Meme do dia'}`, '', `🎨 Por @${autor} na comunidade do Control Critic`,
-      '👇 Marca aquele amigo que é exatamente assim', `📲 Poste o seu meme no site e apareça aqui: link na bio (${SITE})`, '',
-      '#memesgamer #memes #gamer #humorgamer #ControlCritic'].join('\n');
-    const r = await publicar([{ jpeg: await arteMeme({ imagem: m.image_url, autor }), nome: `meme-${m.id}` }], legenda);
-    if (!TESTE) { await api(`posts?id=eq.${m.id}`, { method: 'PATCH', body: { instagram_at: new Date().toISOString(), instagram_url: r.url } }); await registrar({ tipo: 'meme', url: r.url }); }
-    return aviso(`Instagram: meme de @${autor} ${TESTE ? 'gerado (teste)' : 'publicado'} ${r.url || ''}`);
-  }
-  // Sem meme aprovado: enquete "Qual você prefere?" com dois jogos que FAZEM SENTIDO juntos, sem repetir pares.
-  // Ordem de preferência: rivalidade clássica (lista abaixo) → dois jogos da mesma franquia → jogos parecidos
-  // (pelo menos 2 categorias em comum e lançados em épocas próximas).
-  const cfg = (await api('settings?key=eq.instagram_versus&select=value'))[0]?.value || { pares: [] };
-  const usados = new Set(cfg.pares || []);
-  // Uma enquete por dia e nenhum jogo repetido em enquetes dos últimos 14 dias
-  const diaBR = (d) => new Date(d).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-  if (cfg.ultima && diaBR(cfg.ultima) === diaBR(Date.now())) return aviso('Instagram: já teve enquete hoje; sem meme aprovado, nada a postar agora.');
-  const jogosRecentes = Object.fromEntries(Object.entries(cfg.jogos || {}).filter(([, d]) => Date.now() - new Date(d) < 14 * 864e5));
-  const [jogos, cats] = await Promise.all([
-    api('games?select=id,title,cover_url,category_id,category_ids,release_year,categories(name,slug)&cover_url=not.is.null&category_id=not.is.null&order=igdb_rating_count.desc.nullslast&limit=200'),
-    api('categories?select=id,name,slug'),
-  ]);
-  const p = escolherVersus(jogos.filter((j) => !jogosRecentes[j.id]), cats, usados);
-  if (!p) return aviso('Instagram: sem meme aprovado e sem enquete nova hoje.');
-  const categoria = p.rotulo;
-  const legenda = [`🤔 QUAL VOCÊ PREFERE? ${p.a.title} ou ${p.b.title}?`, '',
-    `🅰️ ${p.a.title}`, `🅱️ ${p.b.title}`, '', `🔗 ${p.motivo}`, '', '💬 Responda nos comentários com A ou B e defenda sua escolha!',
-    `⭐ Avalie os dois no site: link na bio (${SITE})`, '', '#enquete #qualvoceprefere #games #gamer #ControlCritic'].join('\n');
-  const r = await publicar([{ jpeg: await arteVersus({ a: { titulo: p.a.title, capa: p.a.cover_url }, b: { titulo: p.b.title, capa: p.b.cover_url }, categoria, tema: p.tema || p.a.categories?.slug }), nome: `versus-${p.chave}` }], legenda);
-  if (!TESTE) {
-    await api('settings?on_conflict=key', { method: 'POST', prefer: 'resolution=merge-duplicates', body: [{ key: 'instagram_versus', value: { pares: [...usados, p.chave].slice(-300), ultima: new Date().toISOString(),
-      jogos: { ...jogosRecentes, [p.a.id]: new Date().toISOString(), [p.b.id]: new Date().toISOString() } } }] });
-    await registrar({ tipo: 'versus', url: r.url });
-  }
-  aviso(`Instagram: enquete ${p.a.title} x ${p.b.title} ${TESTE ? 'gerada (teste)' : 'publicada'} ${r.url || ''}`);
-}
-
-// Manhã: promoção do dia; sem promoção nova, a enquete
-if (MODO === 'manha') { if (!(await promocao())) await entretenimento({ soEnquete: true }); }
-else if (MODO === 'urgente') await urgente(); else if (MODO === 'entretenimento') await entretenimento(); else await diario();
-
