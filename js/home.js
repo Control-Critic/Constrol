@@ -34,9 +34,9 @@ main.insertAdjacentHTML('beforeend', `
   <section id="b-como" class="hidden" aria-labelledby="como-t">
     <h2 id="como-t">Como funciona</h2>
     <ol class="passos-home">
-      <li><img src="${urlCdn('img/adelino/rpg.png', 240)}" alt="" width="120" height="116" loading="lazy"><strong>Monte sua biblioteca</strong><span>Marque o que está jogando, zerou ou ainda vai começar. Tem Steam? Importa tudo num clique.</span></li>
-      <li><img src="${urlCdn('img/adelino/enquete.png', 240)}" alt="" width="120" height="105" loading="lazy"><strong>Dê sua nota</strong><span>Avalie, discorde da crítica e descubra jogos pela opinião de quem joga de verdade.</span></li>
-      <li><img src="${urlCdn('img/adelino/fps.png', 240)}" alt="" width="120" height="108" loading="lazy"><strong>Ache seu squad</strong><span>Crie um grupo, entre numa comunidade e chame a galera pra call. Sem jogar sozinho.</span></li>
+      <li><a class="passo-link" href="jogos.html"><img src="${urlCdn('img/adelino/rpg.png', 240)}" alt="" width="120" height="116" loading="lazy"><strong>Monte sua biblioteca</strong><span>Marque o que está jogando, zerou ou ainda vai começar. Tem Steam? Importa tudo num clique.</span></a></li>
+      <li><a class="passo-link" href="jogos.html?ordem=avg_rating"><img src="${urlCdn('img/adelino/enquete.png', 240)}" alt="" width="120" height="105" loading="lazy"><strong>Dê sua nota</strong><span>Avalie, discorde da crítica e descubra jogos pela opinião de quem joga de verdade.</span></a></li>
+      <li><a class="passo-link" href="comunidades.html"><img src="${urlCdn('img/adelino/fps.png', 240)}" alt="" width="120" height="108" loading="lazy"><strong>Ache seu squad</strong><span>Crie um grupo, entre numa comunidade e chame a galera pra call. Sem jogar sozinho.</span></a></li>
     </ol>
     <ul class="diferenciais" id="diferenciais"></ul>
   </section>
@@ -214,13 +214,13 @@ async function diferenciais() {
   const { count } = await sb.from('games').select('id', { count: 'exact', head: true });
   const mil = count ? Math.floor(count / 1000) : 0;
   const itens = [
-    ['🎮', mil >= 1 ? `Catálogo com mais de ${mil.toLocaleString('pt-BR')} mil jogos` : 'Catálogo de jogos de todas as plataformas'],
-    ['⭐', 'Avaliações da comunidade e sua biblioteca'],
-    ['🎧', 'Comunidades e calls de voz e vídeo'],
-    ['💸', 'Promoções e alertas da sua lista de desejos'],
-    ['🏆', 'Perfil, níveis e conquistas'],
+    ['🎮', 'jogos.html', mil >= 1 ? `Catálogo com mais de ${mil.toLocaleString('pt-BR')} mil jogos` : 'Catálogo de jogos de todas as plataformas'],
+    ['⭐', 'jogos.html?ordem=avg_rating', 'Avaliações da comunidade e sua biblioteca'],
+    ['🎧', 'comunidades.html', 'Comunidades e calls de voz e vídeo'],
+    ['💸', 'promocoes.html', 'Promoções e alertas da sua lista de desejos'],
+    ['🏆', 'conquistas.html', 'Perfil, níveis e conquistas'],
   ];
-  $('#diferenciais').innerHTML = itens.map(([i, t]) => `<li><span aria-hidden="true">${i}</span> ${esc(t)}</li>`).join('');
+  $('#diferenciais').innerHTML = itens.map(([i, href, t]) => `<li><a href="${href}"><span aria-hidden="true">${i}</span> ${esc(t)}</a></li>`).join('');
 }
 
 // ---------- Checklist da conta nova (cada item confere o que já foi feito de verdade) ----------
