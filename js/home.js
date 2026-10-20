@@ -87,8 +87,8 @@ main.insertAdjacentHTML('beforeend', `
 
 const ORDEM = {
   visitante: ['b-hero', 'b-como', 'b-destaques', 'b-grupo', 'b-comunidades', 'b-promos', 'b-avaliacoes', 'b-cadastro', 'b-noticias', 'b-lancamentos'],
-  novo: ['b-hero', 'b-checklist', 'b-grupo', 'b-comunidades', 'b-destaques', 'b-rec', 'b-promos', 'b-noticias', 'b-lancamentos', 'b-feed-wrap'],
-  recorrente: ['stories', 'b-hero', 'b-grupo', 'b-feed-wrap', 'b-rec', 'b-desejos', 'b-destaques', 'b-promos', 'b-noticias', 'b-lancamentos', 'b-comunidades'],
+  novo: ['b-hero', 'b-como', 'b-checklist', 'b-grupo', 'b-comunidades', 'b-destaques', 'b-rec', 'b-promos', 'b-noticias', 'b-lancamentos', 'b-feed-wrap'],
+  recorrente: ['stories', 'b-hero', 'b-como', 'b-grupo', 'b-feed-wrap', 'b-rec', 'b-desejos', 'b-destaques', 'b-promos', 'b-noticias', 'b-lancamentos', 'b-comunidades'],
 };
 function ordenar(estado) {
   if (PAGINA_FEED) { for (const s of [...main.children]) if (s.id !== 'b-feed-wrap') s.remove(); return; }
@@ -153,7 +153,6 @@ if (configurado) {
   ordenar(estado);
   const visualLogado = () => {
     if ($('#hero-acoes') && !$('#hero-grupo')) $('#hero-acoes').innerHTML = `<a class="btn" href="#b-grupo" id="hero-grupo">Encontrar grupo</a><a class="btn sec" href="#b-rec">Ver recomendações</a>`;
-    $('#b-hero')?.classList.toggle('hero-compacto', estado === 'recorrente');
   };
   if (u) visualLogado();
   main.classList.remove('montando'); // ordem definida: mostra o conteúdo
@@ -167,14 +166,14 @@ if (configurado) {
   document.body.dataset.estadoHome = estado;
   if (PAGINA_FEED) main.insertAdjacentHTML('afterbegin', '<h1>Feed da comunidade</h1>');
 
+  // Apresentação completa (hero + "Como funciona") para todo mundo na home, logado ou não
+  if (!PAGINA_FEED) { $('#b-como').classList.remove('hidden'); diferenciais(); }
   if (PAGINA_FEED && estado === 'visitante') {
     // feed completo também para visitantes (só leitura)
     $('#b-feed-wrap').classList.remove('hidden');
     carregarFeed(true); carregarDesafio();
   } else if (estado === 'visitante') {
-    $('#b-como').classList.remove('hidden');
     $('#b-cadastro').classList.remove('hidden');
-    diferenciais();
     // Avaliações reais com texto (nunca inventadas); sem nenhuma, o bloco não aparece
     bloco('b-avaliacoes', '#avaliacoes', () => sb.from('reviews').select('id,rating,body,created_at,games(slug,title),profiles!reviews_user_id_fkey(username)').eq('status', 'published').not('body', 'is', null).order('created_at', { ascending: false }).limit(4),
       (l) => l.filter((r) => r.body && r.games && r.profiles).map((r) => `<a class="cartao" href="jogo.html?slug=${encodeURIComponent(r.games.slug)}" style="color:var(--texto);text-decoration:none">
