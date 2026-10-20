@@ -729,7 +729,12 @@ export async function duracaoVideo(arq) {
   v.preload = 'metadata'; v.muted = true; v.src = URL.createObjectURL(arq);
   try {
     await new Promise((ok, erro) => { v.onloadedmetadata = ok; v.onerror = () => erro(new Error('Não foi possível ler o vídeo.')); });
-    return { duracao: v.duration, largura: v.videoWidth, altura: v.videoHeight };
+    // WebM gravado no navegador (clipes) vem sem duração no cabeçalho: pular para o fim revela o tamanho real
+    if (!Number.isFinite(v.duration)) {
+      v.currentTime = 1e7;
+      await new Promise((ok) => { v.ontimeupdate = ok; setTimeout(ok, 3000); });
+    }
+    return { duracao: Number.isFinite(v.duration) ? v.duration : 0, largura: v.videoWidth, altura: v.videoHeight };
   } finally { URL.revokeObjectURL(v.src); }
 }
 
