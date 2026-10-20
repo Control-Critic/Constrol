@@ -8,6 +8,7 @@ let compositor = null, paginaFeed = 0; // declarados antes do uso (o código aba
 // O cabeçalho monta em paralelo: o conteúdo da home não espera o perfil carregar
 montarLayout().catch(() => {});
 const main = $('#conteudo');
+if (configurado) main.classList.add('montando');
 
 // Cada bloco da home é uma <section> com id; a ordem muda conforme quem está vendo
 // (visitante, conta nova ou usuário recorrente). Blocos sem conteúdo ficam escondidos.
@@ -150,19 +151,21 @@ if (configurado) {
   // Ordem provisória com o último estado conhecido neste aparelho (evita a página "pular" depois)
   let estado = !u ? 'visitante' : (() => { try { return localStorage.getItem('cc_estado_home') || 'recorrente'; } catch { return 'recorrente'; } })();
   ordenar(estado);
+  const visualLogado = () => {
+    if ($('#hero-acoes') && !$('#hero-grupo')) $('#hero-acoes').innerHTML = `<a class="btn" href="#b-grupo" id="hero-grupo">Encontrar grupo</a><a class="btn sec" href="#b-rec">Ver recomendações</a>`;
+    $('#b-hero')?.classList.toggle('hero-compacto', estado === 'recorrente');
+  };
+  if (u) visualLogado();
+  main.classList.remove('montando'); // ordem definida: mostra o conteúdo
   // Conta nova: ainda não terminou as boas-vindas ou não tem nada na biblioteca (perfil e biblioteca em paralelo)
   const [p, contagem] = u ? await Promise.all([perfil(), sb.from('user_games').select('game_id', { count: 'exact', head: true }).eq('user_id', u.id)]) : [null, {}];
   if (u) {
     const certo = !p?.onboarded || !contagem.count ? 'novo' : 'recorrente';
     try { localStorage.setItem('cc_estado_home', certo); } catch { /* ignora */ }
-    if (certo !== estado) { estado = certo; ordenar(estado); }
+    if (certo !== estado) { estado = certo; ordenar(estado); visualLogado(); }
   }
   document.body.dataset.estadoHome = estado;
   if (PAGINA_FEED) main.insertAdjacentHTML('afterbegin', '<h1>Feed da comunidade</h1>');
-  if (u) {
-    if ($('#hero-acoes')) $('#hero-acoes').innerHTML = `<a class="btn" href="#b-grupo" id="hero-grupo">Encontrar grupo</a><a class="btn sec" href="#b-rec">Ver recomendações</a>`;
-    if (estado === 'recorrente') $('#b-hero')?.classList.add('hero-compacto');
-  }
 
   if (PAGINA_FEED && estado === 'visitante') {
     // feed completo também para visitantes (só leitura)

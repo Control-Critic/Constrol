@@ -679,3 +679,6 @@ main#conteudo { min-height: calc(100vh - 69px); }
 .qualidade[data-nivel="ruim"] { background: #ef4444; }
 /* Home mostra amostras; "ver tudo" leva às páginas completas */
 .ver-tudo { display: block; width: 100%; text-align: center; margin-top: 12px; }
+/* Home: enquanto decide a ordem (visitante, conta nova ou recorrente), não mostra blocos que vão mudar de lugar */
+#conteudo.montando > section:not(#b-hero) { visibility: hidden; }
+.hero-compacto .balao { display: none; }
