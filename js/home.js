@@ -5,8 +5,10 @@ import { COLUNAS_POST_DESAFIO as COLUNAS_POST, postHtml, ligarPosts, compositorH
 // feed.html usa este mesmo módulo só com o feed completo e a atividade dos amigos
 const PAGINA_FEED = location.pathname.endsWith('feed.html');
 let compositor = null, paginaFeed = 0; // declarados antes do uso (o código abaixo roda já no carregamento)
-await montarLayout();
+// O cabeçalho monta em paralelo: o conteúdo da home não espera o perfil carregar
+montarLayout().catch(() => {});
 const main = $('#conteudo');
+if (configurado) main.classList.add('montando');
 
 // Cada bloco da home é uma <section> com id; a ordem muda conforme quem está vendo
 // (visitante, conta nova ou usuário recorrente). Blocos sem conteúdo ficam escondidos.
@@ -32,9 +34,9 @@ main.insertAdjacentHTML('beforeend', `
   <section id="b-como" class="hidden" aria-labelledby="como-t">
     <h2 id="como-t">Como funciona</h2>
     <ol class="passos-home">
-      <li><img src="${urlCdn('img/adelino/rpg.png', 240)}" alt="" width="120" height="116" loading="lazy"><strong>Monte sua biblioteca</strong><span>Marque o que está jogando, zerou ou ainda vai começar. Tem Steam? Importa tudo num clique.</span></li>
-      <li><img src="${urlCdn('img/adelino/enquete.png', 240)}" alt="" width="120" height="105" loading="lazy"><strong>Dê sua nota</strong><span>Avalie, discorde da crítica e descubra jogos pela opinião de quem joga de verdade.</span></li>
-      <li><img src="${urlCdn('img/adelino/fps.png', 240)}" alt="" width="120" height="108" loading="lazy"><strong>Ache seu squad</strong><span>Crie um grupo, entre numa comunidade e chame a galera pra call. Sem jogar sozinho.</span></li>
+      <li><a class="passo-link" href="jogos.html"><img src="${urlCdn('img/adelino/rpg.png', 240)}" alt="" width="120" height="116" loading="lazy"><strong>Monte sua biblioteca</strong><span>Marque o que está jogando, zerou ou ainda vai começar. Tem Steam? Importa tudo num clique.</span></a></li>
+      <li><a class="passo-link" href="jogos.html?ordem=avg_rating"><img src="${urlCdn('img/adelino/enquete.png', 240)}" alt="" width="120" height="105" loading="lazy"><strong>Dê sua nota</strong><span>Avalie, discorde da crítica e descubra jogos pela opinião de quem joga de verdade.</span></a></li>
+      <li><a class="passo-link" href="comunidades.html"><img src="${urlCdn('img/adelino/fps.png', 240)}" alt="" width="120" height="108" loading="lazy"><strong>Ache seu squad</strong><span>Crie um grupo, entre numa comunidade e chame a galera pra call. Sem jogar sozinho.</span></a></li>
     </ol>
     <ul class="diferenciais" id="diferenciais"></ul>
   </section>
@@ -85,8 +87,8 @@ main.insertAdjacentHTML('beforeend', `
 
 const ORDEM = {
   visitante: ['b-hero', 'b-como', 'b-destaques', 'b-grupo', 'b-comunidades', 'b-promos', 'b-avaliacoes', 'b-cadastro', 'b-noticias', 'b-lancamentos'],
-  novo: ['b-hero', 'b-checklist', 'b-grupo', 'b-comunidades', 'b-destaques', 'b-rec', 'b-promos', 'b-noticias', 'b-lancamentos', 'b-feed-wrap'],
-  recorrente: ['stories', 'b-hero', 'b-grupo', 'b-feed-wrap', 'b-rec', 'b-desejos', 'b-destaques', 'b-promos', 'b-noticias', 'b-lancamentos', 'b-comunidades'],
+  novo: ['b-hero', 'b-como', 'b-checklist', 'b-grupo', 'b-comunidades', 'b-destaques', 'b-rec', 'b-promos', 'b-noticias', 'b-lancamentos', 'b-feed-wrap'],
+  recorrente: ['stories', 'b-hero', 'b-como', 'b-grupo', 'b-feed-wrap', 'b-rec', 'b-desejos', 'b-destaques', 'b-promos', 'b-noticias', 'b-lancamentos', 'b-comunidades'],
 };
 function ordenar(estado) {
   if (PAGINA_FEED) { for (const s of [...main.children]) if (s.id !== 'b-feed-wrap') s.remove(); return; }
@@ -126,47 +128,52 @@ const cardPromo = (d) => `
 
 if (configurado) {
   const ano = new Date().getFullYear();
-  const u = await usuario();
-  const p = u ? await perfil() : null;
-  // Conta nova: ainda não terminou as boas-vindas ou não tem nada na biblioteca
-  let estado = 'visitante';
+  // Blocos públicos começam a carregar já, sem esperar saber quem está vendo
+  if (!PAGINA_FEED) {
+    bloco('b-destaques', '#destaques', () => sb.from('games').select(COLUNAS_CARD).eq('featured', true).order('avg_rating', { ascending: false }).order('igdb_rating', { ascending: false, nullsFirst: false }).limit(12),
+      (l) => l.length ? carrossel(l.map(cardJogo).join('')) : '');
+    bloco('b-lancamentos', '#lancamentos', () => sb.from('games').select(COLUNAS_CARD).gte('release_year', ano - 1).order('release_year', { ascending: false }).order('igdb_rating_count', { ascending: false, nullsFirst: false }).limit(12),
+      (l) => l.length ? carrossel(l.map(cardJogo).join('')) : '');
+    bloco('b-promos', '#promos', () => sb.from('deals').select('*, games(slug,title,cover_url)').gt('discount_pct', 0).order('discount_pct', { ascending: false }).limit(12),
+      (l) => { const v = l.filter((d) => d.games); return v.length ? carrossel(v.map(cardPromo).join('')) : ''; });
+    bloco('b-noticias', '#noticias', () => sb.from('news').select('id,title,summary,source,cover_url,created_at').eq('published', true).order('created_at', { ascending: false }).limit(10),
+      (l) => l.length ? carrossel(l.map((n) => { const r = limpar(n.summary); return `
+      <a class="noticia-card" href="novidades.html#n${Number(n.id)}">
+        <img class="noticia-img" src="${urlSegura(n.cover_url) || 'img/ControlHeader.png'}" alt="" loading="lazy" ${n.cover_url ? '' : 'style="object-fit:contain;padding:18px"'}>
+        <span class="noticia-corpo"><span class="muted" style="font-size:.78rem">${data(n.created_at)}${n.source ? ' · ' + esc(n.source) : ''}</span>
+        <strong>${esc(n.title)}</strong>${r ? `<span class="muted noticia-resumo">${esc(r)}</span>` : ''}</span></a>`; }).join('')).replace('class="car-trilho"', 'class="car-trilho medio"') : '');
+    bloco('b-comunidades', '#comunidades-home', () => sb.from('communities').select('id,name,description,icon_url').eq('is_private', false).order('created_at', { ascending: true }).limit(6),
+      (l) => l.length ? `<div class="grade">${l.map((c) => `<a class="cartao" href="comunidade.html?id=${Number(c.id)}" style="color:var(--texto);text-decoration:none">
+        <strong>${esc(c.name)}</strong><p class="muted" style="font-size:.85rem;margin:4px 0">${esc(String(c.description || '').slice(0, 90))}</p>
+  </a>`).join('')}</div>` : '');
+  }
+  const u = await usuario(); // sessão local (sem ir ao servidor)
+  // Ordem provisória com o último estado conhecido neste aparelho (evita a página "pular" depois)
+  let estado = !u ? 'visitante' : (() => { try { return localStorage.getItem('cc_estado_home') || 'recorrente'; } catch { return 'recorrente'; } })();
+  ordenar(estado);
+  const visualLogado = () => {
+    if ($('#hero-acoes') && !$('#hero-grupo')) $('#hero-acoes').innerHTML = `<a class="btn" href="#b-grupo" id="hero-grupo">Encontrar grupo</a><a class="btn sec" href="#b-rec">Ver recomendações</a>`;
+  };
+  if (u) visualLogado();
+  main.classList.remove('montando'); // ordem definida: mostra o conteúdo
+  // Conta nova: ainda não terminou as boas-vindas ou não tem nada na biblioteca (perfil e biblioteca em paralelo)
+  const [p, contagem] = u ? await Promise.all([perfil(), sb.from('user_games').select('game_id', { count: 'exact', head: true }).eq('user_id', u.id)]) : [null, {}];
   if (u) {
-    const { count } = await sb.from('user_games').select('game_id', { count: 'exact', head: true }).eq('user_id', u.id);
-    estado = !p?.onboarded || !count ? 'novo' : 'recorrente';
+    const certo = !p?.onboarded || !contagem.count ? 'novo' : 'recorrente';
+    try { localStorage.setItem('cc_estado_home', certo); } catch { /* ignora */ }
+    if (certo !== estado) { estado = certo; ordenar(estado); visualLogado(); }
   }
   document.body.dataset.estadoHome = estado;
-  ordenar(estado);
   if (PAGINA_FEED) main.insertAdjacentHTML('afterbegin', '<h1>Feed da comunidade</h1>');
-  if (u) {
-    if ($('#hero-acoes')) $('#hero-acoes').innerHTML = `<a class="btn" href="#b-grupo" id="hero-grupo">Encontrar grupo</a><a class="btn sec" href="#b-rec">Ver recomendações</a>`;
-    if (estado === 'recorrente') $('#b-hero')?.classList.add('hero-compacto');
-  }
 
-  bloco('b-destaques', '#destaques', () => sb.from('games').select(COLUNAS_CARD).eq('featured', true).order('avg_rating', { ascending: false }).order('igdb_rating', { ascending: false, nullsFirst: false }).limit(12),
-    (l) => l.length ? carrossel(l.map(cardJogo).join('')) : '');
-  bloco('b-lancamentos', '#lancamentos', () => sb.from('games').select(COLUNAS_CARD).gte('release_year', ano - 1).order('release_year', { ascending: false }).order('igdb_rating_count', { ascending: false, nullsFirst: false }).limit(12),
-    (l) => l.length ? carrossel(l.map(cardJogo).join('')) : '');
-  bloco('b-promos', '#promos', () => sb.from('deals').select('*, games(slug,title,cover_url)').gt('discount_pct', 0).order('discount_pct', { ascending: false }).limit(12),
-    (l) => { const v = l.filter((d) => d.games); return v.length ? carrossel(v.map(cardPromo).join('')) : ''; });
-  bloco('b-noticias', '#noticias', () => sb.from('news').select('id,title,summary,source,cover_url,created_at').eq('published', true).order('created_at', { ascending: false }).limit(10),
-    (l) => l.length ? carrossel(l.map((n) => { const r = limpar(n.summary); return `
-    <a class="noticia-card" href="novidades.html#n${Number(n.id)}">
-      <img class="noticia-img" src="${urlSegura(n.cover_url) || 'img/ControlHeader.png'}" alt="" loading="lazy" ${n.cover_url ? '' : 'style="object-fit:contain;padding:18px"'}>
-      <span class="noticia-corpo"><span class="muted" style="font-size:.78rem">${data(n.created_at)}${n.source ? ' · ' + esc(n.source) : ''}</span>
-      <strong>${esc(n.title)}</strong>${r ? `<span class="muted noticia-resumo">${esc(r)}</span>` : ''}</span></a>`; }).join('')).replace('class="car-trilho"', 'class="car-trilho medio"') : '');
-  bloco('b-comunidades', '#comunidades-home', () => sb.from('communities').select('id,name,description,icon_url').eq('is_private', false).order('created_at', { ascending: true }).limit(6),
-    (l) => l.length ? `<div class="grade">${l.map((c) => `<a class="cartao" href="comunidade.html?id=${Number(c.id)}" style="color:var(--texto);text-decoration:none">
-      <strong>${esc(c.name)}</strong><p class="muted" style="font-size:.85rem;margin:4px 0">${esc(String(c.description || '').slice(0, 90))}</p>
-</a>`).join('')}</div>` : '');
-
+  // Apresentação completa (hero + "Como funciona") para todo mundo na home, logado ou não
+  if (!PAGINA_FEED) { $('#b-como').classList.remove('hidden'); diferenciais(); }
   if (PAGINA_FEED && estado === 'visitante') {
     // feed completo também para visitantes (só leitura)
     $('#b-feed-wrap').classList.remove('hidden');
     carregarFeed(true); carregarDesafio();
   } else if (estado === 'visitante') {
-    $('#b-como').classList.remove('hidden');
     $('#b-cadastro').classList.remove('hidden');
-    diferenciais();
     // Avaliações reais com texto (nunca inventadas); sem nenhuma, o bloco não aparece
     bloco('b-avaliacoes', '#avaliacoes', () => sb.from('reviews').select('id,rating,body,created_at,games(slug,title),profiles!reviews_user_id_fkey(username)').eq('status', 'published').not('body', 'is', null).order('created_at', { ascending: false }).limit(4),
       (l) => l.filter((r) => r.body && r.games && r.profiles).map((r) => `<a class="cartao" href="jogo.html?slug=${encodeURIComponent(r.games.slug)}" style="color:var(--texto);text-decoration:none">
@@ -175,8 +182,8 @@ if (configurado) {
   } else {
     $('#b-feed-wrap').classList.remove('hidden');
     if (estado === 'novo' && !PAGINA_FEED) checklist(u, p);
-    const { data: rec } = await sb.rpc('recommend_games', { lim: 12 }).select(COLUNAS_CARD);
-    preencher('b-rec', '#rec', rec?.length ? carrossel(rec.map(cardJogo).join('')) : '');
+    // recomendações não seguram o feed: carregam em paralelo
+    if (!PAGINA_FEED) sb.rpc('recommend_games', { lim: 12 }).select(COLUNAS_CARD).then(({ data: rec }) => preencher('b-rec', '#rec', rec?.length ? carrossel(rec.map(cardJogo).join('')) : ''), () => {});
     if (estado === 'recorrente') {
       // Promoções dos jogos que a pessoa marcou na lista de desejos
       bloco('b-desejos', '#desejos', async () => {
@@ -207,13 +214,13 @@ async function diferenciais() {
   const { count } = await sb.from('games').select('id', { count: 'exact', head: true });
   const mil = count ? Math.floor(count / 1000) : 0;
   const itens = [
-    ['🎮', mil >= 1 ? `Catálogo com mais de ${mil.toLocaleString('pt-BR')} mil jogos` : 'Catálogo de jogos de todas as plataformas'],
-    ['⭐', 'Avaliações da comunidade e sua biblioteca'],
-    ['🎧', 'Comunidades e calls de voz e vídeo'],
-    ['💸', 'Promoções e alertas da sua lista de desejos'],
-    ['🏆', 'Perfil, níveis e conquistas'],
+    ['🎮', 'jogos.html', mil >= 1 ? `Catálogo com mais de ${mil.toLocaleString('pt-BR')} mil jogos` : 'Catálogo de jogos de todas as plataformas'],
+    ['⭐', 'jogos.html?ordem=avg_rating', 'Avaliações da comunidade e sua biblioteca'],
+    ['🎧', 'comunidades.html', 'Comunidades e calls de voz e vídeo'],
+    ['💸', 'promocoes.html', 'Promoções e alertas da sua lista de desejos'],
+    ['🏆', 'conquistas.html', 'Perfil, níveis e conquistas'],
   ];
-  $('#diferenciais').innerHTML = itens.map(([i, t]) => `<li><span aria-hidden="true">${i}</span> ${esc(t)}</li>`).join('');
+  $('#diferenciais').innerHTML = itens.map(([i, href, t]) => `<li><a href="${href}"><span aria-hidden="true">${i}</span> ${esc(t)}</a></li>`).join('');
 }
 
 // ---------- Checklist da conta nova (cada item confere o que já foi feito de verdade) ----------

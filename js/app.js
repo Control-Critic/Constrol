@@ -123,7 +123,7 @@ export function reportarErro(categoria, mensagem, acao = null) {
   errosEnviados++;
   sb.rpc('registrar_erro', { categoria, pagina: location.pathname, mensagem: limparErro(mensagem), acao, versao: VERSAO_SITE }).then(() => {}, () => {});
 }
-const RUIDO = /ResizeObserver|Script error|extension|chrome-extension|AbortError|NetworkError|Failed to fetch|Load failed/i;
+const RUIDO = /no list was loaded|ResizeObserver|Script error|extension|chrome-extension|AbortError|NetworkError|Failed to fetch|Load failed/i;
 addEventListener('error', (e) => { if (e.message && !RUIDO.test(e.message + (e.filename || ''))) reportarErro('js', `${e.message} @${String(e.filename || '').split('/').pop()}:${e.lineno}`); });
 addEventListener('unhandledrejection', (e) => { const m = e.reason?.message || String(e.reason || ''); if (m && !RUIDO.test(m) && !/abort/i.test(m)) reportarErro('promessa', m); });
 
