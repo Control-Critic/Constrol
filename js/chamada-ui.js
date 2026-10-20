@@ -1,7 +1,8 @@
 // Interface da call (usada nas comunidades e na call entre amigos)
-import { sb, $, esc, falha, toast, statusCall, aplicarVolume, contarEvento } from './app.js';
+import { sb, $, esc, falha, toast, statusCall, aplicarVolume, contarEvento, enviarVideo } from './app.js';
 import { SalaVoz } from './voz.js';
 import { preEntrar } from './pre-call.js';
+import { Clipador, clipesSuportados } from './clipes.js';
 import { prefsAudio, salvarPrefsAudio, processarMic, restricoesMic, definirSaida } from './audio-mic.js';
 
 export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call', janela = false }) {
@@ -16,6 +17,8 @@ export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call',
       <button class="btn sec hidden" data-v="som">🔈 Ativar som</button>
       <button class="btn sec" data-v="cfg-audio" title="Microfone, supressão de ruído e eco">⚙️ Áudio</button>
       ${janela ? '' : '<button class="btn sec" data-v="popout" title="Abre a call numa janela separada: você continua navegando pelo site sem cair">🗗 Abrir em janela</button>'}
+      <button class="btn sec hidden" data-v="clipes" title="Grava em segundo plano a tela/câmera em destaque e as vozes. Os outros veem um aviso.">✂️ Clipes</button>
+      <button class="btn hidden" data-v="clipar" title="Salva os últimos 30 a 60 segundos">🎬 Clipar</button>
       <button class="btn sec hidden" data-v="diag" title="Copia um resumo técnico da conexão (sem dados pessoais) para mandar ao suporte">📋 Diagnóstico</button>
       <button class="btn perigo hidden" data-v="sair">Sair da call</button>
     </div>
@@ -62,6 +65,7 @@ export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call',
         <span class="muted" style="font-size:.8rem">Passe o mouse num vídeo: 🔊 volume da pessoa, ➖➕ tamanho, ◀▶ ou arrastar muda a ordem, ⭐ destaca. Clique duplo: maximizar.</span></span>
     </div>
     <div class="aviso hidden" data-v="aviso"></div>
+    <div class="aviso aviso-clipes hidden" data-v="aviso-clipes" role="status"></div>
     <div class="call-layout">
       <div class="sala" data-v="sala"></div>
       <aside class="call-chat hidden" data-v="chat">
@@ -72,12 +76,17 @@ export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call',
   const el = (k) => box.querySelector(`[data-v="${k}"]`);
   let sala = null, emCall = false, relogioCall = null;
 
+  let clipador = null;
+  const gravando = new Map();
   const atualizar = () => {
     const dentro = !!sala?.local;
     el('entrar').classList.toggle('hidden', dentro);
     ['mudo', 'cam', 'tela', 'sair', 'layout', 'diag'].forEach((k) => el(k).classList.toggle('hidden', !dentro));
     el('musica').classList.toggle('hidden', !dentro || !navigator.mediaDevices?.getDisplayMedia);
     el('chat').classList.toggle('hidden', !dentro);
+    el('clipes').classList.toggle('hidden', !dentro);
+    el('clipar').classList.toggle('hidden', !dentro || !clipador?.ligado);
+    if (!dentro) { clipador?.desligar(); clipador = null; gravando.clear(); el('clipes').classList.remove('ligado'); el('clipes').textContent = '✂️ Clipes'; mostrarGravando(); }
     if (!dentro && emCall) { emCall = false; statusCall(null); clearInterval(relogioCall); }
     if (dentro && !emCall) relogioCall = setInterval(() => sb.rpc('registrar_call').then(() => {}), 60000);   // conta minutos em call (conquistas)
     if (dentro) emCall = true;
@@ -105,6 +114,17 @@ export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call',
     el('aviso').textContent = msgs[tipo] || '';
     el('aviso').classList.toggle('hidden', !msgs[tipo]);
   };
+  // Clipes: quem está gravando aparece para todos
+  const mostrarGravando = () => {
+    const nomes = [...gravando.values()];
+    el('aviso-clipes').textContent = nomes.length ? `🔴 ${nomes.join(', ')} ${nomes.length === 1 ? 'está' : 'estão'} com clipes ligados: os últimos segundos da call (vozes e tela) podem ser salvos.` : '';
+    el('aviso-clipes').classList.toggle('hidden', !nomes.length);
+  };
+  const aoClipes = ({ de, nome, ativo }) => {
+    if (!de || de === u.id) return;
+    if (ativo) gravando.set(de, String(nome || 'Alguém').slice(0, 40)); else gravando.delete(de);
+    mostrarGravando();
+  };
   const mostrarMsg = (m) => {
     const d = document.createElement('p');
     d.innerHTML = `<strong>${esc(m.nome)}:</strong> ${esc(m.texto)}`;
@@ -117,6 +137,7 @@ export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call',
     // Tela de pré-entrada: navegador, permissão, microfone (com medidor), saída de som
     if (!(await preEntrar())) { el('entrar').disabled = false; return; }
     sala = new SalaVoz({ salaId, eu: u.id, nome: p.username, container: el('sala'), aoMudar: atualizar, aoChat: mostrarMsg, aoAviso: avisar });
+    sala.aoClipes = aoClipes;
     try {
       await sala.entrar();
       contarEvento('call_entrou');
@@ -129,7 +150,52 @@ export function montarCall(box, { salaId, u, p, descricao = '', titulo = 'Call',
         : e.name === 'NotFoundError' ? { message: 'Nenhum microfone encontrado neste aparelho.' } : e);
     } finally { el('entrar').disabled = false; }
   };
-  el('sair').onclick = () => { statusCall(null); sala.sair(); };
+  el('sair').onclick = () => { statusCall(null); if (clipador) sala.avisarClipes(false); sala.sair(); };
+  if (!clipesSuportados()) { el('clipes').disabled = true; el('clipes').title = 'Seu navegador não grava clipes. Use o Chrome ou o Edge no computador.'; }
+  el('clipes').onclick = () => {
+    if (!sala?.local) return;
+    if (clipador?.ligado) { clipador.desligar(); clipador = null; sala.avisarClipes(false); toast('Clipes desligados. Nada foi salvo.'); }
+    else {
+      try { clipador = new Clipador(sala); clipador.ligar(); } catch (e) { clipador = null; return falha(e); }
+      sala.avisarClipes(true); contarEvento('clipes_ligou');
+      toast('Clipes ligados: toque em 🎬 Clipar para salvar os últimos 30 a 60 segundos.');
+    }
+    el('clipes').classList.toggle('ligado', !!clipador);
+    el('clipes').textContent = clipador ? '✂️ Desligar clipes' : '✂️ Clipes';
+    atualizar();
+  };
+  el('clipar').onclick = async () => {
+    el('clipar').disabled = true;
+    try { abrirClipe(await clipador.clipar()); } catch (e) { falha(e); } finally { el('clipar').disabled = false; }
+  };
+  const abrirClipe = ({ blob, segundos }) => {
+    contarEvento('clipe_salvo');
+    const url = URL.createObjectURL(blob);
+    const nome = `clip-controlcritic-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.webm`;
+    const dlg = document.createElement('dialog');
+    dlg.className = 'dlg-clipe';
+    dlg.setAttribute('aria-label', 'Seu clipe');
+    dlg.innerHTML = `<h2 style="margin-top:0">🎬 Seu clipe (${segundos} s)</h2>
+      <video controls playsinline src="${url}"></video>
+      <label for="clp-txt">Legenda (para postar)</label><input id="clp-txt" maxlength="300" placeholder="Que jogada!">
+      <p class="muted" style="font-size:.85rem">Antes de postar, confira se todos que aparecem ou falam concordam.</p>
+      <div class="controles"><a class="btn sec" href="${url}" download="${nome}">⬇️ Baixar</a>
+        <button class="btn" data-c="postar">📢 Postar no feed</button><button class="btn sec" data-c="fechar">Fechar</button></div>`;
+    document.body.append(dlg); dlg.showModal();
+    const fechar = () => { dlg.close(); dlg.remove(); URL.revokeObjectURL(url); };
+    dlg.querySelector('[data-c="fechar"]').onclick = fechar;
+    dlg.querySelector('[data-c="postar"]').onclick = async (ev) => {
+      const bt = ev.currentTarget; bt.disabled = true; bt.textContent = 'Enviando...';
+      try {
+        const arq = new File([blob], nome, { type: 'video/webm' });
+        const video_url = await enviarVideo(u.id, 'video', arq, 50, { maxSegundos: 70, aoProgresso: (x) => { bt.textContent = `Otimizando... ${Math.round(x * 100)}%`; } });
+        const cid = /^dm-/.test(salaId) ? null : Number(String(salaId).split('-')[0]) || null;
+        const { error } = await sb.from('posts').insert({ user_id: u.id, community_id: cid, body: dlg.querySelector('#clp-txt').value.trim() || '🎬 Clipe da call', video_url });
+        if (error) throw /row-level/.test(error.message) ? new Error('Você precisa participar da comunidade para postar.') : error;
+        contarEvento('clipe_postado'); toast('Clipe postado!'); fechar();
+      } catch (e) { falha(e); bt.disabled = false; bt.textContent = '📢 Postar no feed'; }
+    };
+  };
   el('diag').onclick = async () => {
     const texto = JSON.stringify(sala?.diagnostico?.() || {}, null, 1);
     try { await navigator.clipboard.writeText(texto); toast('Diagnóstico copiado. Cole em "Reportar problema" (rodapé).'); } catch { prompt('Copie o diagnóstico:', texto); }

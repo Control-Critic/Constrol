@@ -98,7 +98,8 @@ export class SalaVoz {
       .on('presence', { event: 'sync' }, () => this.#sincronizar())
       .on('broadcast', { event: 'sinal' }, ({ payload }) => { if (payload.para === this.eu) this.#sinal(payload); })
       .on('broadcast', { event: 'estado' }, ({ payload }) => this.#estadoRemoto(payload))
-      .on('broadcast', { event: 'chat' }, ({ payload }) => this.aoChat(payload));
+      .on('broadcast', { event: 'chat' }, ({ payload }) => this.aoChat(payload))
+      .on('broadcast', { event: 'clipes' }, ({ payload }) => this.aoClipes?.(payload));
     await new Promise((ok, erro) => this.canal.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') { await this.canal.track({ nome: this.nome }); ok(); }
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') erro(new Error('Não foi possível conectar à sala.'));
@@ -193,6 +194,12 @@ export class SalaVoz {
     this.local = this.videoTrack = this.canal = null;
     this.modoVideo = null;
     this.aoMudar();
+  }
+
+  // Avisa os outros que você está gravando os clipes (eles também ouvem quem entra depois, pelo estado)
+  avisarClipes(ativo) {
+    this.clipesAtivos = !!ativo;
+    this.canal?.send({ type: 'broadcast', event: 'clipes', payload: { de: this.eu, nome: this.nome, ativo: this.clipesAtivos } });
   }
 
   enviarChat(texto) {
@@ -377,10 +384,11 @@ export class SalaVoz {
   }
 
   #enviarEstado() {
-    this.canal?.send({ type: 'broadcast', event: 'estado', payload: { de: this.eu, video: !!this.videoTrack, mudo: this.mudo } });
+    this.canal?.send({ type: 'broadcast', event: 'estado', payload: { de: this.eu, nome: this.nome, video: !!this.videoTrack, mudo: this.mudo, clipes: !!this.clipesAtivos } });
   }
 
-  #estadoRemoto({ de, video, mudo }) {
+  #estadoRemoto({ de, nome, video, mudo, clipes }) {
+    if (clipes !== undefined) this.aoClipes?.({ de, nome, ativo: clipes });
     const p = this.peers.get(de);
     if (!p) return;
     p.mudo = mudo;

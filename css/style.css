@@ -679,3 +679,8 @@ main#conteudo { min-height: calc(100vh - 69px); }
 .qualidade[data-nivel="ruim"] { background: #ef4444; }
 /* Home mostra amostras; "ver tudo" leva às páginas completas */
 .ver-tudo { display: block; width: 100%; text-align: center; margin-top: 12px; }
+
+/* Clipes da call */
+.aviso-clipes { border-color: #e5484d; }
+.dlg-clipe { width: min(720px, 96vw); }
+.dlg-clipe video { width: 100%; max-height: 60vh; background: #000; border-radius: 10px; margin-bottom: 10px; }
