@@ -1,18 +1,83 @@
 # Robô do Instagram do Control Critic
 
-O que ele faz (2 posts por dia):
-- **Todo dia às 12h50** (entretenimento): publica o **meme da comunidade** aprovado mais antigo, com crédito ao autor. Quando alguém posta uma imagem no site, pode marcar **"😂 É meme"**, e a equipe aprova ou recusa em **Admin → Memes 😂**. Sem meme aprovado, o robô publica uma enquete **"Qual você prefere?"** com dois jogos populares da mesma categoria, sem repetir a dupla.
-- **Todo dia às 18h50** publica o **"Resumo do dia"**: um carrossel com uma capa e até 5 notícias. Se houver só 1 notícia, publica ela sozinha.
-- **Dia sem notícia:** publica a **promoção do dia** (o maior desconto, sem repetir jogo na mesma semana), para a página não ficar parada.
-- **Notícia urgente:** no painel, em **Admin → Notícias**, clique em **📸 Postar agora**. O post sai em 1 a 2 minutos, com a etiqueta vermelha "URGENTE".
+São **3 posts por dia**, e cada horário tem uma **lista de formatos que se revezam**. O robô escolhe o formato que está há mais tempo sem sair naquele horário. Ele **nunca repete o tipo do post anterior** e não repete jogo nem notícia por 48 h.
 
-**Stories:** todo post do feed também sai como story (1080×1920), com a arte no centro e o chamado "Toque na foto do perfil e veja o post". Se o story falhar, o post continua valendo. Enquetes com figurinha, links e música não existem na API: esses precisam ser feitos à mão no app.
+| Horário (Brasília) | Modo | Objetivo | Formatos que se revezam |
+|---|---|---|---|
+| 09h20 | `manha` | Útil, para **salvar** | Jogo bom por menos de R$ X · Antes de você comprar · Promoção |
+| 12h50 | `entretenimento` | Opinião, para **comentar** | Meme da comunidade · Este ou aquele · Resultado do este ou aquele · Crítica × comunidade · Superestimado ou subestimado? · Zerou ou largou? · Top 5 por gênero |
+| 18h50 | `diario` | Comunidade e notícia (**o Reels do dia sai aqui**) | Notícias em carrossel · Opinião da comunidade · Top 5 por gênero |
+| Botão **📸 Postar agora** | `urgente` | Notícia urgente | Carrossel com a etiqueta vermelha "URGENTE" |
 
-**Reels com música:** coloque músicas livres de direitos em `scripts/instagram/musicas/` (veja o LEIA-ME de lá). Com música disponível, o resumo do dia sai como **Reels** (vídeo vertical com as artes e a música), que alcança muito mais gente. Sem música, continua como carrossel.
+Se um formato não tem conteúdo bom no momento (por exemplo, nenhum meme aprovado), o robô tenta o próximo da lista.
 
-O Adelino muda de skin conforme o tema do post (terror, RPG, meme, promoção...): veja `img/adelino/LEIA-ME.md`.
+## Formatos
+Quase todos saem em **carrossel**, como as notícias: uma capa, os itens e, no fim, um slide de chamada para o site. Só as perguntas de opinião saem em imagem única.
 
-As artes seguem a identidade do site: fundo escuro, amarelo, títulos em Anton, logo e o Adelino. As legendas levam emojis, fonte, "link na bio" e hashtags.
+- **Jogo bom por menos de R$ X:** até 4 jogos em promoção, cada um com a capa, o preço antigo riscado, o preço novo e o desconto.
+  - A faixa muda por dia: R$ 30, R$ 50, R$ 20 ou R$ 100.
+  - Só entram jogos com nota 70+ na crítica (IGDB, com 20+ notas) ou 3,5+ na comunidade (3+ avaliações).
+- **Antes de você comprar:** um jogo em promoção, com os dados que o site tem:
+  - nota da crítica e nota da comunidade;
+  - preço atual e o anterior, e até quando vai a promoção;
+  - plataformas e gênero;
+  - uma avaliação pública, quando houver.
+  - O site **não tem** tempo de jogo nem compatibilidade com o Steam Deck, então isso **não aparece**.
+- **Promoção:** os maiores descontos de jogos conhecidos, com preço riscado.
+- **Meme da comunidade:** até 3 memes aprovados no admin, com o **nome do autor no site** na arte e na legenda. Não usa @, porque o nome no site não é o @ do Instagram.
+- **Este ou aquele:** dois jogos do catálogo, com as capas do catálogo. A legenda pede o voto: "comenta A ou B".
+- **Resultado do este ou aquele:** um dia depois, conta os comentários "A" e "B" do post anterior e mostra o resultado.
+  - Só sai com pelo menos 3 votos.
+  - Precisa da permissão de ler comentários no app da Meta. Sem ela, o formato é pulado sozinho.
+- **Crítica × comunidade:** sai quando a nota da comunidade (3+ avaliações) e a da crítica diferem em 15 pontos ou mais. Pergunta "quem está certo?".
+- **Superestimado ou subestimado?** e **Zerou ou largou?:** um jogo muito conhecido.
+  - O "zerou ou largou" mostra quantos marcaram "zerei" e "abandonei" no site, só a contagem e sem nomes, quando há 3 ou mais.
+- **Top 5 por gênero:** as maiores notas da crítica em um gênero (50+ notas na IGDB). O gênero não repete por 30 dias.
+- **Opinião da comunidade:** até 3 avaliações públicas reais, de jogos diferentes.
+  - **Sem nome nem foto do autor:** o slide diz "Avaliação pública de um jogador no Control Critic".
+  - Textos com link, @, e-mail ou telefone são descartados.
+- **Notícias em carrossel:** até 3 notícias das **últimas 48 h**, da mais recente para a mais antiga. Cada uma tem dois slides: a capa e "O que aconteceu", com o resumo real e a fonte.
+  - Com uma notícia só, entra também um slide "No Control Critic" com as notas do jogo.
+  - **Notícia com mais de 48 h nunca sai**, nem pelo botão de urgente.
+
+**Imagens:** as artes usam só a capa dos jogos que o próprio site serve (catálogo/IGDB), tipografia, fundo liso e o Adelino. **A imagem que vem com a notícia (do site de origem) não é mais usada.**
+
+**Legendas:** sempre na mesma ordem:
+1. gancho na primeira linha;
+2. contexto curto;
+3. uma pergunta ou convite específico;
+4. a chamada para o site, que varia entre algumas frases;
+5. de 5 a 8 hashtags:
+   - as da marca: `#controlcritic #jogos #gamesbrasil`;
+   - plataforma: `#playstationbr`, `#xboxbrasil`, `#nintendobr`, `#pcgamerbr`;
+   - `#indiegamebr` quando for o caso;
+   - o nome do jogo;
+   - uma do formato.
+
+No máximo 5 emojis.
+
+**Stories:** todo post do feed também sai como story (1080×1920), com a arte no centro. Se o story falhar, o post continua valendo.
+
+**Reels:**
+- no máximo **1 por dia**, no horário das 18h50, quando o post tem 3 ou mais artes;
+- cada arte aparece com um zoom lento, com transição suave entre elas e uma música de `scripts/instagram/musicas/`;
+- sem música na pasta, sai carrossel.
+
+**Limite da API:**
+- antes de publicar, o robô consulta a cota do Instagram (`content_publishing_limit`);
+- se a cota acabou, ou se o Instagram recusar por limite, ele **registra e pula**, sem quebrar.
+
+**Histórico e medição:** tudo fica na tabela `instagram_posts` (migração `supabase/migrations/20261020_08_instagram_posts.sql`).
+- A aba **Admin → Instagram 📸** mostra os últimos 30 posts, onde a equipe anota os números do Insights.
+- Detalhes em `docs/instagram-conteudo.md`.
+
+## Testar sem publicar
+- **Um horário:** em **Actions → Instagram → Run workflow**, escolha o modo e marque **"Só gerar as artes"**.
+- **Todos os formatos de uma vez:** escolha o modo **`amostra`** e marque **"Só gerar as artes"**. Cada formato sai na sua pasta.
+- **Um formato específico:** escolha em **"Forçar um formato"**.
+- No fim, baixe **artes-instagram** em "Artifacts" e veja as artes, o story, a legenda e o Reels (quando houver música).
+
+O Adelino muda de skin conforme o tema do post: veja `img/adelino/LEIA-ME.md`.
 
 Tempo de configuração: uns 30 minutos, uma vez só.
 
@@ -64,7 +129,8 @@ Para o botão disparar o robô na hora, o site precisa de um token do GitHub com
 Sem esse token o botão continua funcionando: a notícia fica marcada e sai na próxima execução do robô, ou quando você rodar o robô manualmente.
 
 ## 6. Atualizar o banco
-Rode o `supabase/schema.sql` de novo no Supabase. Ele cria o controle de "já publicado" e o cofre do token.
+Rode o `supabase/schema.sql` de novo no Supabase. Ele cria o controle de "já publicado", o cofre do token e a tabela `instagram_posts`. Também dá para rodar só a migração `supabase/migrations/20261020_08_instagram_posts.sql`.
+Sem essa tabela o robô continua funcionando, mas sem o histórico, sem a rotação por horário e sem o painel.
 
 ## 7. Testar sem publicar
 1. No GitHub, abra **Actions → Instagram → Run workflow**.
@@ -84,8 +150,9 @@ Rode o `supabase/schema.sql` de novo no Supabase. Ele cria o controle de "já pu
 | Botão diz "o GitHub recusou o disparo" | O `GITHUB_DISPARO_TOKEN` está errado, vencido ou sem a permissão Actions: Read and write. |
 
 ## Limites e cuidados
-- O Instagram permite até 50 posts por dia pela API. O robô faz 2 por dia, mais os urgentes.
+- O Instagram tem um limite de posts por dia pela API (a cota aparece no log de cada execução). O robô faz 3 por dia, mais os urgentes. Se o limite for atingido, ele registra e pula.
 - Links na legenda não são clicáveis no Instagram, por isso a legenda diz "link na bio".
-- Para mudar o horário, edite o `cron` em `.github/workflows/instagram.yml` (está em UTC: `50 15` = 12h50 e `50 21` = 18h50 de Brasília). Se mudar o das 12h50, troque também o `50 15 * * *` na linha do `run`.
+- Para mudar o horário, edite o `cron` em `.github/workflows/instagram.yml`. Ele está em UTC: `20 12` = 09h20, `50 15` = 12h50 e `50 21` = 18h50 de Brasília. Se mudar um deles, troque também o mesmo texto na linha do `run`.
+- Para mudar os formatos de cada horário, edite `HORARIOS` em `scripts/instagram/rotacao.mjs`.
 - Só aprove memes originais ou de uso livre, sem ofensas e sem dados pessoais: quem posta no Instagram é a conta do Control Critic.
 - Post publicado só pode ser apagado pelo próprio app do Instagram.

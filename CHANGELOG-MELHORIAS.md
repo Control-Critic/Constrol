@@ -120,3 +120,12 @@ O rollback por parte está em `supabase/migrations/ROLLBACK.md`. O site funciona
 - [ ] Conferir no log do deploy que o `sw.js` e o `app.js` saíram com o commit (sem `__BUILD__`).
 - [ ] Atualizar a ponte do Discord.
 - [ ] Revisão jurídica antes de publicar na Play Store.
+
+## Instagram: conteúdo para atrair público novo (20/10/2026)
+- Diagnóstico em `docs/instagram-conteudo.md` e formatos em `scripts/instagram/LEIA-ME.md`.
+- **Legendas:** gancho, contexto, convite, chamada que varia e 5 a 8 hashtags.
+- **Formatos novos, em carrossel:** jogo bom por menos de R$ X, antes de você comprar, opinião da comunidade, crítica × comunidade, superestimado ou subestimado?, zerou ou largou?, top 5 por gênero e resultado do este ou aquele.
+- **Rotação por horário:** sem repetir o tipo em sequência e sem repetir jogo ou notícia em 48 h. Notícia só com até 48 h.
+- **Reels:** no máximo 1 por dia, com zoom. Antes de publicar, o robô consulta a cota da API; no limite, registra e pula.
+- **Medição:** tabela `instagram_posts` e aba **Admin → Instagram 📸**.
+- **Ação manual:** aplicar `supabase/migrations/20261020_08_instagram_posts.sql`. Sem ela, o robô funciona sem histórico.

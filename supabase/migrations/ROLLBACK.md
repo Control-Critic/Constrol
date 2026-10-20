@@ -41,5 +41,6 @@ Desfaça só a parte que causou o problema.
 | Eventos | `drop trigger if exists events_protect on public.events;` |
 | Colunas protegidas | `drop trigger if exists posts_protect_cols on public.posts; drop trigger if exists reviews_protect_cols on public.reviews; drop trigger if exists user_games_protect_cols on public.user_games; drop trigger if exists profiles_protect_extra on public.profiles;` |
 | Limites contra spam | `do $$ declare t text; begin foreach t in array array['posts','post_comments','review_comments','direct_messages','reports','follows','lfg_interest','story_reactions'] loop execute format('drop trigger if exists %I on public.%I', t || '_limite', t); end loop; end $$;` |
+| Instagram (histórico) | `drop function if exists public.instagram_medir(bigint, integer, integer, integer, integer); drop table if exists public.instagram_posts;` (apaga só o histórico do robô) |
 
 Para as funções de XP (`posts_after_insert`, `communities_after_insert` e `review_votes_changed`), `answer_join_request`, `react_story` e `answer_story`, rode de novo o trecho correspondente do `schema.sql` da versão anterior (`git show <commit>:supabase/schema.sql`).

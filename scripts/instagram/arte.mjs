@@ -43,7 +43,8 @@ function ajustarTitulo(texto, larguraMax, maxLinhas, tamanhos = [104, 92, 82, 72
   const t = String(texto).toUpperCase();
   for (const tam of tamanhos) { const l = quebrar(t, tam, larguraMax); if (l.length <= maxLinhas) return { tam, linhas: l }; }
   const tam = tamanhos.at(-1), l = quebrar(t, tam, larguraMax);
-  return { tam, linhas: [...l.slice(0, maxLinhas - 1), l.slice(maxLinhas - 1).join(' ').slice(0, 40).replace(/\s\S*$/, '') + '…'] };
+  const cabe = Math.max(6, Math.floor(larguraMax / (tam * 0.5)) - 1);   // a última linha corta no limite da largura
+  return { tam, linhas: [...l.slice(0, maxLinhas - 1), l.slice(maxLinhas - 1).join(' ').slice(0, cabe).replace(/\s\S*$/, '') + '…'] };
 }
 
 // Baixa a imagem da notícia e recorta para preencher a arte (se falhar, usa um fundo liso)
@@ -149,7 +150,9 @@ export async function arteMeme({ imagem, autor }) {
     ${etiqueta('MEME')}
     <rect x="${x - 6}" y="${y - 6}" width="${info.width + 12}" height="${info.height + 12}" rx="14" fill="${AMARELO}"/>
     <image href="${b64(data, 'image/jpeg')}" x="${x}" y="${y}" width="${info.width}" height="${info.height}"/>
-    <text x="56" y="${H - 96}" font-family="Inter" font-size="32" font-weight="600" fill="${AMARELO}">por @${esc(autor)} na comunidade</text>
+    <rect x="40" y="${H - 150}" width="${Math.min(W - 230, 120 + String(autor).length * 22)}" height="76" rx="38" fill="${AMARELO}"/>
+    <text x="70" y="${H - 100}" font-family="Inter" font-size="34" font-weight="800" fill="${PRETO}">por ${esc(autor)}</text>
+    <text x="70" y="${H - 44}" font-family="Inter" font-size="22" fill="#c9c9d1">membro da comunidade Control Critic</text>
     <image href="${mascote('meme')}" x="${W - 170}" y="${H - 230}" width="130" height="130" preserveAspectRatio="xMidYMid meet"/>`;
   return renderizar(base(conteudo, null));
 }
@@ -183,7 +186,7 @@ export async function arteVersus({ a, b, categoria, tema = null }) {
 }
 
 // Story (1080×1920): a arte do post no centro, com o fundo desfocado dela mesma e um chamado para o perfil
-export async function arteStory(jpegPost, chamada = 'NOVO POST NO PERFIL') {
+export async function arteStory(jpegPost, chamada = 'NOVO POST NO PERFIL', rodape = 'Toque na foto do perfil e veja o post') {
   const SW = 1080, SH = 1920, cw = 940, ch = Math.round(cw * H / W);
   const fundoDesfocado = await sharp(jpegPost).resize(SW, SH, { fit: 'cover' }).blur(40).modulate({ brightness: 0.45 }).jpeg({ quality: 80 }).toBuffer();
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SW}" height="${SH}" viewBox="0 0 ${SW} ${SH}">
@@ -191,8 +194,173 @@ export async function arteStory(jpegPost, chamada = 'NOVO POST NO PERFIL') {
     <text x="${SW / 2}" y="250" text-anchor="middle" font-family="Anton" font-size="78" fill="${AMARELO}">${esc(chamada)}</text>
     <rect x="${(SW - cw) / 2 - 8}" y="${(SH - ch) / 2 - 8 + 40}" width="${cw + 16}" height="${ch + 16}" rx="26" fill="${AMARELO}"/>
     <image href="${b64(jpegPost, 'image/jpeg')}" x="${(SW - cw) / 2}" y="${(SH - ch) / 2 + 40}" width="${cw}" height="${ch}"/>
-    <text x="${SW / 2}" y="${SH - 150}" text-anchor="middle" font-family="Inter" font-size="40" font-weight="700" fill="#FFFFFF">Toque na foto do perfil e veja o post</text>
+    <text x="${SW / 2}" y="${SH - 150}" text-anchor="middle" font-family="Inter" font-size="40" font-weight="700" fill="#FFFFFF">${esc(rodape)}</text>
     <text x="${SW / 2}" y="${SH - 95}" text-anchor="middle" font-family="Inter" font-size="30" fill="#c9c9d1">@control.critic</text>
   </svg>`;
   return renderizar(svg, SW);
+}
+
+// ---------- Formatos de engajamento (carrosséis salváveis, opinião, preço) ----------
+// Regra: só dados reais do site. Capas = as que o próprio site serve (IGDB via catálogo). Nada de imagem de imprensa.
+
+async function capa(url, w, h) {
+  if (!url) return null;
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(15000), headers: { 'User-Agent': 'ControlCriticBot/1.0' } });
+    if (!r.ok) return null;
+    return b64(await sharp(Buffer.from(await r.arrayBuffer())).resize(w, h, { fit: 'cover', position: 'attention' }).jpeg({ quality: 88 }).toBuffer(), 'image/jpeg');
+  } catch { return null; }
+}
+const cartaoCapa = (img, x, y, w, h, id) => `<rect x="${x - 6}" y="${y - 6}" width="${w + 12}" height="${h + 12}" rx="24" fill="${AMARELO}"/>
+  ${img ? `<clipPath id="${id}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="18"/></clipPath><image href="${img}" x="${x}" y="${y}" width="${w}" height="${h}" clip-path="url(#${id})" preserveAspectRatio="xMidYMid slice"/>`
+    : `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="18" fill="#1b1b20"/>`}`;
+const titulo = (texto, x, y, larg, maxL, tams, cor = '#FFFFFF', ancora = 'start') => {
+  const { tam, linhas } = ajustarTitulo(texto, larg, maxL, tams);
+  return { svg: linhas.map((l, i) => `<text x="${x}" y="${y + tam * (i + 0.9) * 1.08}" text-anchor="${ancora}" font-family="Anton" font-size="${tam}" fill="${cor}">${esc(l)}</text>`).join(''), altura: linhas.length * tam * 1.08 };
+};
+const paragrafo = (texto, x, y, larg, tam = 34, maxL = 8, cor = '#e6e6ea', ancora = 'start') => {
+  const l = quebrar(semEmoji(texto), tam, larg, 0.52);
+  const linhas = l.length > maxL ? [...l.slice(0, maxL - 1), l[maxL - 1].replace(/\s\S*$/, '') + '…'] : l;
+  return { svg: linhas.map((t, i) => `<text x="${x}" y="${y + i * tam * 1.35}" text-anchor="${ancora}" font-family="Inter" font-size="${tam}" font-weight="500" fill="${cor}">${esc(t)}</text>`).join(''), altura: linhas.length * tam * 1.35 };
+};
+const contador = (n, total) => total > 1 ? `<text x="${W - 56}" y="${H - 34}" text-anchor="end" font-family="Anton" font-size="28" fill="${AMARELO}">${n}/${total}</text>` : '';
+
+// Capa de carrossel: só tipografia + Adelino (ex.: "JOGO BOM POR MENOS DE R$ 30")
+export async function arteCapaLista({ etiqueta: et, linha1, destaque, linha2 = '', subtitulo = '', tema = null }) {
+  const conteudo = `
+    ${etiqueta(et)}
+    <text x="56" y="420" font-family="Anton" font-size="120" fill="#FFFFFF">${esc(String(linha1).toUpperCase())}</text>
+    <text x="56" y="560" font-family="Anton" font-size="140" fill="${AMARELO}">${esc(String(destaque).toUpperCase())}</text>
+    ${linha2 ? `<text x="56" y="690" font-family="Anton" font-size="110" fill="#FFFFFF">${esc(String(linha2).toUpperCase())}</text>` : ''}
+    ${paragrafo(subtitulo, 56, 800, W - 420, 36, 4, '#c9c9d1').svg}
+    <text x="56" y="${H - 110}" font-family="Inter" font-size="32" font-weight="700" fill="${AMARELO}">Arraste para o lado  →  e salve para depois</text>
+    <image href="${mascote(tema, 'promocao')}" x="${W - 380}" y="${H - 620}" width="340" height="340" preserveAspectRatio="xMidYMid meet"/>`;
+  return renderizar(base(conteudo, null));
+}
+
+// Preço: capa do jogo, preço antigo riscado, preço novo e o desconto em destaque
+export async function artePreco({ jogo, capaUrl, original, preco, desconto, loja, fim = '', numero = 1, total = 1, tema = null }) {
+  const img = await capa(capaUrl, 420, 560);
+  const t = titulo(jogo, 56, 760, W - 112, 2, [84, 72, 62, 54]);
+  const riscado = original ? `<text x="560" y="420" font-family="Inter" font-size="46" font-weight="600" fill="#9a9aa5">${esc(original)}</text>
+    <rect x="556" y="404" width="${Math.max(120, original.length * 25)}" height="5" fill="#E5484D"/>` : '';
+  const conteudo = `
+    ${etiqueta(`-${desconto}%`)}
+    ${cartaoCapa(img, 64, 170, 420, 560, `cp${numero}`)}
+    <text x="560" y="330" font-family="Inter" font-size="34" font-weight="600" fill="#c9c9d1">de</text>
+    ${riscado}
+    <text x="560" y="500" font-family="Inter" font-size="34" font-weight="600" fill="#c9c9d1">por</text>
+    <text x="556" y="610" font-family="Anton" font-size="${preco.length > 9 ? 96 : 112}" fill="${AMARELO}">${esc(preco)}</text>
+    <text x="560" y="680" font-family="Inter" font-size="32" font-weight="600" fill="#FFFFFF">na ${esc(loja)}</text>
+    ${t.svg}
+    ${fim ? `<text x="56" y="${780 + t.altura + 40}" font-family="Inter" font-size="32" font-weight="600" fill="#c9c9d1">${esc(fim)}</text>` : ''}
+    <text x="56" y="${H - 110}" font-family="Inter" font-size="30" font-weight="700" fill="${AMARELO}">Vale a pena? Comenta aí</text>
+    <image href="${mascote('promocao', tema)}" x="${W - 200}" y="${H - 300}" width="160" height="160" preserveAspectRatio="xMidYMid meet"/>
+    ${contador(numero, total)}`;
+  return renderizar(base(conteudo, null));
+}
+
+// Ficha com fatos reais (antes de comprar, top da crítica): capa + lista de rótulo/valor
+export async function arteFatos({ etiqueta: et, jogo, capaUrl, fatos, rodape = '', numero = 1, total = 1, tema = null }) {
+  const img = await capa(capaUrl, 330, 440);
+  const t = titulo(jogo, 430, 190, W - 490, 3, [72, 62, 54, 46]);
+  let y = 720;
+  const itens = fatos.slice(0, 5).map(({ rotulo, valor }) => {
+    const v = paragrafo(valor, 56, y + 46, W - 112, 40, 2, '#FFFFFF');
+    const bloco = `<text x="56" y="${y}" font-family="Inter" font-size="28" font-weight="700" fill="${AMARELO}" letter-spacing="1">${esc(String(rotulo).toUpperCase())}</text>${v.svg}`;
+    y += 70 + v.altura;
+    return bloco;
+  }).join('');
+  const conteudo = `
+    ${etiqueta(et)}
+    ${cartaoCapa(img, 64, 200, 330, 440, `cf${numero}`)}
+    ${t.svg}
+    ${itens}
+    ${rodape ? `<text x="56" y="${H - 96}" font-family="Inter" font-size="28" font-weight="600" fill="#c9c9d1">${esc(rodape)}</text>` : ''}
+    <image href="${mascote(tema, 'resumo')}" x="${W - 190}" y="${H - 280}" width="150" height="150" preserveAspectRatio="xMidYMid meet"/>
+    ${contador(numero, total)}`;
+  return renderizar(base(conteudo, null));
+}
+
+// Opinião da comunidade: texto real de uma avaliação pública, sem nome nem foto do autor
+export async function arteOpiniao({ jogo, capaUrl, nota, texto, numero = 1, total = 1, tema = null }) {
+  const img = await capa(capaUrl, 240, 320);
+  const t = titulo(jogo, 340, 210, W - 400, 2, [64, 56, 48]);
+  const estrelas = Array.from({ length: 5 }, (_, i) => `<path transform="translate(${340 + i * 64},${250 + t.altura}) scale(2.2)" d="M12 2l3 6.9 7.5.6-5.7 4.9 1.8 7.3L12 17.8 5.4 21.7l1.8-7.3L1.5 9.5 9 8.9z" fill="${i < nota ? AMARELO : '#3a3a42'}"/>`).join('');
+  const p = paragrafo(`“${texto}”`, 70, 640, W - 140, 40, 10, '#FFFFFF');
+  const conteudo = `
+    ${etiqueta('OPINIÃO')}
+    ${cartaoCapa(img, 64, 180, 240, 320, `co${numero}`)}
+    ${t.svg}${estrelas}
+    <rect x="40" y="580" width="${W - 80}" height="${p.altura + 60}" rx="26" fill="#17171c" stroke="#2c2c34"/>
+    ${p.svg}
+    <text x="56" y="${H - 96}" font-family="Inter" font-size="28" font-weight="600" fill="#c9c9d1">Avaliação pública de um jogador no Control Critic</text>
+    <image href="${mascote(tema, 'enquete')}" x="${W - 180}" y="${H - 270}" width="140" height="140" preserveAspectRatio="xMidYMid meet"/>
+    ${contador(numero, total)}`;
+  return renderizar(base(conteudo, null));
+}
+
+// Pergunta de opinião sobre um jogo (zerou ou largou? superestimado? crítica x comunidade)
+export async function artePergunta({ etiqueta: et, pergunta, jogo, capaUrl, opcoes = [], dados = [], tema = null }) {
+  const img = await capa(capaUrl, 390, 520);
+  const q = titulo(pergunta, W / 2, 170, W - 112, 2, [80, 70, 60], '#FFFFFF', 'middle');
+  const yCapa = 200 + q.altura;
+  const yB = yCapa + 520;   // fim da capa
+  const ops = opcoes.slice(0, 2).map((o, i) => {
+    const x = i === 0 ? 56 : W / 2 + 12, w = W / 2 - 68;
+    return `<rect x="${x}" y="${yB + 190}" width="${w}" height="96" rx="48" fill="${i === 0 ? AMARELO : '#FFFFFF'}"/>
+      <text x="${x + w / 2}" y="${yB + 255}" text-anchor="middle" font-family="Anton" font-size="52" fill="${PRETO}">${esc(o)}</text>`;
+  }).join('');
+  const linhas = dados.slice(0, 2).map((d, i) => `<text x="${W / 2}" y="${yB + 120 + i * 44}" text-anchor="middle" font-family="Inter" font-size="32" font-weight="600" fill="${i ? '#c9c9d1' : AMARELO}">${esc(d)}</text>`).join('');
+  const conteudo = `
+    ${etiqueta(et)}
+    ${q.svg}
+    ${cartaoCapa(img, (W - 390) / 2, yCapa, 390, 520, 'cq')}
+    <text x="${W / 2}" y="${yB + 70}" text-anchor="middle" font-family="Anton" font-size="${jogo.length > 26 ? 40 : 50}" fill="#FFFFFF">${esc(String(jogo).toUpperCase().slice(0, 40))}</text>
+    ${linhas}${ops}
+    <image href="${mascote(tema, 'enquete')}" x="${W - 180}" y="${H - 220}" width="130" height="130" preserveAspectRatio="xMidYMid meet"/>`;
+  return renderizar(base(conteudo, null));
+}
+
+// Slide de texto do carrossel de notícia ("O que aconteceu", "No Control Critic"...)
+export async function arteTexto({ etiqueta: et, titulo: tt, texto, capaUrl = null, numero = 1, total = 1, tema = null }) {
+  const img = capaUrl ? await capa(capaUrl, 200, 266) : null;
+  const t = titulo(tt, 56, 200, W - (img ? 340 : 112), 3, [80, 70, 60, 52]);
+  const p = paragrafo(texto, 56, 300 + Math.max(t.altura, img ? 200 : 0), W - 112, 40, 12, '#FFFFFF');
+  const conteudo = `
+    ${etiqueta(et)}
+    ${img ? cartaoCapa(img, W - 260, 190, 200, 266, `ct${numero}`) : ''}
+    <rect x="56" y="${190 + t.altura + 20}" width="120" height="10" fill="${AMARELO}"/>
+    ${t.svg}${p.svg}
+    <image href="${mascote(tema, 'noticia')}" x="${W - 190}" y="${H - 270}" width="150" height="150" preserveAspectRatio="xMidYMid meet"/>
+    ${contador(numero, total)}`;
+  return renderizar(base(conteudo, null));
+}
+
+// Último slide de todo carrossel: chamada para o site
+export async function arteChamada({ titulo: tt = 'QUER MAIS?', linhas = [], numero = 1, total = 1 }) {
+  const conteudo = `
+    ${etiqueta('CONTROL CRITIC')}
+    <text x="${W / 2}" y="380" text-anchor="middle" font-family="Anton" font-size="130" fill="${AMARELO}">${esc(String(tt).toUpperCase())}</text>
+    ${linhas.slice(0, 4).map((l, i) => `<text x="${W / 2}" y="${500 + i * 64}" text-anchor="middle" font-family="Inter" font-size="40" font-weight="600" fill="#FFFFFF">${esc(l)}</text>`).join('')}
+    <rect x="${W / 2 - 300}" y="${H - 420}" width="600" height="110" rx="55" fill="${AMARELO}"/>
+    <text x="${W / 2}" y="${H - 348}" text-anchor="middle" font-family="Anton" font-size="56" fill="${PRETO}">LINK NA BIO</text>
+    <image href="${mascote('resumo')}" x="${W / 2 - 120}" y="${H - 290}" width="240" height="200" preserveAspectRatio="xMidYMid meet"/>
+    ${contador(numero, total)}`;
+  return renderizar(base(conteudo, null));
+}
+
+// Resultado do "este ou aquele" anterior (contagem real dos comentários A/B)
+export async function arteResultado({ a, b, va, vb }) {
+  const [ia, ib] = await Promise.all([capa(a.capa, 400, 540), capa(b.capa, 400, 540)]);
+  const tot = va + vb || 1, pa = Math.round((va / tot) * 100), pb = 100 - pa;
+  const lado = (img, j, x, pct, votos, vence, id) => `${cartaoCapa(img, x, 330, 400, 540, id)}
+    <text x="${x + 200}" y="980" text-anchor="middle" font-family="Anton" font-size="110" fill="${vence ? AMARELO : '#9a9aa5'}">${pct}%</text>
+    <text x="${x + 200}" y="1030" text-anchor="middle" font-family="Inter" font-size="28" font-weight="600" fill="#c9c9d1">${votos} ${votos === 1 ? 'voto' : 'votos'}</text>
+    ${ajustarTitulo(j.titulo, 400, 2, [44, 38, 32]).linhas.map((l, i) => `<text x="${x + 200}" y="${1090 + i * 44}" text-anchor="middle" font-family="Anton" font-size="40" fill="#FFFFFF">${esc(l)}</text>`).join('')}`;
+  const conteudo = `
+    ${etiqueta('RESULTADO')}
+    <text x="${W / 2}" y="270" text-anchor="middle" font-family="Anton" font-size="84" fill="#FFFFFF">VOCÊS <tspan fill="${AMARELO}">ESCOLHERAM</tspan></text>
+    ${lado(ia, a, 80, pa, va, va >= vb, 'ra')}${lado(ib, b, W - 480, pb, vb, vb > va, 'rb')}`;
+  return renderizar(base(conteudo, null));
 }
