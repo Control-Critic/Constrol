@@ -5,7 +5,8 @@ import { COLUNAS_POST_DESAFIO as COLUNAS_POST, postHtml, ligarPosts, compositorH
 // feed.html usa este mesmo módulo só com o feed completo e a atividade dos amigos
 const PAGINA_FEED = location.pathname.endsWith('feed.html');
 let compositor = null, paginaFeed = 0; // declarados antes do uso (o código abaixo roda já no carregamento)
-await montarLayout();
+// O cabeçalho monta em paralelo: o conteúdo da home não espera o perfil carregar
+montarLayout().catch(() => {});
 const main = $('#conteudo');
 
 // Cada bloco da home é uma <section> com id; a ordem muda conforme quem está vendo
@@ -126,38 +127,42 @@ const cardPromo = (d) => `
 
 if (configurado) {
   const ano = new Date().getFullYear();
-  const u = await usuario();
-  const p = u ? await perfil() : null;
-  // Conta nova: ainda não terminou as boas-vindas ou não tem nada na biblioteca
-  let estado = 'visitante';
+  // Blocos públicos começam a carregar já, sem esperar saber quem está vendo
+  if (!PAGINA_FEED) {
+    bloco('b-destaques', '#destaques', () => sb.from('games').select(COLUNAS_CARD).eq('featured', true).order('avg_rating', { ascending: false }).order('igdb_rating', { ascending: false, nullsFirst: false }).limit(12),
+      (l) => l.length ? carrossel(l.map(cardJogo).join('')) : '');
+    bloco('b-lancamentos', '#lancamentos', () => sb.from('games').select(COLUNAS_CARD).gte('release_year', ano - 1).order('release_year', { ascending: false }).order('igdb_rating_count', { ascending: false, nullsFirst: false }).limit(12),
+      (l) => l.length ? carrossel(l.map(cardJogo).join('')) : '');
+    bloco('b-promos', '#promos', () => sb.from('deals').select('*, games(slug,title,cover_url)').gt('discount_pct', 0).order('discount_pct', { ascending: false }).limit(12),
+      (l) => { const v = l.filter((d) => d.games); return v.length ? carrossel(v.map(cardPromo).join('')) : ''; });
+    bloco('b-noticias', '#noticias', () => sb.from('news').select('id,title,summary,source,cover_url,created_at').eq('published', true).order('created_at', { ascending: false }).limit(10),
+      (l) => l.length ? carrossel(l.map((n) => { const r = limpar(n.summary); return `
+      <a class="noticia-card" href="novidades.html#n${Number(n.id)}">
+        <img class="noticia-img" src="${urlSegura(n.cover_url) || 'img/ControlHeader.png'}" alt="" loading="lazy" ${n.cover_url ? '' : 'style="object-fit:contain;padding:18px"'}>
+        <span class="noticia-corpo"><span class="muted" style="font-size:.78rem">${data(n.created_at)}${n.source ? ' · ' + esc(n.source) : ''}</span>
+        <strong>${esc(n.title)}</strong>${r ? `<span class="muted noticia-resumo">${esc(r)}</span>` : ''}</span></a>`; }).join('')).replace('class="car-trilho"', 'class="car-trilho medio"') : '');
+    bloco('b-comunidades', '#comunidades-home', () => sb.from('communities').select('id,name,description,icon_url').eq('is_private', false).order('created_at', { ascending: true }).limit(6),
+      (l) => l.length ? `<div class="grade">${l.map((c) => `<a class="cartao" href="comunidade.html?id=${Number(c.id)}" style="color:var(--texto);text-decoration:none">
+        <strong>${esc(c.name)}</strong><p class="muted" style="font-size:.85rem;margin:4px 0">${esc(String(c.description || '').slice(0, 90))}</p>
+  </a>`).join('')}</div>` : '');
+  }
+  const u = await usuario(); // sessão local (sem ir ao servidor)
+  // Ordem provisória com o último estado conhecido neste aparelho (evita a página "pular" depois)
+  let estado = !u ? 'visitante' : (() => { try { return localStorage.getItem('cc_estado_home') || 'recorrente'; } catch { return 'recorrente'; } })();
+  ordenar(estado);
+  // Conta nova: ainda não terminou as boas-vindas ou não tem nada na biblioteca (perfil e biblioteca em paralelo)
+  const [p, contagem] = u ? await Promise.all([perfil(), sb.from('user_games').select('game_id', { count: 'exact', head: true }).eq('user_id', u.id)]) : [null, {}];
   if (u) {
-    const { count } = await sb.from('user_games').select('game_id', { count: 'exact', head: true }).eq('user_id', u.id);
-    estado = !p?.onboarded || !count ? 'novo' : 'recorrente';
+    const certo = !p?.onboarded || !contagem.count ? 'novo' : 'recorrente';
+    try { localStorage.setItem('cc_estado_home', certo); } catch { /* ignora */ }
+    if (certo !== estado) { estado = certo; ordenar(estado); }
   }
   document.body.dataset.estadoHome = estado;
-  ordenar(estado);
   if (PAGINA_FEED) main.insertAdjacentHTML('afterbegin', '<h1>Feed da comunidade</h1>');
   if (u) {
     if ($('#hero-acoes')) $('#hero-acoes').innerHTML = `<a class="btn" href="#b-grupo" id="hero-grupo">Encontrar grupo</a><a class="btn sec" href="#b-rec">Ver recomendações</a>`;
     if (estado === 'recorrente') $('#b-hero')?.classList.add('hero-compacto');
   }
-
-  bloco('b-destaques', '#destaques', () => sb.from('games').select(COLUNAS_CARD).eq('featured', true).order('avg_rating', { ascending: false }).order('igdb_rating', { ascending: false, nullsFirst: false }).limit(12),
-    (l) => l.length ? carrossel(l.map(cardJogo).join('')) : '');
-  bloco('b-lancamentos', '#lancamentos', () => sb.from('games').select(COLUNAS_CARD).gte('release_year', ano - 1).order('release_year', { ascending: false }).order('igdb_rating_count', { ascending: false, nullsFirst: false }).limit(12),
-    (l) => l.length ? carrossel(l.map(cardJogo).join('')) : '');
-  bloco('b-promos', '#promos', () => sb.from('deals').select('*, games(slug,title,cover_url)').gt('discount_pct', 0).order('discount_pct', { ascending: false }).limit(12),
-    (l) => { const v = l.filter((d) => d.games); return v.length ? carrossel(v.map(cardPromo).join('')) : ''; });
-  bloco('b-noticias', '#noticias', () => sb.from('news').select('id,title,summary,source,cover_url,created_at').eq('published', true).order('created_at', { ascending: false }).limit(10),
-    (l) => l.length ? carrossel(l.map((n) => { const r = limpar(n.summary); return `
-    <a class="noticia-card" href="novidades.html#n${Number(n.id)}">
-      <img class="noticia-img" src="${urlSegura(n.cover_url) || 'img/ControlHeader.png'}" alt="" loading="lazy" ${n.cover_url ? '' : 'style="object-fit:contain;padding:18px"'}>
-      <span class="noticia-corpo"><span class="muted" style="font-size:.78rem">${data(n.created_at)}${n.source ? ' · ' + esc(n.source) : ''}</span>
-      <strong>${esc(n.title)}</strong>${r ? `<span class="muted noticia-resumo">${esc(r)}</span>` : ''}</span></a>`; }).join('')).replace('class="car-trilho"', 'class="car-trilho medio"') : '');
-  bloco('b-comunidades', '#comunidades-home', () => sb.from('communities').select('id,name,description,icon_url').eq('is_private', false).order('created_at', { ascending: true }).limit(6),
-    (l) => l.length ? `<div class="grade">${l.map((c) => `<a class="cartao" href="comunidade.html?id=${Number(c.id)}" style="color:var(--texto);text-decoration:none">
-      <strong>${esc(c.name)}</strong><p class="muted" style="font-size:.85rem;margin:4px 0">${esc(String(c.description || '').slice(0, 90))}</p>
-</a>`).join('')}</div>` : '');
 
   if (PAGINA_FEED && estado === 'visitante') {
     // feed completo também para visitantes (só leitura)
@@ -175,8 +180,8 @@ if (configurado) {
   } else {
     $('#b-feed-wrap').classList.remove('hidden');
     if (estado === 'novo' && !PAGINA_FEED) checklist(u, p);
-    const { data: rec } = await sb.rpc('recommend_games', { lim: 12 }).select(COLUNAS_CARD);
-    preencher('b-rec', '#rec', rec?.length ? carrossel(rec.map(cardJogo).join('')) : '');
+    // recomendações não seguram o feed: carregam em paralelo
+    if (!PAGINA_FEED) sb.rpc('recommend_games', { lim: 12 }).select(COLUNAS_CARD).then(({ data: rec }) => preencher('b-rec', '#rec', rec?.length ? carrossel(rec.map(cardJogo).join('')) : ''), () => {});
     if (estado === 'recorrente') {
       // Promoções dos jogos que a pessoa marcou na lista de desejos
       bloco('b-desejos', '#desejos', async () => {
