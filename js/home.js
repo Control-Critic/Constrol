@@ -67,10 +67,10 @@ main.insertAdjacentHTML('beforeend', `
   </section>
   <section id="b-comunidades" class="hidden">${ver('🏰 Comunidades', 'comunidades.html')}<div id="comunidades-home"></div></section>
   <section id="b-feed-wrap" class="detalhe hidden" style="margin-top:8px">
-    <section><div id="desafio"></div><h2>📣 Feed da comunidade</h2><div id="compor"></div><div class="lista" id="feed" style="margin-top:12px">${esqueletoLista(3)}</div>
+    <section><h2>📣 Feed da comunidade</h2><div id="compor"></div><div class="lista" id="feed" style="margin-top:12px">${esqueletoLista(3)}</div>
       <button class="btn sec hidden" id="mais-feed" style="margin-top:12px;width:100%">Carregar mais</button>
       <a class="btn sec hidden ver-tudo" id="ver-feed" href="feed.html">Ver o feed completo →</a></section>
-    <aside><div id="jogando-agora"></div><h2>👥 Atividade dos amigos</h2><div class="lista" id="atividade"><p class="muted">Siga pessoas para ver o que elas estão jogando e avaliando.</p></div>
+    <aside><div id="desafio"></div><div id="jogando-agora"></div><h2>👥 Atividade dos amigos</h2><div class="lista" id="atividade"><p class="muted">Siga pessoas para ver o que elas estão jogando e avaliando.</p></div>
       <a class="btn sec hidden ver-tudo" id="ver-atividade" href="feed.html#atividade">Ver toda a atividade →</a></aside>
   </section>
   <section id="b-rec" class="hidden">${ver('🎯 Recomendados para você')}<div id="rec"></div></section>
