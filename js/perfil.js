@@ -12,6 +12,14 @@ if (configurado) iniciar();
 
 async function iniciar() {
   const u = await usuario();
+  // Vindo do /conectar do robô no Discord: liga a conta (o código vale 15 min e é de uma pessoa só)
+  const codigoDiscord = String(param('discord') || '').toUpperCase();
+  if (/^[A-Z0-9]{8}$/.test(codigoDiscord)) {
+    if (!u) { location.href = `entrar.html?volta=${encodeURIComponent('perfil.html?discord=' + codigoDiscord)}`; return; }
+    const { data: nome, error } = await sb.rpc('vincular_discord', { codigo: codigoDiscord });
+    history.replaceState(null, '', 'perfil.html');
+    if (error) falha(error); else toast(`✅ Discord ligado (${nome})! Agora /grupo, /nota e o ranking do servidor contam no seu perfil.`);
+  }
   const alvo = param('u');
   let p;
   if (alvo) {
@@ -420,6 +428,7 @@ async function abrirEditor(p) {
         <div><label for="twitch">Usuário da Twitch</label><input id="twitch" maxlength="25" pattern="[A-Za-z0-9_]{3,25}" value="${esc(p.twitch_user || '')}" placeholder="aparece 🔴 AO VIVO quando estiver transmitindo"></div>
         <div><label for="steam">Link do perfil Steam</label><input id="steam" type="url" placeholder="https://steamcommunity.com/id/..." value="${esc(p.steam_profile || '')}"></div>
       </div>
+      <p class="muted" style="font-size:.85rem;margin-top:8px" id="discord-ligado">Robô do Discord: use <strong>/conectar</strong> num servidor com o robô do Control Critic para ligar sua conta.</p>
     </div>
 
     <div class="secao-form"><h3>Moldura e banner</h3>
@@ -445,6 +454,12 @@ async function abrirEditor(p) {
     </div>
   </form>`;
   dlg.showModal();
+  // Conta do Discord ligada pelo robô (só você vê)
+  sb.from('discord_contas').select('discord_nome').maybeSingle().then(({ data: dc }) => {
+    const el = $('#discord-ligado'); if (!el || !dc) return;
+    el.innerHTML = `🤖 Robô do Discord ligado à conta <strong>${esc(dc.discord_nome || 'Discord')}</strong>. <button type="button" class="btn sec pequeno" id="discord-desligar">Desligar</button>`;
+    $('#discord-desligar').onclick = async () => { const { error } = await sb.rpc('desvincular_discord'); if (error) return falha(error); el.textContent = 'Discord desligado. Use /conectar para ligar de novo.'; };
+  }, () => {});
 
   // Vitrine: escolhe entre os jogos da biblioteca
   const escolhidos = new Set(p.showcase_games || []);
@@ -547,7 +562,7 @@ async function exportarDados(p) {
     ['mensagens_enviadas', 'direct_messages', 'sender_id'], ['mensagens_recebidas', 'direct_messages', 'receiver_id'],
     ['stories', 'stories', 'user_id'], ['stories_vistos', 'story_views', 'user_id'], ['melhores_amigos', 'close_friends', 'owner_id'],
     ['listas', 'user_lists', 'user_id'], ['grupos', 'lfg_posts', 'user_id'], ['itens_e_conquistas', 'user_cosmetics', 'user_id'], ['historico_de_xp', 'xp_log', 'user_id'],
-    ['bloqueados', 'user_blocks', 'blocker_id'], ['denuncias_enviadas', 'reports', 'reporter_id'], ['apelacoes', 'appeals', 'user_id'], ['aparelhos_com_notificacao', 'push_subscriptions', 'user_id']];
+    ['bloqueados', 'user_blocks', 'blocker_id'], ['denuncias_enviadas', 'reports', 'reporter_id'], ['apelacoes', 'appeals', 'user_id'], ['aparelhos_com_notificacao', 'push_subscriptions', 'user_id'], ['conta_do_discord', 'discord_contas', 'user_id']];
   const out = { exportado_em: new Date().toISOString(), perfil: p };
   const { data: { user } } = await sb.auth.getUser();
   out.conta = { email: user?.email, criada_em: user?.created_at };

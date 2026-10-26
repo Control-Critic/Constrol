@@ -9,6 +9,11 @@ São **3 posts por dia**, e cada horário tem uma **lista de formatos que se rev
 | 18h50 | `diario` | Comunidade e notícia (**o Reels do dia sai aqui**) | Notícias em carrossel · Opinião da comunidade · Top 5 por gênero |
 | Botão **📸 Postar agora** | `urgente` | Notícia urgente | Carrossel com a etiqueta vermelha "URGENTE" |
 
+**Horários reserva:** o GitHub às vezes atrasa ou pula um agendamento. Por isso cada horário tem uma reserva 40 minutos depois (10h00, 13h30 e 19h30).
+- A reserva só publica se aquele horário ainda não saiu no dia.
+- O agendamento principal, se rodar atrasado, também confere antes, então nunca sai post repetido.
+- A reserva precisa da tabela `instagram_posts` (migração 08). Sem ela, a reserva não faz nada.
+
 Se um formato não tem conteúdo bom no momento (por exemplo, nenhum meme aprovado), o robô tenta o próximo da lista.
 
 ## Formatos

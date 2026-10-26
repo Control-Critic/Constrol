@@ -598,6 +598,20 @@ async function carregarEstilosItens() {
 }
 
 // ---------- Twitch: quem está ao vivo ----------
+// Transmissões ao vivo nas calls do Discord (pelo robô). Mostra o link direto para assistir; atualiza a cada minuto.
+export function aoVivoDiscord(el, comunidade = null) {
+  if (!el) return;
+  const atualizar = async () => {
+    const { data } = await sb.rpc('ao_vivo_discord', comunidade ? { cid: comunidade } : {});
+    el.innerHTML = (data || []).map((v) => `<a class="ao-vivo-discord" href="${urlSegura(v.link)}" target="_blank" rel="noopener noreferrer">
+      <span class="pulso" aria-hidden="true"></span><strong>${esc(v.nome || 'Alguém')}</strong> está transmitindo ${comunidade ? '' : `na call de <strong>${esc(v.comunidade)}</strong>`}
+      ${v.canal ? `em 🔊 ${esc(v.canal)}` : ''} <span class="btn pequeno discord">▶ Assistir no Discord</span></a>`).join('');
+  };
+  atualizar().catch(() => {});
+  const t = setInterval(() => (document.hidden ? null : atualizar().catch(() => {})), 60000);
+  addEventListener('pagehide', () => clearInterval(t), { once: true });
+}
+
 export async function aoVivo(logins) {
   const lista = [...new Set(logins.filter((l) => /^[A-Za-z0-9_]{3,25}$/.test(l || '')).map((l) => l.toLowerCase()))].slice(0, 100);
   if (!lista.length) return new Map();
