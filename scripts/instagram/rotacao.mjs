@@ -13,7 +13,9 @@ const ok = (h) => !h.erro;
 
 // historico: [{ tipo, horario, created_at, salvamentos }], mais recente primeiro ou em qualquer ordem
 export function ordemDeFormatos(horario, historico = [], agora = Date.now()) {
-  const lista = HORARIOS[horario] || HORARIOS.noite;
+  let lista = HORARIOS[horario] || HORARIOS.noite;
+  // Sem histórico (tabela ainda não criada ou vazia): gira a lista pelo dia, para não sair sempre o mesmo formato
+  if (!historico.some(ok)) { const d = Math.floor((agora - 3 * 3600e3) / 864e5) % lista.length; lista = [...lista.slice(d), ...lista.slice(0, d)]; }
   const validos = historico.filter(ok).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   const anterior = validos[0]?.tipo;
   // quando cada formato saiu pela última vez NESTE horário (nunca = -Infinity, vai primeiro)
