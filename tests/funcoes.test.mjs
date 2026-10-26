@@ -25,6 +25,14 @@ test('IGDB: converte jogo com lojas em links brasileiros, ID da Steam, trailer e
   assert.equal(l.description_lang, 'en');
 });
 
+test('IGDB: link de loja só vale com o domínio de verdade', () => {
+  const l = paraLinha({ id: 2, name: 'X', slug: 'x', websites: [{ url: 'https://site-falso.com/?store.steampowered.com/app/123' }, { url: 'https://evil.com/store.playstation.com/' },
+    { url: 'http://www.xbox.com/en-US/games/x' }, { url: 'https://store.steampowered.com.evil.com/app/9' }] }, CATS);
+  assert.equal(l.store_steam ?? null, null);
+  assert.equal(l.store_ps ?? null, null);
+  assert.equal(l.store_xbox ?? null, null);   // sem https
+});
+
 test('IGDB: terror vence ação; jogo só de celular é Mobile', () => {
   assert.equal(categoria({ genres: [{ name: 'Shooter' }], themes: [{ name: 'Horror' }] }, ['PC']), 'fps'); // Half-Life, BioShock
   assert.equal(categoria({ genres: [{ name: 'Shooter' }], themes: [{ name: 'Horror' }, { name: 'Survival' }], keywords: [{ name: 'Survival Horror' }] }, ['PC']), 'terror'); // Resident Evil
