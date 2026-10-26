@@ -7,7 +7,7 @@
 //   /avisos     (admin do servidor) escolhe o canal de avisos: promoções, enquete do dia, ranking e "ao vivo"
 //   Ao vivo     quando alguém liga a transmissão (Go Live) num canal de voz, o robô avisa com o link direto
 // Tudo grava com a chave secreta, então as regras do site (banimento, limites) são conferidas aqui.
-import { randomBytes } from 'node:crypto';
+import { randomInt } from 'node:crypto';
 
 const PLATAFORMAS = ['PlayStation', 'Xbox', 'PC', 'Nintendo', 'Mobile', 'Crossplay'];
 const horaBR = () => Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Sao_Paulo' }));
@@ -67,7 +67,7 @@ export function ligarSocial({ cliente, djs, adm, site, log }) {
 
   async function conectar(it) {
     const AB = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // sem 0/O e 1/I para não confundir
-    const code = [...randomBytes(8)].map((b) => AB[b % AB.length]).join('');
+    const code = Array.from({ length: 8 }, () => AB[randomInt(AB.length)]).join('');
     const { error } = await adm.from('discord_link_codes').insert({ code, discord_id: it.user.id, discord_name: it.user.username.slice(0, 40), guild_id: it.guildId });
     if (error) return it.reply({ content: 'Não consegui gerar o código agora. Tente de novo em instantes.', ...efemero });
     const url = `${site}/perfil.html?discord=${code}`;
