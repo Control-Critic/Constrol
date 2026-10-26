@@ -48,14 +48,33 @@ function ajustarTitulo(texto, larguraMax, maxLinhas, tamanhos = [104, 92, 82, 72
 }
 
 // Baixa a imagem da notícia e recorta para preencher a arte (se falhar, usa um fundo liso)
+// As "capas" do catálogo costumam ser artes HORIZONTAIS da IGDB (16:9). Cortar uma arte horizontal num quadro vertical
+// perde quase tudo; por isso a imagem entra inteira (sem corte) sobre um fundo desfocado dela mesma.
+// Da IGDB, pede a versão em alta (1080p) em vez da miniatura.
+const emAlta = (url) => String(url).replace(/\/t_(screenshot_big|screenshot_med|cover_big|cover_small|thumb|720p)\//, '/t_1080p/');
+async function baixar(url) {
+  for (const u of [...new Set([emAlta(url), url])]) {
+    try {
+      const r = await fetch(u, { signal: AbortSignal.timeout(20000), headers: { 'User-Agent': 'ControlCriticBot/1.0' } });
+      if (r.ok) return Buffer.from(await r.arrayBuffer());
+    } catch { /* tenta a próxima */ }
+  }
+  return null;
+}
+// Monta w×h: fundo desfocado + a imagem inteira por cima (topo = distância do alto; null = centralizada)
+async function encaixar(buf, w, h, topo = null) {
+  const meta = await sharp(buf).metadata();
+  const proporcao = meta.width / meta.height, alvo = w / h;
+  // proporção parecida (até 15% de diferença): preencher cortando um pouco fica melhor que faixas
+  if (Math.abs(proporcao - alvo) / alvo < 0.15) return sharp(buf).resize(w, h, { fit: 'cover', position: 'attention' }).jpeg({ quality: 90 }).toBuffer();
+  const frente = await sharp(buf).resize(w, h, { fit: 'inside' }).toBuffer({ resolveWithObject: true });
+  const tras = await sharp(buf).resize(w, h, { fit: 'cover' }).blur(28).modulate({ brightness: 0.5 }).toBuffer();
+  const top = topo == null ? Math.round((h - frente.info.height) / 2) : Math.min(topo, h - frente.info.height);
+  return sharp(tras).composite([{ input: frente.data, left: Math.round((w - frente.info.width) / 2), top }]).jpeg({ quality: 90 }).toBuffer();
+}
 async function fundo(url) {
   if (!url) return null;
-  try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(15000), headers: { 'User-Agent': 'ControlCriticBot/1.0' } });
-    if (!r.ok) return null;
-    const img = await sharp(Buffer.from(await r.arrayBuffer())).resize(W, H, { fit: 'cover', position: 'attention' }).jpeg({ quality: 88 }).toBuffer();
-    return b64(img, 'image/jpeg');
-  } catch { return null; }
+  try { const buf = await baixar(url); return buf ? b64(await encaixar(buf, W, H, 160), 'image/jpeg') : null; } catch { return null; }
 }
 
 async function renderizar(svg, largura = W) {
@@ -159,18 +178,12 @@ export async function arteMeme({ imagem, autor }) {
 
 // Enquete "Qual você prefere?": dois jogos lado a lado, resposta nos comentários
 export async function arteVersus({ a, b, categoria, tema = null }) {
-  const [ia, ib] = await Promise.all([a.capa, b.capa].map(async (u) => {
-    if (!u) return null;
-    try {
-      const r = await fetch(u, { signal: AbortSignal.timeout(15000) });
-      if (!r.ok) return null;
-      return b64(await sharp(Buffer.from(await r.arrayBuffer())).resize(460, 640, { fit: 'cover', position: 'attention' }).jpeg({ quality: 88 }).toBuffer(), 'image/jpeg');
-    } catch { return null; }
-  }));
+  const [ia, ib] = await Promise.all([capa(a.capa, 460, 640), capa(b.capa, 460, 640)]);
   const lado = (img, jogo, x, letra) => {
     const { tam, linhas } = ajustarTitulo(jogo.titulo, 440, 2, [52, 44, 38, 32]);
     return `<rect x="${x}" y="300" width="460" height="640" rx="22" fill="#1b1b20"/>
-      ${img ? `<clipPath id="c${letra}"><rect x="${x}" y="300" width="460" height="640" rx="22"/></clipPath><image href="${img}" x="${x}" y="300" width="460" height="640" clip-path="url(#c${letra})"/>` : ''}
+      ${img ? `<clipPath id="c${letra}"><rect x="${x}" y="300" width="460" height="640" rx="22"/></clipPath><image href="${img}" x="${x}" y="300" width="460" height="640" clip-path="url(#c${letra})"/>`
+        : `<image href="${MASCOTE}" x="${x + 70}" y="440" width="320" height="320" preserveAspectRatio="xMidYMid meet"/>`}
       <circle cx="${x + 230}" cy="300" r="44" fill="${AMARELO}"/><text x="${x + 230}" y="318" text-anchor="middle" font-family="Anton" font-size="52" fill="${PRETO}">${letra}</text>
       ${linhas.map((l, i) => `<text x="${x + 230}" y="${1000 + i * tam * 1.1}" text-anchor="middle" font-family="Anton" font-size="${tam}" fill="#FFFFFF">${esc(l)}</text>`).join('')}`;
   };
@@ -205,15 +218,11 @@ export async function arteStory(jpegPost, chamada = 'NOVO POST NO PERFIL', rodap
 
 async function capa(url, w, h) {
   if (!url) return null;
-  try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(15000), headers: { 'User-Agent': 'ControlCriticBot/1.0' } });
-    if (!r.ok) return null;
-    return b64(await sharp(Buffer.from(await r.arrayBuffer())).resize(w, h, { fit: 'cover', position: 'attention' }).jpeg({ quality: 88 }).toBuffer(), 'image/jpeg');
-  } catch { return null; }
+  try { const buf = await baixar(url); return buf ? b64(await encaixar(buf, w, h), 'image/jpeg') : null; } catch { return null; }
 }
 const cartaoCapa = (img, x, y, w, h, id) => `<rect x="${x - 6}" y="${y - 6}" width="${w + 12}" height="${h + 12}" rx="24" fill="${AMARELO}"/>
   ${img ? `<clipPath id="${id}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="18"/></clipPath><image href="${img}" x="${x}" y="${y}" width="${w}" height="${h}" clip-path="url(#${id})" preserveAspectRatio="xMidYMid slice"/>`
-    : `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="18" fill="#1b1b20"/>`}`;
+    : `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="18" fill="#1b1b20"/><image href="${MASCOTE}" x="${x + w * 0.15}" y="${y + h * 0.2}" width="${w * 0.7}" height="${h * 0.6}" preserveAspectRatio="xMidYMid meet"/>`}`;
 const titulo = (texto, x, y, larg, maxL, tams, cor = '#FFFFFF', ancora = 'start') => {
   const { tam, linhas } = ajustarTitulo(texto, larg, maxL, tams);
   return { svg: linhas.map((l, i) => `<text x="${x}" y="${y + tam * (i + 0.9) * 1.08}" text-anchor="${ancora}" font-family="Anton" font-size="${tam}" fill="${cor}">${esc(l)}</text>`).join(''), altura: linhas.length * tam * 1.08 };

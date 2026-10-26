@@ -244,12 +244,28 @@ export async function opiniao(ctx) {
       convite: 'Concorda com essas notas? Dá a sua nos comentários.', chamada: escolherChamada('comunidade'), tags }) };
 }
 
+// Notícia sem jogo ligado: acha no catálogo o jogo citado no título (o nome mais longo que aparece inteiro)
+const normalizar = (t) => ` ${String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `;
+export function acharJogo(titulo, jogos) {
+  const alvo = normalizar(titulo);
+  let melhor = null;
+  for (const j of jogos) {
+    const n = normalizar(j.title);
+    if (n.trim().length < 4 || (n.trim().split(' ').length === 1 && n.trim().length < 6)) continue;   // nomes curtos demais confundem ("Ori", "Inside")
+    if (alvo.includes(n) && (!melhor || n.length > normalizar(melhor.title).length)) melhor = j;
+  }
+  return melhor;
+}
+let catalogo = null;
+const jogosConhecidos = async (ctx) => (catalogo ||= ctx.api(`games?select=${JOGO_COLS}&cover_url=not.is.null&order=igdb_rating_count.desc.nullslast&limit=3000`).catch(() => []));
+
 // Notícias em carrossel: só das últimas 48 h, a mais recente primeiro. Fundo = capa do jogo do catálogo (nunca a imagem da imprensa)
 export async function noticias(ctx, { ids = null, urgente = false } = {}) {
   const filtro = ids ? `id=in.(${ids.join(',')})` : `published=eq.true&instagram_at=is.null&created_at=gte.${diasAtras(2)}`;
   const ns = (await ctx.api(`news?select=id,title,summary,body,source,lang,created_at,game_id,games(${JOGO_COLS})&${filtro}&order=created_at.desc&limit=20`))
     .filter((n) => Date.now() - new Date(n.created_at) <= 48 * 3600e3 && !ctx.evitarNoticias.has(n.id)).slice(0, 3);
   if (!ns.length) return null;
+  for (const n of ns) if (!n.games) { n.games = acharJogo(n.title, await jogosConhecidos(ctx)); if (n.games) n.game_id = n.games.id; }
   const imagens = [];
   if (ns.length > 1) imagens.push({ jpeg: await arteResumo({ data: dataCurta(Date.now()), titulos: ns.map((n) => n.title) }), nome: 'resumo' });
   for (const [i, n] of ns.entries()) {

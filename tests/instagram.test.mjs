@@ -80,3 +80,12 @@ test('rotação: sem histórico, o primeiro formato muda a cada dia', () => {
   const primeiros = [0, 1, 2].map((i) => ordemDeFormatos('meio', [], base + i * dia).ordem[0]);
   assert.equal(new Set(primeiros).size, 3);
 });
+
+test('notícia sem jogo ligado: acha o jogo citado no título (o nome mais longo)', async () => {
+  const { acharJogo } = await import('../scripts/instagram/formatos.mjs');
+  const jogos = [{ id: 1, title: 'Elden Ring' }, { id: 2, title: 'Elden Ring: Nightreign' }, { id: 3, title: 'Ori' }, { id: 4, title: 'Hades' }];
+  assert.equal(acharJogo('Elden Ring Nightreign ganha DLC', jogos)?.id, 2);
+  assert.equal(acharJogo('Novo patch de Elden Ring corrige bugs', jogos)?.id, 1);
+  assert.equal(acharJogo('Original da Nintendo volta', jogos), null);   // "Ori" curto não confunde
+  assert.equal(acharJogo('Mercado de games cresce', jogos), null);
+});
