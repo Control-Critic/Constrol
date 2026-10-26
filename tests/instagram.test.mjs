@@ -74,3 +74,9 @@ test('todos os formatos da rotação existem', async () => {
 test('votos do versus: só conta A ou B no começo do comentário', () => {
   assert.deepEqual(contarVotos(['A', 'b!', 'Letra A', 'acho que B', 'Amo os dois', 'B com certeza', 'a)']), { a: 3, b: 2 });
 });
+
+test('rotação: sem histórico, o primeiro formato muda a cada dia', () => {
+  const dia = 864e5, base = Date.UTC(2026, 9, 26, 15);
+  const primeiros = [0, 1, 2].map((i) => ordemDeFormatos('meio', [], base + i * dia).ordem[0]);
+  assert.equal(new Set(primeiros).size, 3);
+});
