@@ -260,6 +260,7 @@ async function carregarDesafio() {
     <h2 style="margin:0">🏆 ${esc(ch.title)}</h2>
     <p class="muted" style="margin:6px 0">${aberto ? `Termina em ${plural(dias, 'dia')}` : 'Encerrado'} · Prêmio: ${ch.cosmetics ? `<strong>${esc(ch.cosmetics.name)}</strong> + ` : ''}${ch.reward_extras?.length ? `${ch.reward_extras.length === 1 ? '1 item extra' : `${ch.reward_extras.length} itens extras`} + ` : ''}${ch.reward_xp} XP</p>
     ${ch.description ? `<p class="quebra">${esc(ch.description)}</p>` : ''}
+    <p class="muted" style="font-size:.85rem;margin-top:6px">Ao terminar, o post mais curtido ganha na hora. Deu empate? Todos os empatados ganham.</p>
     ${venc?.length ? `<p style="margin-top:8px">🥇 ${venc.length === 1 ? 'Vencedor' : 'Vencedores'}: ${venc.map((v) => `<a href="perfil.html?u=${encodeURIComponent(v.username)}">${esc(v.username)}</a>`).join(', ')}</p>` : ''}
     ${(ps || []).length ? `<p style="margin:10px 0 6px"><strong>Mais curtidos até agora:</strong></p>${carrossel(ps.map((x) => `<a class="noticia-card" href="index.html?post=${x.id}">
       ${x.image_url ? `<img class="noticia-img" src="${urlSegura(x.image_url)}" alt="" loading="lazy">` : ''}
