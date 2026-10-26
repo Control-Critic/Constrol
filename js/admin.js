@@ -1099,6 +1099,7 @@ async function desafios() {
       $('#participacoes').innerHTML = `<h2>Participações: ${esc(c.title)} (${ps?.length || 0})</h2>
         ${tabela(['', 'Quem', 'Post', 'Curtidas'], (ps || []).map((x) => `<tr><td><input type="checkbox" value="${x.user_id}" style="width:auto" ${c.winners.includes(x.user_id) ? 'checked disabled' : ''}></td>
           <td>${esc(x.profiles?.username)}</td><td>${x.image_url ? `<img src="${urlSegura(x.image_url)}" alt="" style="height:60px;border-radius:6px"> ` : ''}<a href="index.html?post=${x.id}" target="_blank">${esc(x.body.slice(0, 80))}</a></td><td>❤️ ${x.likes_count}</td></tr>`))}
+        <p class="muted" style="font-size:.85rem;margin-top:8px">Automático: quando o desafio termina, os posts com mais curtidas ganham sozinhos (empate = todos ganham). Use o botão só para a "escolha da equipe".</p>
         <button class="btn" id="premiar" style="margin-top:10px">🏆 Premiar selecionados</button>`;
       $('#premiar').onclick = async () => {
         const ids = [...new Set([...$('#participacoes').querySelectorAll('input:checked:not(:disabled)')].map((i) => i.value))];
