@@ -43,5 +43,6 @@ Desfaça só a parte que causou o problema.
 | Limites contra spam | `do $$ declare t text; begin foreach t in array array['posts','post_comments','review_comments','direct_messages','reports','follows','lfg_interest','story_reactions'] loop execute format('drop trigger if exists %I on public.%I', t || '_limite', t); end loop; end $$;` |
 | Instagram (histórico) | `drop function if exists public.instagram_medir(bigint, integer, integer, integer, integer); drop table if exists public.instagram_posts;` (apaga só o histórico do robô) |
 | Discord social | `drop function if exists public.ao_vivo_discord(bigint); drop function if exists public.vincular_discord(text); drop function if exists public.desvincular_discord(); drop table if exists public.discord_votos, public.discord_enquetes, public.discord_ao_vivo, public.discord_membros, public.discord_servidores, public.discord_link_codes, public.discord_contas;` |
+| Desafio automático | `select cron.unschedule('premiar-desafios');` (o prêmio volta a ser só manual) |
 
 Para as funções de XP (`posts_after_insert`, `communities_after_insert` e `review_votes_changed`), `answer_join_request`, `react_story` e `answer_story`, rode de novo o trecho correspondente do `schema.sql` da versão anterior (`git show <commit>:supabase/schema.sql`).
