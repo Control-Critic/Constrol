@@ -5,7 +5,7 @@
 //   Dados (Supabase, funções, CDN de imagens): nunca passam pelo cache.
 //   Páginas privadas (admin, amigos, notificações, chamada): nunca são guardadas.
 // A versão sobe a cada deploy que muda arquivos públicos: os caches antigos são apagados na ativação.
-const VERSAO = 'cc-v107-__BUILD__'; // __BUILD__ vira o commit no deploy do Netlify (netlify.toml): cada deploy limpa o cache sozinho
+const VERSAO = 'cc-v108-__BUILD__'; // __BUILD__ vira o commit no deploy do Netlify (netlify.toml): cada deploy limpa o cache sozinho
 const ESTATICO = `${VERSAO}-estatico`, PAGINAS = `${VERSAO}-paginas`, IMAGENS = `${VERSAO}-imagens`;
 const ESSENCIAIS = ['/', '/index.html', '/offline.html', '/css/style.css', '/js/app.js', '/js/seguro.js', '/js/config.js', '/img/ControlHeader.png', '/img/Adelino.png', '/img/Control.png', '/img/perfilpadrao.png'];
 const PRIVADAS = /^\/(admin|amigos|notificacoes|chamada|entrar)\.html$/;
@@ -22,7 +22,7 @@ self.addEventListener('activate', (e) => {
 });
 
 // A página pode pedir para ativar a versão nova na hora
-self.addEventListener('message', (e) => { if (e.data === 'atualizar') self.skipWaiting(); });
+self.addEventListener('message', (e) => { if (e.origin === self.location.origin && e.data === 'atualizar') self.skipWaiting(); });
 
 async function limitar(nome, max) {
   const c = await caches.open(nome), ks = await c.keys();

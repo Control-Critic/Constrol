@@ -37,7 +37,7 @@ if (faltam.length) { console.error(`Faltam variáveis no .env: ${faltam.join(', 
 if (CFG.pontes.some((p) => !p.comunidade || !/^\d{17,20}$/.test(p.canal || ''))) {
   console.error('PONTES em formato inválido. Use idDaComunidade:idDoCanalDeVoz (ex.: 3:123456789012345678).'); process.exit(1);
 }
-if (/^sb_secret_|service_role/.test(CFG.chavePublica)) { console.error('SUPABASE_CHAVE_PUBLICA deve ser a chave PÚBLICA (sb_publishable_...), não a secreta.'); process.exit(1); }
+if (CFG.chavePublica.startsWith('sb_secret_') || CFG.chavePublica.includes('service_role')) { console.error('SUPABASE_CHAVE_PUBLICA deve ser a chave PÚBLICA (sb_publishable_...), não a secreta.'); process.exit(1); }
 
 // ---------------------------------------------------------------------------
 // Áudio: tudo em PCM 16 bits, 48 kHz. A mesa mistura várias fontes (somando e limitando o volume).
