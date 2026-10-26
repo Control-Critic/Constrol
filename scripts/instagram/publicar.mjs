@@ -251,6 +251,15 @@ function contexto(hist, { ignorarRepetidos = false } = {}) {
 // ---------- Modos ----------
 const hist = await historico();
 
+// Execuções agendadas (SO_SE_FALTAR=1): o GitHub às vezes atrasa ou pula um agendamento, então cada horário tem um
+// reserva 40 min depois. Os dois só publicam se aquele horário ainda não saiu hoje (nunca publica duas vezes).
+if (env('SO_SE_FALTAR') === '1' && !TESTE && HORARIO_DO_MODO[MODO]) {
+  const dia = (d) => new Date(d).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const jaSaiu = hist.some((h) => !h.erro && h.horario === HORARIO_DO_MODO[MODO] && dia(h.created_at) === dia(Date.now()));
+  if (jaSaiu) { aviso(`O post de ${HORARIO_DO_MODO[MODO]} já saiu hoje. Nada a fazer.`); process.exit(0); }
+  if (!temTabela && env('RESERVA') === '1') { aviso('Horário reserva: sem a tabela instagram_posts não dá para saber se o post já saiu. Nada feito.'); process.exit(0); }
+}
+
 if (MODO === 'urgente') {
   // Notícias marcadas no painel (ou a de id informado). Também respeitam o limite de 48 h.
   const ids = ID_NOTICIA ? [ID_NOTICIA] : (await api('news?select=id&instagram_status=eq.urgente&instagram_at=is.null&order=created_at.asc&limit=3')).map((n) => n.id);

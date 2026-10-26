@@ -1,4 +1,4 @@
-import { sb, $, esc, montarLayout, cardJogo, plural, configurado, usuario, perfil, data, urlSegura, COLUNAS_CARD, avatarHtml, toast, falha, carrossel, esqueletoCards, esqueletoLista, param, srcCapa, steamAgora, urlCdn, contarEvento } from './app.js';
+import { sb, $, esc, montarLayout, cardJogo, plural, configurado, usuario, perfil, data, urlSegura, COLUNAS_CARD, avatarHtml, toast, falha, carrossel, esqueletoCards, esqueletoLista, param, srcCapa, steamAgora, urlCdn, contarEvento, aoVivoDiscord } from './app.js';
 import { barraStories } from './stories.js';
 import { COLUNAS_POST_DESAFIO as COLUNAS_POST, postHtml, ligarPosts, compositorHtml, ligarCompositor } from './posts.js';
 
@@ -44,6 +44,7 @@ main.insertAdjacentHTML('beforeend', `
   <section id="b-grupo" style="margin-top:8px" aria-labelledby="grupo-t">
     <div class="controles" style="justify-content:space-between;align-items:center"><h2 id="grupo-t" style="margin:0">🎮 Procurando grupo agora</h2>
       <button class="btn pequeno" id="lfg-abrir" aria-expanded="false" aria-controls="lfg-form">+ Criar grupo agora</button></div>
+    <div id="ao-vivo-discord-home" class="lista-ao-vivo" aria-live="polite"></div>
     <form class="cartao hidden" id="lfg-form" style="margin-top:10px" novalidate>
       <div class="form-linha">
         <div class="busca-jogo"><label for="lfg-busca">Jogo</label><input id="lfg-busca" type="search" placeholder="Qual jogo?" autocomplete="off" required aria-describedby="lfg-erro"><input type="hidden" id="lfg-jogo"><div class="sugestoes hidden" id="lfg-sug" role="listbox" aria-label="Jogos encontrados"></div></div>
@@ -167,7 +168,7 @@ if (configurado) {
   if (PAGINA_FEED) main.insertAdjacentHTML('afterbegin', '<h1>Feed da comunidade</h1>');
 
   // Apresentação completa (hero + "Como funciona") para todo mundo na home, logado ou não
-  if (!PAGINA_FEED) { $('#b-como').classList.remove('hidden'); diferenciais(); }
+  if (!PAGINA_FEED) { $('#b-como').classList.remove('hidden'); diferenciais(); aoVivoDiscord($('#ao-vivo-discord-home')); }
   if (PAGINA_FEED && estado === 'visitante') {
     // feed completo também para visitantes (só leitura)
     $('#b-feed-wrap').classList.remove('hidden');

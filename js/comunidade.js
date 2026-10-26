@@ -1,4 +1,4 @@
-import { sb, $, esc, montarLayout, configurado, param, usuario, perfil, avatarHtml, toast, falha, urlSegura, cssUrl, denunciar, aoVivo, seloAoVivo, enviarImagem, esqueletoLista } from './app.js';
+import { sb, $, esc, montarLayout, configurado, param, usuario, perfil, avatarHtml, toast, falha, urlSegura, cssUrl, denunciar, aoVivo, aoVivoDiscord, seloAoVivo, enviarImagem, esqueletoLista } from './app.js';
 import { COLUNAS_POST, postHtml, ligarPosts, compositorHtml, ligarCompositor } from './posts.js';
 import { montarCall } from './chamada-ui.js';
 
@@ -48,6 +48,7 @@ async function carregar() {
       <p class="muted" style="font-size:.82rem">Valem também as <a href="diretrizes.html">diretrizes do Control Critic</a>.</p></details>` : ''}
     ${bloqueada ? `<div class="cartao vazio">🔒 Esta comunidade é privada. O mural, as partidas e a call aparecem só para membros.
       ${u ? (meuPedido ? '<br>Seu pedido está aguardando o dono aprovar.' : '<br>Peça para entrar ou use um link de convite.') : ''}</div>` : ''}
+    <div id="ao-vivo-discord" class="lista-ao-vivo" aria-live="polite"></div>
     <div class="abas ${bloqueada ? 'hidden' : ''}"><button class="aba ativo" data-a="posts">Mural</button>${dono && c.is_private ? `<button class="aba" data-a="pedidos">Pedidos${pedidos.length ? ` (${pedidos.length})` : ''}</button>` : ''}<button class="aba" data-a="partidas">Partidas 📅</button>${dono ? '<button class="aba" data-a="membros">Membros e cargos</button>' : ''}<button class="aba" data-a="call">Call 🔊</button><button class="aba" data-a="discord">Discord / PS5</button></div>
 
     <section data-p="pedidos" class="hidden">
@@ -126,6 +127,7 @@ async function carregar() {
       <button type="button" class="btn perigo" id="c-del" style="margin-left:auto">Excluir comunidade</button></div>
     </form></dialog>`;
 
+  if (c.discord_guild_id && !bloqueada) aoVivoDiscord($('#ao-vivo-discord'), c.id);
   // Abas
   main.querySelectorAll('.aba').forEach((b) => b.onclick = () => {
     main.querySelectorAll('.aba').forEach((x) => x.classList.toggle('ativo', x === b));
@@ -274,7 +276,7 @@ async function painelPonte(c) {
   const app = /^\d{17,20}$/.test(cfg?.robo_discord || '') ? cfg.robo_discord : null;
   const servidor = /^\d{17,20}$/.test(c.discord_guild_id || '') ? c.discord_guild_id : null;
   // Permissões: ver canais, conectar, falar e usar detecção de voz
-  const convite = app && `https://discord.com/oauth2/authorize?client_id=${app}&scope=bot%20applications.commands&permissions=36701184${servidor ? '&guild_id=' + servidor : ''}`;
+  const convite = app && `https://discord.com/oauth2/authorize?client_id=${app}&scope=bot%20applications.commands&permissions=36785152${servidor ? '&guild_id=' + servidor : ''}`;
   box.innerHTML = `<div class="cartao">
     <h3>🔗 Ponte de voz com o Discord <span class="tag">só você vê</span></h3>
     <p class="muted">Junta um canal de voz do seu servidor do Discord com a call desta comunidade: quem está no console fala com quem está no site.</p>
@@ -292,6 +294,13 @@ async function painelPonte(c) {
       ${ponte ? `<label style="display:flex;gap:8px;align-items:center;font-weight:400;margin-top:10px"><input type="checkbox" id="ponte-ativa" style="width:auto" ${ponte.active ? 'checked' : ''}> Ponte ligada
         <span class="muted" style="font-size:.85rem">(ela entra sozinha quando há gente no site e no Discord)</span></label>
         <button class="btn perigo pequeno" id="ponte-remover" style="margin-top:8px">Remover ponte</button>` : ''}
+      <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">🤖 Comandos do robô no seu servidor</summary>
+        <ul style="margin-top:8px;line-height:1.7">
+          <li><strong>/avisos</strong> (admin): escolhe o canal para a promoção do dia, a enquete "este ou aquele", o ranking da semana e o aviso de quem começou a transmitir.</li>
+          <li><strong>/conectar</strong>: cada pessoa liga a conta do Discord ao perfil do site (uma vez só).</li>
+          <li><strong>/grupo</strong>, <strong>/nota</strong>, <strong>/enquete</strong> e <strong>/ranking</strong>: usam o site sem sair do Discord.</li>
+          <li>🔴 Quando alguém transmite (Go Live) numa call do servidor, aparece aqui no topo da comunidade e no início do site, com o botão <strong>Assistir no Discord</strong>.</li>
+        </ul></details>
       <p class="muted" style="font-size:.82rem;margin-top:10px">A ponte leva só a voz (o Discord não permite robôs com vídeo). Ela depende do computador da equipe do site estar ligado.
         Avise a galera do servidor que o canal está ligado ao site.</p>`}
   </div>`;

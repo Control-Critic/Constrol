@@ -22,6 +22,48 @@ Ninguém além de você precisa de Docker, token ou chave.
 - No site, todo mundo do Discord aparece como **um quadro só** ("🎮 Discord").
 - **Só funciona com o seu PC ligado** e o Docker Desktop aberto.
 
+## Recursos sociais (o Control Critic dentro do Discord)
+
+O mesmo robô também leva o site para dentro do servidor. Assim a galera usa o Control Critic sem sair do Discord, e tudo fica guardado no perfil de cada um no site.
+
+| Comando | O que faz |
+|---|---|
+| `/conectar` | Liga a conta do Discord ao perfil do site. O robô manda um link que vale 15 minutos e só funciona para quem pediu. Basta fazer uma vez. |
+| `/grupo` | Cria um "procurando grupo", que aparece no site e no canal. O botão **🙋 Tô dentro** registra quem quer jogar. |
+| `/nota` | Avalia um jogo de 1 a 5, com texto opcional. Vira uma avaliação no perfil do site. |
+| `/enquete` | "Este ou aquele?" com dois jogos parecidos e botões para votar. O resultado sai em 24 h. |
+| `/ranking` | Ranking da semana do servidor: quem mais zerou, avaliou e criou grupo. Só entra quem ligou a conta. |
+| `/avisos` | (Só quem pode **Gerenciar servidor**.) Escolhe o canal de avisos e o que vai nele: promoção do dia (10h), enquete do dia (19h), ranking (segunda, 12h) e "ao vivo". |
+| `/site` | Mostra o que é o Control Critic e a lista de comandos. |
+
+**🔴 Ao vivo:** quando alguém liga a transmissão (**Go Live**) numa call do servidor, o robô faz o seguinte:
+- Posta no canal de avisos uma mensagem com o botão **▶️ Assistir no Discord**. O link abre direto o canal de voz, e lá é só clicar na transmissão.
+- No site, mostra a mesma faixa 🔴 no topo da comunidade e no início do site, para comunidades com o **ID do servidor** preenchido.
+  - No site, o nome só aparece se a pessoa ligou a conta. Senão, aparece "Alguém".
+- Quando a transmissão termina, o aviso some sozinho.
+
+**O que não dá para fazer:**
+- O Discord não deixa link direto para "assistir à transmissão". O link abre o canal de voz, e a transmissão fica a um clique.
+- Para assistir, a pessoa precisa estar no servidor.
+
+**Privacidade:**
+- O ID do Discord de cada pessoa fica numa tabela que só ela vê no site (`discord_contas`).
+- Para desligar a conta: **Editar perfil → Contas de jogo → Desligar**.
+- A ligação entra na exportação de dados do perfil.
+
+### Para ativar (quem já usa a ponte)
+1. No Supabase, aplique `supabase/migrations/20261026_09_discord_social.sql` (pede a sua aprovação: é mudança no banco de produção).
+2. Atualize os arquivos da ponte: baixe o ZIP de novo (Parte 2) ou rode `git pull` na pasta.
+3. Recrie o robô com a versão nova. Na pasta `ponte-discord`, rode `docker compose up -d --build`.
+4. No log deve aparecer `recursos sociais ligados`. Os comandos podem levar alguns minutos para aparecer no Discord.
+5. **Permissões:** o robô agora também precisa **Enviar mensagens**, **Inserir links** e **Ver histórico de mensagens**.
+   - Servidores que adicionaram o robô antes: use de novo o botão **➕ Adicionar o robô ao meu servidor**, na aba **Discord / PS5** da comunidade, que já pede as permissões novas.
+   - Também dá para liberar essas permissões no canal de avisos.
+6. No servidor, rode **/avisos** e escolha o canal.
+
+**Nenhuma "intent privilegiada" é necessária.** O robô não lê as mensagens do chat, só os comandos, os botões e quem está em call.
+Para desligar só os recursos sociais, coloque `SOCIAL=0` no `.env`.
+
 Tempo total da primeira instalação: uns 30 a 40 minutos. Depois, ela liga sozinha.
 
 ---

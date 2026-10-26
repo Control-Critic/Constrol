@@ -14,6 +14,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'node:crypto';
 import wrtc from '@roamhq/wrtc';
 import { Readable } from 'node:stream';
+import { comandosSociais, ligarSocial } from './social.mjs';
 
 const { RTCPeerConnection, MediaStream, nonstandard: { RTCAudioSource, RTCAudioSink } } = wrtc;
 const env = (k, padrao = '') => (process.env[k] ?? padrao).trim();
@@ -385,11 +386,11 @@ async function pontesDoBanco() {
 // /vincular <código>: um administrador do servidor confirma que aceita a ponte com a comunidade
 function registrarVincular(discord) {
   const { cliente, djs } = discord;
-  cliente.application.commands.set([{
+  cliente.application.commands.set([...comandosSociais(djs), {
     name: 'vincular', description: 'Liga um canal de voz deste servidor à call de uma comunidade do Control Critic',
     defaultMemberPermissions: djs.PermissionFlagsBits.ManageGuild, contexts: [djs.InteractionContextType.Guild],
     options: [{ type: djs.ApplicationCommandOptionType.String, name: 'codigo', description: 'Código mostrado na comunidade, no site (aba Discord / PS5)', required: true, minLength: 6, maxLength: 6 }],
-  }]).then(() => log('discord: comando /vincular registrado')).catch((e) => log('não consegui registrar /vincular:', e.message));
+  }]).then(() => log('discord: comandos registrados (/vincular e os sociais)')).catch((e) => log('não consegui registrar /vincular:', e.message));
   cliente.on(djs.Events.InteractionCreate, async (it) => {
     if (!it.isChatInputCommand() || it.commandName !== 'vincular') return;
     const responder = (texto) => it.reply({ content: texto, flags: djs.MessageFlags.Ephemeral }).catch(() => {});
@@ -438,6 +439,7 @@ async function main() {
     log(`discord: conectado como ${cliente.user.tag} (em ${cliente.guilds.cache.size} servidor(es))`);
     discord = { cliente, djs, voz: { ...voz, prism: prism.default ?? prism }, aoMudarVoz };
     registrarVincular(discord);
+    if (env('SOCIAL') !== '0') ligarSocial({ cliente, djs, adm, site: CFG.site, log });
   } else log('MODO TESTE: sem Discord, a ponte toca um bipe na call do site.');
   ctx = { sb, discord };
   await sincronizar();
