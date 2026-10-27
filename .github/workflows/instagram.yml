@@ -24,6 +24,10 @@ on:
         type: choice
         options: ['', precos, promo, antes-de-comprar, meme, versus, versus-resultado, critica-comunidade, superestimado, zerou-largou, top-genero, opiniao, noticias]
         default: ''
+      so_se_faltar:
+        description: 'Só publicar se o post deste horário ainda não saiu hoje (usado pelo relógio da Netlify)'
+        type: boolean
+        default: false
       teste:
         description: 'Só gerar as artes (sem publicar): baixe em "Artifacts" no fim da execução'
         type: boolean
@@ -60,7 +64,7 @@ jobs:
         env:
           TESTE: ${{ inputs.teste && '1' || '' }}
           FORMATO: ${{ inputs.formato }}
-          SO_SE_FALTAR: ${{ github.event_name == 'schedule' && '1' || '' }}
+          SO_SE_FALTAR: ${{ (github.event_name == 'schedule' || inputs.so_se_faltar) && '1' || '' }}
           RESERVA: ${{ (github.event.schedule == '0 13 * * *' || github.event.schedule == '30 16 * * *' || github.event.schedule == '30 22 * * *') && '1' || '' }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
