@@ -61,10 +61,11 @@ test('48 h sem repetir jogo e notícia', () => {
   assert.ok(u.jogos.has(1) && !u.jogos.has(3) && !u.noticias.has(9));
 });
 
-test('Reels: no máximo 1 por dia e só à noite', () => {
-  assert.equal(podeReels('manha', []), false);
-  assert.equal(podeReels('noite', []), true);
-  assert.equal(podeReels('noite', [h('noticias', 'noite', 0.1, { formato: 'reels' })]), false);
+test('Reels: no máximo 1 por dia, e é o meme do meio-dia', () => {
+  assert.equal(podeReels('noite', [], Date.now(), 'noticias'), false);
+  assert.equal(podeReels('meio', [], Date.now(), 'meme-auto'), true);
+  assert.equal(podeReels('meio', [], Date.now(), 'meme'), true);
+  assert.equal(podeReels('meio', [h('meme-auto', 'meio', 0.1, { formato: 'reels' })], Date.now(), 'meme'), false);
 });
 
 test('todos os formatos da rotação existem', async () => {

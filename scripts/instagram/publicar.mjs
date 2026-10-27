@@ -126,7 +126,7 @@ export async function montarReel(imagens, musica) {
   const dir = join(tmpdir(), `reel-${Date.now()}`); mkdirSync(dir, { recursive: true });
   const quadros = [];
   for (const [i, im] of imagens.slice(0, 6).entries()) { const f = join(dir, `q${i}.jpg`); writeFileSync(f, await arteStory(im.jpeg, chamadaDe(im.nome), 'Salve e mande para um amigo')); quadros.push(f); }
-  const dur = 3.5, trans = 0.5, fps = 30, n = quadros.length, total = n * dur - (n - 1) * trans, saida = join(dir, 'reel.mp4');
+  const n0 = quadros.length, dur = n0 === 1 ? 7 : n0 === 2 ? 5 : 3.5, trans = 0.5, fps = 30, n = n0, total = n * dur - (n - 1) * trans, saida = join(dir, 'reel.mp4');
   const quadrosPorArte = Math.round(dur * fps);
   let filtro = quadros.map((_, i) => `[${i}:v]scale=1296:2304,zoompan=z='min(zoom+0.0007,1.12)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${quadrosPorArte}:s=1080x1920:fps=${fps},setsar=1,format=yuv420p[z${i}];`).join('');
   let anterior = '[z0]';
@@ -207,6 +207,16 @@ async function lerComentarios(mediaId) {
   } catch (e) { log(`Sem acesso aos comentários (${e.message}): resultado do versus pulado.`); return null; }
 }
 
+// Reels publicado hoje que NÃO foi o robô (o robô registra o id de tudo que publica)
+async function reelsManualHoje() {
+  try {
+    const d = await ig(`${env('IG_USER_ID')}/media`, { fields: 'id,media_product_type,timestamp', limit: '10' }, await tokenInstagram(), 'GET');
+    const dia = (x) => new Date(x).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const doRobo = new Set(hist.map((h) => h.ig_media_id).filter(Boolean));
+    return (d.data || []).some((m) => m.media_product_type === 'REELS' && dia(m.timestamp) === dia(Date.now()) && !doRobo.has(m.id));
+  } catch (e) { log(`Não deu para ver os posts de hoje (${e.message}). Seguindo.`); return false; }
+}
+
 // ---------- Registro (tabela instagram_posts) ----------
 let temTabela = true;
 async function historico() {
@@ -222,7 +232,7 @@ async function registrarPost(linha) {
 
 // Gera o conteúdo e publica (ou salva no teste). Devolve true se publicou/gerou.
 async function executar(conteudo, horario, hist) {
-  const comReels = horario === 'noite' && conteudo.imagens.length >= 3 && reelsDisponivel() && podeReels(horario, hist) && conteudo.tipo !== 'urgente';
+  const comReels = reelsDisponivel() && podeReels(horario === 'amostra' ? 'meio' : horario, hist, Date.now(), conteudo.tipo);
   const formato = comReels ? 'reels' : conteudo.imagens.length > 1 ? 'carrossel' : 'imagem';
   const base = { modo: MODO, horario, tipo: conteudo.tipo, formato, game_ids: conteudo.game_ids || [], news_ids: conteudo.news_ids || [], refs: conteudo.refs || [], hashtags: conteudo.tags || [] };
   if (TESTE) {
@@ -288,6 +298,11 @@ if (MODO === 'urgente') {
   }
 } else {
   const horario = HORARIO_DO_MODO[MODO] || 'noite';
+  // Dia em que a equipe já postou um Reels à mão: o meme do robô fica de fora (o manual rende mais; não competir com ele)
+  if (horario === 'meio' && !TESTE && !FORMATO && temTabela && await reelsManualHoje()) {
+    aviso('Instagram: a equipe já postou um Reels hoje. O meme do robô fica para amanhã.');
+    process.exit(0);
+  }
   const { ordem, anterior } = FORMATO ? { ordem: [FORMATO], anterior: null } : ordemDeFormatos(horario, hist);
   log(`Horário: ${horario}. Último tipo publicado: ${anterior || 'nenhum'}. Ordem de tentativa: ${ordem.join(' → ')}`);
   const ctx = contexto(hist);

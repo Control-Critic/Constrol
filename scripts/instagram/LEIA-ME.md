@@ -5,8 +5,8 @@ São **3 posts por dia**, e cada horário tem uma **lista de formatos que se rev
 | Horário (Brasília) | Modo | Objetivo | Formatos que se revezam |
 |---|---|---|---|
 | 09h20 | `manha` | Útil, para **salvar** | Jogo bom por menos de R$ X · Antes de você comprar · Promoção |
-| 12h50 | `entretenimento` | **Meme todo dia** (é o que mais traz e segura gente) | Meme da comunidade aprovado no admin; sem ele, **meme automático** |
-| 18h50 | `diario` | Notícia, opinião e comentário (**o Reels do dia sai aqui**) | Notícias em carrossel · Opinião da comunidade · Este ou aquele · Zerou ou largou? · Crítica × comunidade · Superestimado? · Resultado do este ou aquele · Top 5 por gênero |
+| 12h50 | `entretenimento` | **Meme todo dia, em Reels** (é o que mais traz e segura gente) | Meme da comunidade aprovado no admin; sem ele, **meme automático** |
+| 18h50 | `diario` | Notícia, opinião e comentário | Notícias em carrossel · Opinião da comunidade · Este ou aquele · Zerou ou largou? · Crítica × comunidade · Superestimado? · Resultado do este ou aquele · Top 5 por gênero |
 | Botão **📸 Postar agora** | `urgente` | Notícia urgente | Carrossel com a etiqueta vermelha "URGENTE" |
 
 **Horários reserva:** o GitHub às vezes atrasa ou pula um agendamento. Por isso cada horário tem uma reserva 40 minutos depois (10h00, 13h30 e 19h30).
@@ -68,7 +68,8 @@ No máximo 5 emojis.
 **Stories:** todo post do feed também sai como story (1080×1920), com a arte no centro. Se o story falhar, o post continua valendo.
 
 **Reels:**
-- no máximo **1 por dia**, no horário das 18h50, quando o post tem 3 ou mais artes;
+- no máximo **1 por dia**: é o **meme das 12h50**, que sai em vídeo (meme em vídeo é o que mais alcança quem não segue);
+- nos dias em que a equipe já postou um Reels à mão, o meme do robô fica de fora para não competir (precisa da tabela `instagram_posts`);
 - cada arte aparece com um zoom lento, com transição suave entre elas;
 - a música é uma **trilha original composta pelo robô** a cada Reels (chiptune, sem direito autoral de terceiros). Se houver .mp3 em `scripts/instagram/musicas/`, ele sorteia entre eles.
 
