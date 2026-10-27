@@ -30,7 +30,7 @@ Quase todos saem em **carrossel**, como as notícias: uma capa, os itens e, no f
   - O site **não tem** tempo de jogo nem compatibilidade com o Steam Deck, então isso **não aparece**.
 - **Promoção:** os maiores descontos de jogos conhecidos, com preço riscado.
 - **Meme automático:** piadas **originais** do Control Critic, escritas para a marca, com o Adelino. Nada é copiado da internet.
-  - São 34 piadas em `scripts/instagram/memes.mjs`, e nenhuma se repete por 30 dias. Para acrescentar mais, é só seguir o formato do arquivo.
+  - São 120 piadas em `scripts/instagram/memes.mjs`, e nenhuma se repete por 90 dias. Para acrescentar mais, é só seguir o formato do arquivo.
   - Algumas usam dados reais do dia: a promoção do dia ("A Steam: {jogo} por {preço}") ou um jogo popular com a nota da crítica.
   - Dois layouts que alternam por dia: o clássico (texto em cima, Adelino, resposta embaixo) e o de tirinha (dois painéis).
 - **Meme da comunidade:** até 3 memes aprovados no admin, com o **nome do autor no site** na arte e na legenda. Não usa @, porque o nome no site não é o @ do Instagram.

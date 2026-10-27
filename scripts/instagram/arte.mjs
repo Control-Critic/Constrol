@@ -39,7 +39,7 @@ function quebrar(texto, tamanho, larguraMax, fator = 0.5) {
   return linhas;
 }
 // Escolhe o maior tamanho de título que cabe em no máximo `maxLinhas`
-function ajustarTitulo(texto, larguraMax, maxLinhas, tamanhos = [104, 92, 82, 72, 64, 56]) {
+export function ajustarTitulo(texto, larguraMax, maxLinhas, tamanhos = [104, 92, 82, 72, 64, 56]) {
   const t = String(texto).toUpperCase();
   for (const tam of tamanhos) { const l = quebrar(t, tam, larguraMax); if (l.length <= maxLinhas) return { tam, linhas: l }; }
   const tam = tamanhos.at(-1), l = quebrar(t, tam, larguraMax);

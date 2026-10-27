@@ -118,7 +118,7 @@ export async function meme(ctx) {
 
 // Meme automático: piada original do banco (memes.mjs) com o Adelino e, quando cabe, dados reais do dia
 export async function memeAuto(ctx) {
-  const usados = new Set([...ctx.refsRecentes].filter((r) => r.startsWith('memeauto:')).map((r) => r.slice(9)));
+  const usados = new Set([...ctx.refsUsadas].filter((r) => r.startsWith('memeauto:')).map((r) => r.slice(9)));   // 90 dias
   const [promo] = await buscarPromos(ctx, { minDesconto: 40, bons: true }).catch(() => []);
   const pops = (await jogosPopulares(ctx, 60).catch(() => [])).filter((j) => j.igdb_rating >= 75);
   const pop = pops[Math.floor(Math.random() * Math.min(pops.length, 30))];

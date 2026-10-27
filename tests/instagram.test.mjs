@@ -98,7 +98,7 @@ test('meio-dia: meme todo dia (o da comunidade na frente; sem ele, o automático
 
 test('memes automáticos: originais, sem repetir e só com os dados de que precisam', async () => {
   const { MEMES, escolherMeme, preencher } = await import('../scripts/instagram/memes.mjs');
-  assert.ok(MEMES.length >= 30);
+  assert.ok(MEMES.length >= 120);
   assert.equal(new Set(MEMES.map((m) => m.id)).size, MEMES.length);
   for (const m of MEMES) for (const t of [m.topo, m.baixo]) for (const [, k] of t.matchAll(/\{(\w+)\}/g)) assert.ok(m.usa, `${m.id} usa {${k}} sem dizer de onde vem`);
   assert.equal(preencher('A {loja}: {jogo}', { jogo: 'Hades' }), null);   // falta dado: não serve
@@ -109,4 +109,15 @@ test('memes automáticos: originais, sem repetir e só com os dados de que preci
   assert.equal(escolherMeme({ usados: todos, dados: {} }).m.id, 'backlog');
   const p = escolherMeme({ usados: new Set(MEMES.filter((m) => m.id !== 'nao-compro-mais').map((m) => m.id)), dados: { promo: { jogo: 'Hades', preco: 'R$ 9,90', loja: 'Steam', desconto: 75 } } });
   assert.equal(p.baixo, 'A Steam: Hades por R$ 9,90');
+});
+
+test('memes: todo texto cabe inteiro nos dois layouts (nada cortado com "…")', async () => {
+  const { MEMES, preencher } = await import('../scripts/instagram/memes.mjs');
+  const { ajustarTitulo } = await import('../scripts/instagram/arte.mjs');
+  const exemplo = { promo: { jogo: 'The Witcher 3: Wild Hunt', preco: 'R$ 199,90', loja: 'PlayStation Store', desconto: 85 }, popular: { jogo: 'Red Dead Redemption 2', nota: 93 } };
+  for (const m of MEMES) for (const t of [m.topo, m.baixo]) {
+    const texto = preencher(t, exemplo[m.usa]);
+    for (const [larg, linhas, tams] of [[968, 3, [76, 66, 58, 50]], [968, 3, [80, 70, 60, 52]], [560, 4, [64, 56, 48, 42]]])
+      assert.ok(!ajustarTitulo(texto, larg, linhas, tams).linhas.join(' ').endsWith('…'), `${m.id}: "${texto}" não cabe`);
+  }
 });

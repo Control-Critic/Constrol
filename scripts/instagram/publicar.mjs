@@ -201,7 +201,7 @@ async function lerComentarios(mediaId) {
 // ---------- Registro (tabela instagram_posts) ----------
 let temTabela = true;
 async function historico() {
-  try { return await api(`instagram_posts?select=tipo,horario,formato,created_at,game_ids,news_ids,refs,ig_media_id,erro,salvamentos&created_at=gte.${new Date(Date.now() - 30 * 864e5).toISOString()}&order=created_at.desc&limit=300`); }
+  try { return await api(`instagram_posts?select=tipo,horario,formato,created_at,game_ids,news_ids,refs,ig_media_id,erro,salvamentos&created_at=gte.${new Date(Date.now() - 90 * 864e5).toISOString()}&order=created_at.desc&limit=500`); }
   catch (e) { temTabela = false; aviso(`Sem histórico (${e.message.slice(0, 120)}). Rode a migração 20261020_08_instagram_posts.sql. Seguindo sem rotação por histórico.`); return []; }
 }
 async function registrarPost(linha) {
@@ -241,7 +241,8 @@ async function executar(conteudo, horario, hist) {
 function contexto(hist, { ignorarRepetidos = false } = {}) {
   const { jogos, noticias: ns } = usadosRecentes(hist);
   const refsTodas = new Set(hist.filter((h) => !h.erro).flatMap((h) => h.refs || []));
-  const refs30 = refsTodas; // o histórico carregado já é de 30 dias
+  // o histórico carregado é de 90 dias (memes não repetem nesse prazo); o resto vale por 30 dias
+  const refs30 = new Set(hist.filter((h) => !h.erro && Date.now() - new Date(h.created_at) < 30 * 864e5).flatMap((h) => h.refs || []));
   // promoções: além das 48 h, não repete o mesmo jogo em promoção na semana
   const semana = hist.filter((h) => !h.erro && ['precos', 'promo', 'antes-de-comprar'].includes(h.tipo) && Date.now() - new Date(h.created_at) < 7 * 864e5).flatMap((h) => h.game_ids || []);
   return { api, contar, historico: hist, lerComentarios: TESTE ? null : lerComentarios,
