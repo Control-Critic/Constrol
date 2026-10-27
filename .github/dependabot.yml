@@ -15,6 +15,9 @@ updates:
     directory: /ponte-discord
     schedule: { interval: weekly }
     open-pull-requests-limit: 3
+    # opusscript precisa ficar na versão que o prism-media aceita (^0.0.8): a 0.1.x quebra a instalação do robô
+    ignore:
+      - dependency-name: opusscript
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
