@@ -370,19 +370,31 @@ export function ligarSocial({ cliente, djs, adm, site, log }) {
     }
   }
   async function mudouCall(est) {
-    const pessoas = Object.entries(est.ch.presenceState()).filter(([k]) => !k.startsWith('zzzz')).map(([, v]) => String(v[0]?.nome || 'Alguém').slice(0, 30));
+    const lista = Object.entries(est.ch.presenceState()).filter(([k]) => !k.startsWith('zzzz')).map(([, v]) => ({ nome: String(v[0]?.nome || 'Alguém').slice(0, 30), tela: !!v[0]?.tela }));
+    const pessoas = lista.map((p) => p.nome), naTela = lista.filter((p) => p.tela).map((p) => p.nome);
     const canal = await cliente.channels.fetch(est.canalAvisos).catch(() => null);
     if (!canal?.isTextBased?.()) return;
     const link = `${site}/comunidade.html?id=${est.c.id}#call`;
-    const texto = () => `🔊 ${pessoas.length === 1 ? `**${pessoas[0]}** está` : `**${pessoas.slice(0, -1).join(', ')}** e **${pessoas.at(-1)}** estão`} na call da comunidade **${est.c.name}** no site!`;
-    const botoes = [linha(botaoLink('🔊 Entrar na call', link))];
+    const texto = () => `🔊 ${pessoas.length === 1 ? `**${pessoas[0]}** está` : `**${pessoas.slice(0, -1).join(', ')}** e **${pessoas.at(-1)}** estão`} na call da comunidade **${est.c.name}** no site!`
+      + (naTela.length ? `\n📺 **${naTela.join(', ')}** ${naTela.length === 1 ? 'está' : 'estão'} transmitindo a tela: entre para assistir.` : '');
+    const botoes = [linha(botaoLink(naTela.length ? '📺 Assistir na call' : '🔊 Entrar na call', link))];
     if (pessoas.length && !est.msg) {
       const falta = 10 * 60000 - (Date.now() - est.ultimo);
-      if (falta > 0) { clearTimeout(est.espera); est.espera = setTimeout(() => mudouCall(est).catch(() => {}), falta); return; }   // acabou de terminar: espera 10 min para avisar de novo
-      est.msg = await canal.send({ content: texto(), components: botoes, allowedMentions: { parse: [] } }).catch(() => null);
+      // acabou de terminar: espera 10 min para avisar de novo da call (a tela continua avisando na hora)
+      if (falta > 0) { clearTimeout(est.espera); est.espera = setTimeout(() => mudouCall(est).catch(() => {}), falta); }
+      else est.msg = await canal.send({ content: texto(), components: botoes, allowedMentions: { parse: [] } }).catch(() => null);
     } else if (pessoas.length && est.msg) {
       await est.msg.edit({ content: texto(), components: botoes }).catch(() => {});
-    } else if (!pessoas.length && est.msg) {
+    }
+    // Transmissão de tela: mensagem nova (edição não notifica ninguém no Discord), e ela vira "terminou" no fim
+    if (naTela.length && !est.msgTela) {
+      est.msgTela = await canal.send({ content: `📺 **${naTela.join(', ')}** começou a transmitir a tela na call da comunidade **${est.c.name}**!`,
+        components: [linha(botaoLink('📺 Assistir na call', link))], allowedMentions: { parse: [] } }).catch(() => null);
+    } else if (!naTela.length && est.msgTela) {
+      await est.msgTela.edit({ content: `⚫ A transmissão de tela na call da comunidade **${est.c.name}** terminou.`, components: [] }).catch(() => {});
+      est.msgTela = null;
+    }
+    if (!pessoas.length && est.msg) {
       await est.msg.edit({ content: `⚫ A call da comunidade **${est.c.name}** terminou.`, components: [] }).catch(() => {});
       est.msg = null; est.ultimo = Date.now();
     }

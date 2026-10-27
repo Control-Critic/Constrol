@@ -38,6 +38,7 @@ O mesmo robô também leva o site para dentro do servidor. Assim a galera usa o 
 
 **🔊 Call do site:** quando alguém entra na call de uma comunidade no site, o robô avisa no canal de avisos com o botão **🔊 Entrar na call**.
 - A mensagem é atualizada com quem está na call e vira "a call terminou" quando todos saem.
+- Quando alguém **compartilha a tela na call do site**, sai uma mensagem nova (que notifica o servidor): "📺 fulano começou a transmitir a tela", com o botão **📺 Assistir na call**.
 - Precisa do **ID do servidor do Discord** preenchido na comunidade (em **Configurar**) e da opção "ao vivo" ligada no `/avisos`.
 - O robô só observa: ele não entra na call nem aparece para quem está nela.
 - Depois que uma call termina, ele espera 10 minutos antes de avisar de novo, para não encher o canal.
