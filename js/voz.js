@@ -384,6 +384,9 @@ export class SalaVoz {
   }
 
   #enviarEstado() {
+    // Quem está compartilhando a tela fica marcado na presença da sala (o robô do Discord usa para avisar no servidor)
+    const tela = this.modoVideo === 'tela';
+    if (tela !== !!this.telaNaPresenca && this.canal) { this.telaNaPresenca = tela; this.canal.track({ nome: this.nome, tela }).catch(() => {}); }
     this.canal?.send({ type: 'broadcast', event: 'estado', payload: { de: this.eu, nome: this.nome, video: !!this.videoTrack, mudo: this.mudo, clipes: !!this.clipesAtivos } });
   }
 
