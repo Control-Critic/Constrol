@@ -349,6 +349,47 @@ export function ligarSocial({ cliente, djs, adm, site, log }) {
     }
   });
   cliente.on(djs.Events.VoiceStateUpdate, (a, d) => aoMudarVoz(a, d).catch((e) => log('ao vivo:', e.message)));
+  // ---------- Call do site -> aviso no Discord ----------
+  // Para cada comunidade ligada a um servidor (ID do servidor preenchido na comunidade) com avisos "ao vivo",
+  // o robô acompanha quem está na call do site (só observa: não entra na call) e avisa no canal de avisos.
+  const callsSite = new Map();   // id da comunidade -> estado
+  async function vigiarCallsDoSite() {
+    const { data: sv } = await adm.from('discord_servidores').select('guild_id,canal_avisos').eq('ao_vivo', true).not('canal_avisos', 'is', null);
+    if (!sv?.length) return;
+    const { data: cs } = await adm.from('communities').select('id,name,discord_guild_id').in('discord_guild_id', sv.map((x) => x.guild_id));
+    for (const c of cs || []) {
+      if (callsSite.has(c.id)) continue;
+      const { data: seg } = await adm.from('community_secrets').select('room_key').eq('community_id', c.id).maybeSingle();
+      if (!seg) continue;
+      const est = { c, canalAvisos: sv.find((x) => x.guild_id === c.discord_guild_id).canal_avisos, msg: null, ultimo: 0, espera: null };
+      // conexão separada da ponte de voz (a mesma sala duas vezes na mesma conexão derrubaria a ponte)
+      est.ch = adm.channel(`voz:${c.id}-${seg.room_key}`, { config: { presence: { key: `zzzz-observador-${c.id}` } } });
+      est.ch.on('presence', { event: 'sync' }, () => { clearTimeout(est.espera); est.espera = setTimeout(() => mudouCall(est).catch((e) => log('call do site:', e.message)), 4000); }).subscribe();
+      callsSite.set(c.id, est);
+      log(`discord: acompanhando a call do site da comunidade "${c.name}"`);
+    }
+  }
+  async function mudouCall(est) {
+    const pessoas = Object.entries(est.ch.presenceState()).filter(([k]) => !k.startsWith('zzzz')).map(([, v]) => String(v[0]?.nome || 'Alguém').slice(0, 30));
+    const canal = await cliente.channels.fetch(est.canalAvisos).catch(() => null);
+    if (!canal?.isTextBased?.()) return;
+    const link = `${site}/comunidade.html?id=${est.c.id}#call`;
+    const texto = () => `🔊 ${pessoas.length === 1 ? `**${pessoas[0]}** está` : `**${pessoas.slice(0, -1).join(', ')}** e **${pessoas.at(-1)}** estão`} na call da comunidade **${est.c.name}** no site!`;
+    const botoes = [linha(botaoLink('🔊 Entrar na call', link))];
+    if (pessoas.length && !est.msg) {
+      const falta = 10 * 60000 - (Date.now() - est.ultimo);
+      if (falta > 0) { clearTimeout(est.espera); est.espera = setTimeout(() => mudouCall(est).catch(() => {}), falta); return; }   // acabou de terminar: espera 10 min para avisar de novo
+      est.msg = await canal.send({ content: texto(), components: botoes, allowedMentions: { parse: [] } }).catch(() => null);
+    } else if (pessoas.length && est.msg) {
+      await est.msg.edit({ content: texto(), components: botoes }).catch(() => {});
+    } else if (!pessoas.length && est.msg) {
+      await est.msg.edit({ content: `⚫ A call da comunidade **${est.c.name}** terminou.`, components: [] }).catch(() => {});
+      est.msg = null; est.ultimo = Date.now();
+    }
+  }
+  vigiarCallsDoSite().catch((e) => log('call do site:', e.message));
+  setInterval(() => vigiarCallsDoSite().catch(() => {}), 5 * 60000);
+
   conferirAoVivo().catch(() => {});
   setInterval(() => rotina().catch((e) => log('rotina:', e.message)), 5 * 60000);
   setTimeout(() => rotina().catch(() => {}), 20000);
