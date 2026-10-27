@@ -50,15 +50,12 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       - run: npm ci --omit=dev
-      # Só instala o ffmpeg se houver música na pasta (sem música não há Reels). Com limite de tempo: se o apt travar,
+      # ffmpeg monta o Reels (a trilha é composta pelo robô). Com limite de tempo: se o apt travar,
       # o robô segue e publica em carrossel em vez de ficar parado.
-      - name: ffmpeg (para os Reels com música)
+      - name: ffmpeg (para os Reels)
         timeout-minutes: 4
         continue-on-error: true
-        run: |
-          if ls scripts/instagram/musicas/*.mp3 >/dev/null 2>&1; then
-            which ffmpeg || (sudo timeout 180 apt-get update -qq && sudo timeout 180 apt-get install -y -qq --no-install-recommends ffmpeg)
-          else echo "Sem músicas em scripts/instagram/musicas/: Reels desligado, ffmpeg não é necessário."; fi
+        run: which ffmpeg || (sudo timeout 180 apt-get update -qq && sudo timeout 180 apt-get install -y -qq --no-install-recommends ffmpeg)
       - run: node scripts/instagram/publicar.mjs "${{ inputs.modo || ((github.event.schedule == '20 12 * * *' || github.event.schedule == '0 13 * * *') && 'manha') || ((github.event.schedule == '50 15 * * *' || github.event.schedule == '30 16 * * *') && 'entretenimento') || 'diario' }}" "${{ inputs.noticia }}"
         env:
           TESTE: ${{ inputs.teste && '1' || '' }}

@@ -121,3 +121,16 @@ test('memes: todo texto cabe inteiro nos dois layouts (nada cortado com "…")',
       assert.ok(!ajustarTitulo(texto, larg, linhas, tams).linhas.join(' ').endsWith('…'), `${m.id}: "${texto}" não cabe`);
   }
 });
+
+test('música dos Reels: WAV válido, com som, sem distorção e diferente a cada semente', async () => {
+  const { comporMusica } = await import('../scripts/instagram/musica.mjs');
+  const a = comporMusica({ segundos: 6, semente: 7 }), b = comporMusica({ segundos: 6, semente: 8 });
+  assert.equal(a.wav.toString('ascii', 0, 4), 'RIFF');
+  assert.equal(a.wav.length, 44 + 6 * 44100 * 4);
+  let soma = 0, pico = 0;
+  for (let i = 44; i < a.wav.length; i += 2) { const v = a.wav.readInt16LE(i); soma += v * v; pico = Math.max(pico, Math.abs(v)); }
+  assert.ok(Math.sqrt(soma / ((a.wav.length - 44) / 2)) > 1000, 'muito baixa');
+  assert.ok(pico < 32767, 'distorcida');
+  assert.ok(!a.wav.equals(b.wav));
+  assert.ok(comporMusica({ segundos: 2, semente: 7 }).wav.equals(comporMusica({ segundos: 2, semente: 7 }).wav));   // mesma semente, mesma música
+});

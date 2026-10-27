@@ -69,8 +69,8 @@ No máximo 5 emojis.
 
 **Reels:**
 - no máximo **1 por dia**, no horário das 18h50, quando o post tem 3 ou mais artes;
-- cada arte aparece com um zoom lento, com transição suave entre elas e uma música de `scripts/instagram/musicas/`;
-- sem música na pasta, sai carrossel.
+- cada arte aparece com um zoom lento, com transição suave entre elas;
+- a música é uma **trilha original composta pelo robô** a cada Reels (chiptune, sem direito autoral de terceiros). Se houver .mp3 em `scripts/instagram/musicas/`, ele sorteia entre eles.
 
 **Limite da API:**
 - antes de publicar, o robô consulta a cota do Instagram (`content_publishing_limit`);

@@ -1,5 +1,11 @@
 # Músicas dos Reels
 
+**Esta pasta é opcional.** Sem nenhuma música aqui, o robô **compõe uma trilha original** para cada Reels, no estilo chiptune (8-bit, som de videogame), pelo `scripts/instagram/musica.mjs`.
+- Cada Reels sai com uma música diferente: andamento, tom, acordes, melodia e bateria mudam.
+- Como a música é criada pelo próprio robô, ela não tem direito autoral de terceiros.
+
+Se você colocar arquivos **.mp3** aqui, o robô passa a sortear entre eles em vez de compor.
+
 Coloque aqui arquivos **.mp3** com **licença livre para uso comercial em redes sociais**. O robô sorteia uma por Reels.
 Sem nenhuma música aqui, o resumo do dia continua saindo como carrossel (sem Reels).
 

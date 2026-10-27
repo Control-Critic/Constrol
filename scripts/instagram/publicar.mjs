@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { supabaseRest } from '../../lib/igdb.mjs';
 import { arteStory } from './arte.mjs';
+import { comporMusica } from './musica.mjs';
 import { FORMATOS, noticias } from './formatos.mjs';
 import { ordemDeFormatos, usadosRecentes, podeReels, HORARIO_DO_MODO } from './rotacao.mjs';
 
@@ -117,7 +118,8 @@ async function aguardarPronto(id, token, tentativas = 30) {
 const PASTA_MUSICAS = new URL('./musicas/', import.meta.url);
 function musicas() { try { return readdirSync(PASTA_MUSICAS).filter((f) => /\.mp3$/i.test(f)); } catch { return []; } }
 function temFfmpeg() { try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); return true; } catch { return false; } }
-export const reelsDisponivel = () => env('REELS') !== '0' && musicas().length > 0 && temFfmpeg();
+// Sem música na pasta, o robô compõe uma trilha original (musica.mjs): o Reels não depende mais de arquivo de áudio
+export const reelsDisponivel = () => env('REELS') !== '0' && temFfmpeg();
 
 // Vídeo vertical (1080x1920): cada arte fica 3,5 s com zoom lento (efeito Ken Burns), transição suave e música com fade no fim
 export async function montarReel(imagens, musica) {
@@ -136,7 +138,14 @@ export async function montarReel(imagens, musica) {
   const mp4 = readFileSync(saida); rmSync(dir, { recursive: true, force: true });
   return mp4;
 }
-const sortearMusica = () => { const l = musicas(); return new URL(l[Math.floor(Math.random() * l.length)], PASTA_MUSICAS).pathname; };
+const sortearMusica = () => {
+  const l = musicas();
+  if (l.length) return new URL(l[Math.floor(Math.random() * l.length)], PASTA_MUSICAS).pathname;
+  const m = comporMusica({ segundos: 30, semente: Date.now() });
+  const arq = join(tmpdir(), `trilha-${Date.now()}.wav`); writeFileSync(arq, m.wav);
+  log(`Trilha original composta: ${m.bpm} bpm, progressão ${m.progressao}, bateria ${m.levada}.`);
+  return arq;
+};
 
 // Story: todo post do feed também vira story (mais alcance: os stories aparecem no topo do app para os seguidores)
 const CHAMADAS = { resumo: 'RESUMO DO DIA', noticia: 'NOTÍCIA NOVA', urgente: 'URGENTE', promo: 'PROMOÇÃO DO DIA', preco: 'PROMOÇÃO DO DIA', precos: 'SALVE PARA DEPOIS', antes: 'ANTES DE COMPRAR',
