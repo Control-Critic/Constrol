@@ -2,8 +2,9 @@
 //   { tipo, imagens: [{ jpeg, nome }], legenda, tags, game_ids, news_ids, refs, depois? }
 // ou null quando não há conteúdo bom o suficiente (o robô tenta o próximo formato da rotação).
 // Regra geral: só dados reais do site; nenhuma identificação pessoal; capas = as do catálogo do site.
-import { arteNoticia, arteResumo, arteMeme, arteVersus, arteCapaLista, artePreco, arteFatos, arteOpiniao, artePergunta, arteTexto, arteChamada, arteResultado } from './arte.mjs';
+import { arteNoticia, arteResumo, arteMeme, arteMemeAuto, arteVersus, arteCapaLista, artePreco, arteFatos, arteOpiniao, artePergunta, arteTexto, arteChamada, arteResultado } from './arte.mjs';
 import { escolherVersus } from './versus.mjs';
+import { escolherMeme } from './memes.mjs';
 import { montarLegenda, hashtags, escolherChamada, brl, NOME_LOJA } from './legenda.mjs';
 
 const dataCurta = (d) => new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
@@ -113,6 +114,26 @@ export async function meme(ctx) {
       contexto: [`Feito por ${autores.join(', ')}, da comunidade Control Critic. ${autores.length > 1 ? 'Seus memes estão' : 'Seu meme está'} no nosso perfil!`],
       convite: 'Marca aquele amigo que é exatamente assim.', chamada: escolherChamada('meme'), tags }),
     depois: async (r) => { for (const m of ms) await ctx.api(`posts?id=eq.${m.id}`, { method: 'PATCH', body: { instagram_at: new Date().toISOString(), instagram_url: r.url } }); } };
+}
+
+// Meme automático: piada original do banco (memes.mjs) com o Adelino e, quando cabe, dados reais do dia
+export async function memeAuto(ctx) {
+  const usados = new Set([...ctx.refsRecentes].filter((r) => r.startsWith('memeauto:')).map((r) => r.slice(9)));
+  const [promo] = await buscarPromos(ctx, { minDesconto: 40, bons: true }).catch(() => []);
+  const pops = (await jogosPopulares(ctx, 60).catch(() => [])).filter((j) => j.igdb_rating >= 75);
+  const pop = pops[Math.floor(Math.random() * Math.min(pops.length, 30))];
+  const dados = {
+    promo: promo && { jogo: promo.games.title, preco: brl(promo.price_cents), loja: NOME_LOJA[promo.store] || promo.store, desconto: promo.discount_pct, capa: promo.games.cover_url, id: promo.game_id, plats: promo.games.platforms },
+    popular: pop && { jogo: pop.title, nota: Math.round(pop.igdb_rating), capa: pop.cover_url, id: pop.id, plats: pop.platforms },
+  };
+  const e = escolherMeme({ usados, dados });
+  if (!e) return null;
+  const d = e.m.usa ? dados[e.m.usa] : null;
+  const tags = hashtags({ jogos: d ? [d.jogo] : [], plataformas: d?.plats || [], extras: ['#memesgamer', '#humorgamer'] });
+  return { tipo: 'meme-auto', game_ids: d ? [d.id] : [], refs: [`memeauto:${e.m.id}`], tags,
+    imagens: [{ jpeg: await arteMemeAuto({ topo: e.topo, baixo: e.baixo, skin: e.m.skin, capaUrl: d?.capa, layout: Math.floor(Date.now() / 864e5) % 2 }), nome: `meme-auto-${e.m.id}` }],
+    legenda: montarLegenda({ gancho: `${e.topo} 😂`, contexto: [e.m.usa === 'promo' ? `(E a promoção é real: ${d.jogo} por ${d.preco} na ${d.loja}.)` : null, 'Meme original do Control Critic.'],
+      convite: 'Marca aquele amigo que é exatamente assim.', chamada: escolherChamada('meme'), tags }) };
 }
 
 async function jogosPopulares(ctx, limite = 200) {
@@ -290,6 +311,6 @@ export async function noticias(ctx, { ids = null, urgente = false } = {}) {
 }
 
 export const FORMATOS = {
-  precos, promo, 'antes-de-comprar': antesDeComprar, meme, versus, 'versus-resultado': versusResultado,
+  precos, promo, 'antes-de-comprar': antesDeComprar, meme, 'meme-auto': memeAuto, versus, 'versus-resultado': versusResultado,
   'critica-comunidade': criticaComunidade, superestimado, 'zerou-largou': zerouLargou, 'top-genero': topGenero, opiniao, noticias,
 };

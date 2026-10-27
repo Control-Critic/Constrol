@@ -5,8 +5,8 @@ São **3 posts por dia**, e cada horário tem uma **lista de formatos que se rev
 | Horário (Brasília) | Modo | Objetivo | Formatos que se revezam |
 |---|---|---|---|
 | 09h20 | `manha` | Útil, para **salvar** | Jogo bom por menos de R$ X · Antes de você comprar · Promoção |
-| 12h50 | `entretenimento` | Opinião, para **comentar** | Meme da comunidade · Este ou aquele · Resultado do este ou aquele · Crítica × comunidade · Superestimado ou subestimado? · Zerou ou largou? · Top 5 por gênero |
-| 18h50 | `diario` | Comunidade e notícia (**o Reels do dia sai aqui**) | Notícias em carrossel · Opinião da comunidade · Top 5 por gênero |
+| 12h50 | `entretenimento` | **Meme todo dia** (é o que mais traz e segura gente) | Meme da comunidade aprovado no admin; sem ele, **meme automático** |
+| 18h50 | `diario` | Notícia, opinião e comentário (**o Reels do dia sai aqui**) | Notícias em carrossel · Opinião da comunidade · Este ou aquele · Zerou ou largou? · Crítica × comunidade · Superestimado? · Resultado do este ou aquele · Top 5 por gênero |
 | Botão **📸 Postar agora** | `urgente` | Notícia urgente | Carrossel com a etiqueta vermelha "URGENTE" |
 
 **Horários reserva:** o GitHub às vezes atrasa ou pula um agendamento. Por isso cada horário tem uma reserva 40 minutos depois (10h00, 13h30 e 19h30).
@@ -29,6 +29,10 @@ Quase todos saem em **carrossel**, como as notícias: uma capa, os itens e, no f
   - uma avaliação pública, quando houver.
   - O site **não tem** tempo de jogo nem compatibilidade com o Steam Deck, então isso **não aparece**.
 - **Promoção:** os maiores descontos de jogos conhecidos, com preço riscado.
+- **Meme automático:** piadas **originais** do Control Critic, escritas para a marca, com o Adelino. Nada é copiado da internet.
+  - São 34 piadas em `scripts/instagram/memes.mjs`, e nenhuma se repete por 30 dias. Para acrescentar mais, é só seguir o formato do arquivo.
+  - Algumas usam dados reais do dia: a promoção do dia ("A Steam: {jogo} por {preço}") ou um jogo popular com a nota da crítica.
+  - Dois layouts que alternam por dia: o clássico (texto em cima, Adelino, resposta embaixo) e o de tirinha (dois painéis).
 - **Meme da comunidade:** até 3 memes aprovados no admin, com o **nome do autor no site** na arte e na legenda. Não usa @, porque o nome no site não é o @ do Instagram.
 - **Este ou aquele:** dois jogos do catálogo, com as capas do catálogo. A legenda pede o voto: "comenta A ou B".
 - **Resultado do este ou aquele:** um dia depois, conta os comentários "A" e "B" do post anterior e mostra o resultado.

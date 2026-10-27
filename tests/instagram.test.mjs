@@ -42,13 +42,14 @@ test('rotação: nunca repete o tipo anterior', () => {
 test('rotação: o formato há mais tempo sem sair naquele horário vai primeiro', () => {
   const hist = [h('noticias', 'noite', 24), h('opiniao', 'noite', 48), h('meme', 'meio', 20)];
   const { ordem } = ordemDeFormatos('noite', hist);
-  assert.equal(ordem[0], 'top-genero');   // nunca saiu à noite
+  assert.ok(!['noticias', 'opiniao'].includes(ordem[0]));   // um que nunca saiu à noite vai primeiro
   assert.ok(ordem.indexOf('opiniao') < ordem.indexOf('noticias'));
 });
 
 test('rotação: formato que salva 1,5x mais passa na frente (com 3+ medições)', () => {
-  const hist = [h('meme', 'meio', 2), ...[30, 54, 78].map((x) => h('zerou-largou', 'meio', x, { salvamentos: 30 })), ...[40, 64, 90].map((x) => h('versus', 'meio', x, { salvamentos: 5 }))];
-  assert.equal(ordemDeFormatos('meio', hist).ordem[0], 'zerou-largou');
+  const hist = [h('meme', 'meio', 2), ...[30, 54, 78].map((x) => h('zerou-largou', 'noite', x, { salvamentos: 30 })), ...[40, 64, 90].map((x) => h('versus', 'noite', x, { salvamentos: 5 })),
+    ...['noticias', 'opiniao', 'critica-comunidade', 'superestimado', 'versus-resultado', 'top-genero'].map((t, i) => h(t, 'noite', 20 + i))];
+  assert.equal(ordemDeFormatos('noite', hist).ordem[0], 'zerou-largou');
 });
 
 test('rotação: posts com erro não contam como "anterior"', () => {
@@ -77,7 +78,7 @@ test('votos do versus: só conta A ou B no começo do comentário', () => {
 
 test('rotação: sem histórico, o primeiro formato muda a cada dia', () => {
   const dia = 864e5, base = Date.UTC(2026, 9, 26, 15);
-  const primeiros = [0, 1, 2].map((i) => ordemDeFormatos('meio', [], base + i * dia).ordem[0]);
+  const primeiros = [0, 1, 2].map((i) => ordemDeFormatos('noite', [], base + i * dia).ordem[0]);
   assert.equal(new Set(primeiros).size, 3);
 });
 
@@ -88,4 +89,24 @@ test('notícia sem jogo ligado: acha o jogo citado no título (o nome mais longo
   assert.equal(acharJogo('Novo patch de Elden Ring corrige bugs', jogos)?.id, 1);
   assert.equal(acharJogo('Original da Nintendo volta', jogos), null);   // "Ori" curto não confunde
   assert.equal(acharJogo('Mercado de games cresce', jogos), null);
+});
+
+test('meio-dia: meme todo dia (o da comunidade na frente; sem ele, o automático)', () => {
+  assert.deepEqual(ordemDeFormatos('meio', [h('meme-auto', 'meio', 24), h('noticias', 'noite', 18)]).ordem.slice(0, 2), ['meme', 'meme-auto']);
+  assert.deepEqual(ordemDeFormatos('meio', []).ordem.slice(0, 2), ['meme', 'meme-auto']);
+});
+
+test('memes automáticos: originais, sem repetir e só com os dados de que precisam', async () => {
+  const { MEMES, escolherMeme, preencher } = await import('../scripts/instagram/memes.mjs');
+  assert.ok(MEMES.length >= 30);
+  assert.equal(new Set(MEMES.map((m) => m.id)).size, MEMES.length);
+  for (const m of MEMES) for (const t of [m.topo, m.baixo]) for (const [, k] of t.matchAll(/\{(\w+)\}/g)) assert.ok(m.usa, `${m.id} usa {${k}} sem dizer de onde vem`);
+  assert.equal(preencher('A {loja}: {jogo}', { jogo: 'Hades' }), null);   // falta dado: não serve
+  const semDados = escolherMeme({ dados: {} });
+  assert.ok(!semDados.m.usa);
+  const todos = new Set(MEMES.filter((m) => !m.usa).map((m) => m.id));
+  todos.delete('backlog');
+  assert.equal(escolherMeme({ usados: todos, dados: {} }).m.id, 'backlog');
+  const p = escolherMeme({ usados: new Set(MEMES.filter((m) => m.id !== 'nao-compro-mais').map((m) => m.id)), dados: { promo: { jogo: 'Hades', preco: 'R$ 9,90', loja: 'Steam', desconto: 75 } } });
+  assert.equal(p.baixo, 'A Steam: Hades por R$ 9,90');
 });
