@@ -12,3 +12,7 @@ e a conta pode levar advertência por direitos autorais.
 
 Dicas: faixas de 30 s a 2 min, sem voz (instrumental), energia média/alta. Nomes simples, ex.: `lofi-1.mp3`, `eletronica-2.mp3`.
 Para desligar os Reels sem apagar as músicas, crie a variável `REELS` = `0` no workflow.
+
+**E a biblioteca de músicas do próprio Instagram?** A licença do Instagram vale só para quem escolhe a música **dentro do app**.
+A API que o robô usa não dá acesso a essa biblioteca: não existe como pedir "coloque a música X" num post feito pelo robô.
+Quem quiser música da biblioteca do Instagram precisa montar o Reels à mão no app (dá para baixar as artes do robô e usar lá).
