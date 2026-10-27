@@ -22,7 +22,10 @@ jobs:
           node-version: 22
       - run: npm ci
       - name: Sintaxe do JavaScript
-        run: for f in js/*.js scripts/*.mjs scripts/instagram/*.mjs lib/*.mjs netlify/functions/*.mjs ponte-discord/ponte.mjs sw.js; do node --check "$f" || exit 1; done
+        run: for f in js/*.js scripts/*.mjs scripts/instagram/*.mjs lib/*.mjs netlify/functions/*.mjs ponte-discord/*.mjs sw.js; do node --check "$f" || exit 1; done
+      # O mesmo "npm ci" do Docker da ponte: uma atualização que quebre a instalação do robô para aqui, antes do merge
+      - name: Instalação do robô do Discord
+        run: cd ponte-discord && npm ci --omit=dev --no-audit --no-fund
       - name: Testes das funções
         run: node --test tests/*.test.mjs
       - name: Validação do HTML
