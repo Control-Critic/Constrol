@@ -9,6 +9,11 @@ São **3 posts por dia**, e cada horário tem uma **lista de formatos que se rev
 | 18h50 | `diario` | Notícia, opinião e comentário | Notícias em carrossel · Opinião da comunidade · Este ou aquele · Zerou ou largou? · Crítica × comunidade · Superestimado? · Resultado do este ou aquele · Top 5 por gênero |
 | Botão **📸 Postar agora** | `urgente` | Notícia urgente | Carrossel com a etiqueta vermelha "URGENTE" |
 
+**Relógio pontual (Netlify):** o agendamento do GitHub Actions atrasa horas, ou pula, em repositórios gratuitos. Por isso quem dispara o robô é a função agendada `netlify/functions/agendar-instagram.mjs`, que é pontual.
+- Ela dispara às 09h20, 12h50 e 18h50, e de novo 30 minutos depois de cada um, como reserva. Sempre com "só se faltar", então nunca publica duas vezes.
+- Usa o mesmo `GITHUB_DISPARO_TOKEN` do botão "Postar agora" (passo 5 abaixo). **Sem esse token, o robô fica só com o relógio do GitHub, que atrasa.**
+- Os agendamentos do GitHub continuam como reserva extra.
+
 **Horários reserva:** o GitHub às vezes atrasa ou pula um agendamento. Por isso cada horário tem uma reserva 40 minutos depois (10h00, 13h30 e 19h30).
 - A reserva só publica se aquele horário ainda não saiu no dia.
 - O agendamento principal, se rodar atrasado, também confere antes, então nunca sai post repetido.

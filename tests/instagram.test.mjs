@@ -135,3 +135,15 @@ test('música dos Reels: WAV válido, com som, sem distorção e diferente a cad
   assert.ok(!a.wav.equals(b.wav));
   assert.ok(comporMusica({ segundos: 2, semente: 7 }).wav.equals(comporMusica({ segundos: 2, semente: 7 }).wav));   // mesma semente, mesma música
 });
+
+test('relógio da Netlify: dispara no horário certo e ignora o resto', async () => {
+  const { modoDaHora } = await import('../netlify/functions/agendar-instagram.mjs');
+  const em = (h, m) => new Date(Date.UTC(2026, 9, 27, h, m, 5));
+  assert.equal(modoDaHora(em(12, 20)), 'manha');         // 09h20 de Brasília
+  assert.equal(modoDaHora(em(12, 21)), 'manha');         // pequeno atraso da Netlify
+  assert.equal(modoDaHora(em(15, 50)), 'entretenimento');
+  assert.equal(modoDaHora(em(21, 50)), 'diario');
+  assert.equal(modoDaHora(em(22, 20)), 'diario');        // reserva
+  assert.equal(modoDaHora(em(13, 20)), null);
+  assert.equal(modoDaHora(em(3, 50)), null);
+});
