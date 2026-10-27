@@ -3,8 +3,8 @@
 
 export const HORARIOS = {
   manha: ['precos', 'antes-de-comprar', 'promo'],                       // útil, para salvar
-  meio: ['meme', 'versus', 'critica-comunidade', 'superestimado', 'zerou-largou', 'versus-resultado', 'top-genero'], // opinião e comentário
-  noite: ['noticias', 'opiniao', 'top-genero'],                          // comunidade, notícia em carrossel (ou Reels)
+  meio: ['meme', 'meme-auto'],                                           // meme todo dia: é o que mais traz e segura gente
+  noite: ['noticias', 'opiniao', 'versus', 'zerou-largou', 'critica-comunidade', 'superestimado', 'versus-resultado', 'top-genero'], // notícia, opinião e comentário (ou Reels)
 };
 // O modo do workflow continua o mesmo de antes
 export const HORARIO_DO_MODO = { manha: 'manha', entretenimento: 'meio', diario: 'noite' };
@@ -27,7 +27,8 @@ export function ordemDeFormatos(horario, historico = [], agora = Date.now()) {
   const base = media(doHorario);
   const destaque = (t) => { const l = medidos.filter((h) => h.tipo === t); return l.length >= 3 && base > 0 && media(l) >= 1.5 * base; };
 
-  const ordenados = lista.map((t, i) => ({ t, i })).sort((a, b) =>
+  const primeiro = (t) => (t === 'meme' ? 1 : 0);   // meme aprovado da comunidade nunca espera a vez
+  const ordenados = lista.map((t, i) => ({ t, i })).sort((a, b) => (primeiro(b.t) - primeiro(a.t)) ||
     (destaque(b.t) - destaque(a.t)) || (ultimo(a.t) - ultimo(b.t)) || (a.i - b.i)).map((x) => x.t);
   // nunca repete o tipo do post anterior; ele só volta como último recurso de outro horário
   const principal = ordenados.filter((t) => t !== anterior);

@@ -39,7 +39,7 @@ function quebrar(texto, tamanho, larguraMax, fator = 0.5) {
   return linhas;
 }
 // Escolhe o maior tamanho de título que cabe em no máximo `maxLinhas`
-function ajustarTitulo(texto, larguraMax, maxLinhas, tamanhos = [104, 92, 82, 72, 64, 56]) {
+export function ajustarTitulo(texto, larguraMax, maxLinhas, tamanhos = [104, 92, 82, 72, 64, 56]) {
   const t = String(texto).toUpperCase();
   for (const tam of tamanhos) { const l = quebrar(t, tam, larguraMax); if (l.length <= maxLinhas) return { tam, linhas: l }; }
   const tam = tamanhos.at(-1), l = quebrar(t, tam, larguraMax);
@@ -371,5 +371,46 @@ export async function arteResultado({ a, b, va, vb }) {
     ${etiqueta('RESULTADO')}
     <text x="${W / 2}" y="270" text-anchor="middle" font-family="Anton" font-size="84" fill="#FFFFFF">VOCÊS <tspan fill="${AMARELO}">ESCOLHERAM</tspan></text>
     ${lado(ia, a, 80, pa, va, va >= vb, 'ra')}${lado(ib, b, W - 480, pb, vb, vb > va, 'rb')}`;
+  return renderizar(base(conteudo, null));
+}
+
+// Meme original do Control Critic: texto em cima, o Adelino (com a skin do tema) no meio, a "resposta" embaixo.
+// Quando o meme fala de um jogo, a capa do catálogo aparece ao lado do Adelino.
+export async function arteMemeAuto({ topo, baixo, skin = 'meme', capaUrl = null, layout = 0 }) {
+  if (layout === 1) return memePaineis({ topo, baixo, skin, capaUrl });
+  const img = capaUrl ? await capa(capaUrl, 300, 400) : null;
+  const t1 = titulo(topo, W / 2, 170, W - 112, 3, [76, 66, 58, 50], '#FFFFFF', 'middle');
+  const t2 = ajustarTitulo(baixo, W - 112, 3, [80, 70, 60, 52]);
+  const yBaixo = H - 120 - t2.linhas.length * t2.tam * 1.08;
+  const yMeio = 200 + t1.altura + 20, altMeio = Math.max(260, yBaixo - yMeio - 40);
+  const meio = img
+    ? `${cartaoCapa(img, 90, yMeio + (altMeio - 400) / 2, 300, 400, 'cmm')}<image href="${mascote(skin, 'meme')}" x="430" y="${yMeio}" width="560" height="${altMeio}" preserveAspectRatio="xMidYMid meet"/>`
+    : `<image href="${mascote(skin, 'meme')}" x="${(W - 700) / 2}" y="${yMeio}" width="700" height="${altMeio}" preserveAspectRatio="xMidYMid meet"/>`;
+  const conteudo = `
+    ${etiqueta('MEME')}
+    ${t1.svg}
+    ${meio}
+    <rect x="56" y="${yBaixo - 30}" width="${W - 112}" height="6" rx="3" fill="${AMARELO}" opacity="0.6"/>
+    ${t2.linhas.map((l, i) => `<text x="${W / 2}" y="${yBaixo + t2.tam * (i + 0.9) * 1.08}" text-anchor="middle" font-family="Anton" font-size="${t2.tam}" fill="${AMARELO}">${esc(l)}</text>`).join('')}`;
+  return renderizar(base(conteudo, null));
+}
+
+// Segundo layout (para o feed não ter sempre a mesma cara): dois painéis empilhados, cada um com um Adelino
+// diferente, como as tirinhas "antes / depois"
+async function memePaineis({ topo, baixo, skin, capaUrl }) {
+  const img = capaUrl ? await capa(capaUrl, 210, 280) : null;
+  const painel = (y, texto, sk, cor, fundoCor) => {
+    const t = ajustarTitulo(texto, 560, 4, [64, 56, 48, 42]);
+    const alt = t.linhas.length * t.tam * 1.1, y0 = y + (500 - alt) / 2;
+    return `<rect x="40" y="${y}" width="${W - 80}" height="500" rx="26" fill="${fundoCor}" stroke="#2c2c34"/>
+      <image href="${mascote(sk, 'meme')}" x="60" y="${y + 40}" width="380" height="420" preserveAspectRatio="xMidYMid meet"/>
+      ${t.linhas.map((l, i) => `<text x="${W - 80}" y="${y0 + t.tam * (i + 0.9) * 1.1}" text-anchor="end" font-family="Anton" font-size="${t.tam}" fill="${cor}">${esc(l)}</text>`).join('')}`;
+  };
+  const outra = ['meme', 'enquete', 'urgente', 'luta', 'fps', 'rpg'].find((x) => x !== skin);
+  const conteudo = `
+    ${etiqueta('MEME')}
+    ${painel(170, topo, outra, '#FFFFFF', '#141418')}
+    ${painel(700, baixo, skin, AMARELO, '#1d1a0e')}
+    ${img ? cartaoCapa(img, W - 290, 1000 - 140, 210, 280, 'cmp') : ''}`;
   return renderizar(base(conteudo, null));
 }
