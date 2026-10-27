@@ -42,9 +42,10 @@ export function usadosRecentes(historico, agora = Date.now(), horas = 48) {
   return { jogos: new Set(rec.flatMap((h) => h.game_ids || [])), noticias: new Set(rec.flatMap((h) => h.news_ids || [])) };
 }
 
-// Reels: no máximo 1 por dia (dia de Brasília), só no horário da noite
-export function podeReels(horario, historico, agora = Date.now()) {
-  if (horario !== 'noite') return false;
+// Reels: no máximo 1 por dia (dia de Brasília). É o meme do meio-dia: meme em vídeo é o que mais alcança quem não segue.
+export const TIPOS_REELS = ['meme', 'meme-auto'];
+export function podeReels(horario, historico, agora = Date.now(), tipo = null) {
+  if (horario !== 'meio' || (tipo && !TIPOS_REELS.includes(tipo))) return false;
   const dia = (d) => new Date(d).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   return !historico.some((h) => ok(h) && h.formato === 'reels' && dia(h.created_at) === dia(agora));
 }

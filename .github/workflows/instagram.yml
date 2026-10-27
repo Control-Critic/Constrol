@@ -50,8 +50,12 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       - run: npm ci --omit=dev
-      - name: ffmpeg (para os Reels com música)
-        run: which ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+      # ffmpeg monta o Reels (a trilha é composta pelo robô). Com limite de tempo: se o apt travar,
+      # o robô segue e publica em carrossel em vez de ficar parado.
+      - name: ffmpeg (para os Reels)
+        timeout-minutes: 4
+        continue-on-error: true
+        run: which ffmpeg || (sudo timeout 180 apt-get update -qq && sudo timeout 180 apt-get install -y -qq --no-install-recommends ffmpeg)
       - run: node scripts/instagram/publicar.mjs "${{ inputs.modo || ((github.event.schedule == '20 12 * * *' || github.event.schedule == '0 13 * * *') && 'manha') || ((github.event.schedule == '50 15 * * *' || github.event.schedule == '30 16 * * *') && 'entretenimento') || 'diario' }}" "${{ inputs.noticia }}"
         env:
           TESTE: ${{ inputs.teste && '1' || '' }}

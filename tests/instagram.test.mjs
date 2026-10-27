@@ -61,10 +61,11 @@ test('48 h sem repetir jogo e notícia', () => {
   assert.ok(u.jogos.has(1) && !u.jogos.has(3) && !u.noticias.has(9));
 });
 
-test('Reels: no máximo 1 por dia e só à noite', () => {
-  assert.equal(podeReels('manha', []), false);
-  assert.equal(podeReels('noite', []), true);
-  assert.equal(podeReels('noite', [h('noticias', 'noite', 0.1, { formato: 'reels' })]), false);
+test('Reels: no máximo 1 por dia, e é o meme do meio-dia', () => {
+  assert.equal(podeReels('noite', [], Date.now(), 'noticias'), false);
+  assert.equal(podeReels('meio', [], Date.now(), 'meme-auto'), true);
+  assert.equal(podeReels('meio', [], Date.now(), 'meme'), true);
+  assert.equal(podeReels('meio', [h('meme-auto', 'meio', 0.1, { formato: 'reels' })], Date.now(), 'meme'), false);
 });
 
 test('todos os formatos da rotação existem', async () => {
@@ -120,4 +121,17 @@ test('memes: todo texto cabe inteiro nos dois layouts (nada cortado com "…")',
     for (const [larg, linhas, tams] of [[968, 3, [76, 66, 58, 50]], [968, 3, [80, 70, 60, 52]], [560, 4, [64, 56, 48, 42]]])
       assert.ok(!ajustarTitulo(texto, larg, linhas, tams).linhas.join(' ').endsWith('…'), `${m.id}: "${texto}" não cabe`);
   }
+});
+
+test('música dos Reels: WAV válido, com som, sem distorção e diferente a cada semente', async () => {
+  const { comporMusica } = await import('../scripts/instagram/musica.mjs');
+  const a = comporMusica({ segundos: 6, semente: 7 }), b = comporMusica({ segundos: 6, semente: 8 });
+  assert.equal(a.wav.toString('ascii', 0, 4), 'RIFF');
+  assert.equal(a.wav.length, 44 + 6 * 44100 * 4);
+  let soma = 0, pico = 0;
+  for (let i = 44; i < a.wav.length; i += 2) { const v = a.wav.readInt16LE(i); soma += v * v; pico = Math.max(pico, Math.abs(v)); }
+  assert.ok(Math.sqrt(soma / ((a.wav.length - 44) / 2)) > 1000, 'muito baixa');
+  assert.ok(pico < 32767, 'distorcida');
+  assert.ok(!a.wav.equals(b.wav));
+  assert.ok(comporMusica({ segundos: 2, semente: 7 }).wav.equals(comporMusica({ segundos: 2, semente: 7 }).wav));   // mesma semente, mesma música
 });

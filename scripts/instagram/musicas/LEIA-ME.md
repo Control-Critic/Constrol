@@ -1,5 +1,11 @@
 # Músicas dos Reels
 
+**Esta pasta é opcional.** Sem nenhuma música aqui, o robô **compõe uma trilha original** para cada Reels, no estilo chiptune (8-bit, som de videogame), pelo `scripts/instagram/musica.mjs`.
+- Cada Reels sai com uma música diferente: andamento, tom, acordes, melodia e bateria mudam.
+- Como a música é criada pelo próprio robô, ela não tem direito autoral de terceiros.
+
+Se você colocar arquivos **.mp3** aqui, o robô passa a sortear entre eles em vez de compor.
+
 Coloque aqui arquivos **.mp3** com **licença livre para uso comercial em redes sociais**. O robô sorteia uma por Reels.
 Sem nenhuma música aqui, o resumo do dia continua saindo como carrossel (sem Reels).
 
@@ -12,3 +18,7 @@ e a conta pode levar advertência por direitos autorais.
 
 Dicas: faixas de 30 s a 2 min, sem voz (instrumental), energia média/alta. Nomes simples, ex.: `lofi-1.mp3`, `eletronica-2.mp3`.
 Para desligar os Reels sem apagar as músicas, crie a variável `REELS` = `0` no workflow.
+
+**E a biblioteca de músicas do próprio Instagram?** A licença do Instagram vale só para quem escolhe a música **dentro do app**.
+A API que o robô usa não dá acesso a essa biblioteca: não existe como pedir "coloque a música X" num post feito pelo robô.
+Quem quiser música da biblioteca do Instagram precisa montar o Reels à mão no app (dá para baixar as artes do robô e usar lá).
