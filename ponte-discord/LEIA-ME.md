@@ -36,6 +36,12 @@ O mesmo robô também leva o site para dentro do servidor. Assim a galera usa o 
 | `/avisos` | (Só quem pode **Gerenciar servidor**.) Escolhe o canal de avisos e o que vai nele: promoção do dia (10h), enquete do dia (19h), ranking (segunda, 12h) e "ao vivo". |
 | `/site` | Mostra o que é o Control Critic e a lista de comandos. |
 
+**🔊 Call do site:** quando alguém entra na call de uma comunidade no site, o robô avisa no canal de avisos com o botão **🔊 Entrar na call**.
+- A mensagem é atualizada com quem está na call e vira "a call terminou" quando todos saem.
+- Precisa do **ID do servidor do Discord** preenchido na comunidade (em **Configurar**) e da opção "ao vivo" ligada no `/avisos`.
+- O robô só observa: ele não entra na call nem aparece para quem está nela.
+- Depois que uma call termina, ele espera 10 minutos antes de avisar de novo, para não encher o canal.
+
 **🔴 Ao vivo:** quando alguém liga a transmissão (**Go Live**) numa call do servidor, o robô faz o seguinte:
 - Posta no canal de avisos uma mensagem com o botão **▶️ Assistir no Discord**. O link abre direto o canal de voz, e lá é só clicar na transmissão.
 - No site, mostra a mesma faixa 🔴 no topo da comunidade e no início do site, para comunidades com o **ID do servidor** preenchido.
