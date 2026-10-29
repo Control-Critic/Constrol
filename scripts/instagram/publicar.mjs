@@ -85,6 +85,13 @@ async function ig(caminho, params, token, metodo = 'POST') {
 // Limite de publicação ou de chamadas: registra e pula, sem quebrar o robô
 const ehLimite = (e) => [4, 9, 17, 32, 613].includes(e?.codigo) || e?.sub === 2207042 || /limit|limite|too many/i.test(e?.message || '');
 class LimiteAtingido extends Error {}
+// Conta restrita pelo Instagram: insistir pode piorar. O robô pausa 24 h e avisa (o motivo aparece no app do Instagram)
+const ehRestricao = (e) => /restricted|restrit|blocked|bloquead|checkpoint|suspended/i.test(e?.message || '') || e?.codigo === 10;
+async function pausar(motivo) {
+  const ate = new Date(Date.now() + 24 * 3600e3).toISOString();
+  await api('settings?on_conflict=key', { method: 'POST', prefer: 'resolution=merge-duplicates', body: [{ key: 'instagram_pausa', value: { ate, motivo: String(motivo).slice(0, 300) } }] }).catch(() => {});
+  return ate;
+}
 async function conferirCota(token) {
   try {
     const d = await ig(`${env('IG_USER_ID')}/content_publishing_limit`, { fields: 'quota_usage,config' }, token, 'GET');
@@ -247,6 +254,12 @@ async function executar(conteudo, horario, hist) {
     aviso(`Instagram: ${conteudo.tipo} publicado como ${formato} ${r.url || ''}`);
     return true;
   } catch (e) {
+    if (ehRestricao(e)) {
+      await registrarPost({ ...base, erro: `restrição: ${e.message}`.slice(0, 500) });
+      const ate = await pausar(e.message);
+      aviso(`Instagram: a conta está RESTRITA pelo Instagram (${e.message}). O robô pausou até ${new Date(ate).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} para não piorar. Veja "Status da conta" no app do Instagram.`);
+      return true;
+    }
     if (e instanceof LimiteAtingido || ehLimite(e)) {
       await registrarPost({ ...base, erro: `limite: ${e.message}`.slice(0, 500) });
       aviso(`Instagram: limite da API atingido. Post pulado e registrado (${e.message}).`);
@@ -270,6 +283,15 @@ function contexto(hist, { ignorarRepetidos = false } = {}) {
 
 // ---------- Modos ----------
 const hist = await historico();
+
+// Pausa depois de uma restrição da conta (TESTE e "urgente" pelo botão não são afetados)
+if (!TESTE && MODO !== 'urgente') {
+  const pausa = (await api('settings?key=eq.instagram_pausa&select=value').catch(() => []))[0]?.value;
+  if (pausa?.ate && new Date(pausa.ate) > new Date()) {
+    aviso(`Instagram: robô pausado até ${new Date(pausa.ate).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (${pausa.motivo}). Para voltar antes, apague a configuração "instagram_pausa" ou rode com "urgente".`);
+    process.exit(0);
+  }
+}
 
 // Execuções agendadas (SO_SE_FALTAR=1): o GitHub às vezes atrasa ou pula um agendamento, então cada horário tem um
 // reserva 40 min depois. Os dois só publicam se aquele horário ainda não saiu hoje (nunca publica duas vezes).
